@@ -1,4 +1,4 @@
-﻿using RepoDb.Interfaces;
+﻿using RepoDb.Extensions;
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -6,7 +6,7 @@ using System.Linq;
 namespace RepoDb
 {
     /// <summary>
-    /// A class used to cache the primary property of the entity.
+    /// A class that is used to cache the primary property of the data entity.
     /// </summary>
     public static class PrimaryCache
     {
@@ -17,7 +17,7 @@ namespace RepoDb
         /// <summary>
         /// Gets the cached primary property of the data entity.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the target entity.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <returns>The cached primary property.</returns>
         public static ClassProperty Get<TEntity>()
             where TEntity : class
@@ -28,19 +28,19 @@ namespace RepoDb
         /// <summary>
         /// Gets the cached primary property of the data entity.
         /// </summary>
-        /// <param name="type">The type of the target entity.</param>
+        /// <param name="entityType">The type of the data entity.</param>
         /// <returns>The cached primary property.</returns>
-        public static ClassProperty Get(Type type)
+        public static ClassProperty Get(Type entityType)
         {
             // Variables for the cache
             var property = (ClassProperty)null;
-            var key = type.FullName.GetHashCode();
+            var key = GenerateHashCode(entityType);
 
             // Try get the value
             if (m_cache.TryGetValue(key, out property) == false)
             {
                 // Get all with IsPrimary() flags
-                var properties = PropertyCache.Get(type).Where(p => p.IsPrimary() == true);
+                var properties = PropertyCache.Get(entityType).Where(p => p.IsPrimary() == true);
 
                 // Check if there is forced [Primary] attribute
                 property = properties.FirstOrDefault(p => p.GetPrimaryAttribute() != null);
@@ -69,6 +69,16 @@ namespace RepoDb
         public static void Flush()
         {
             m_cache.Clear();
+        }
+
+        /// <summary>
+        /// Generates a hashcode for caching.
+        /// </summary>
+        /// <param name="type">The type of the data entity.</param>
+        /// <returns>The generated hashcode.</returns>
+        private static int GenerateHashCode(Type type)
+        {
+            return TypeExtension.GenerateHashCode(type);
         }
 
         #endregion

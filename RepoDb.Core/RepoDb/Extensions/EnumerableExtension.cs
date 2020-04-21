@@ -42,26 +42,28 @@ namespace RepoDb.Extensions
             int sizePerSplit)
         {
             var itemCount = value.Count();
-            if (itemCount < sizePerSplit)
+            if (itemCount <= sizePerSplit)
             {
-                yield return value;
+                return new[] { value };
             }
             else
             {
-                var batchCount = Convert.ToInt32(itemCount / sizePerSplit) + (itemCount % sizePerSplit);
+                var batchCount = Convert.ToInt32(itemCount / sizePerSplit) + ((itemCount % sizePerSplit) != 0 ? 1 : 0);
+                var array = new IEnumerable<T>[batchCount];
                 for (var i = 0; i < batchCount; i++)
                 {
-                    yield return Enumerable.Where(value, (item, index) =>
+                    array[i] = Enumerable.Where(value, (item, index) =>
                     {
-                        return index >= (sizePerSplit * i) && 
+                        return index >= (sizePerSplit * i) &&
                             index < (sizePerSplit * i) + sizePerSplit;
-                    });
+                    }).AsList();
                 }
+                return array;
             }
         }
 
         /// <summary>
-        /// Converts the <see cref="IEnumerable{T}"/> object into a <see cref="IList{T}"/> of objects.
+        /// Converts the <see cref="IEnumerable{T}"/> object into a <see cref="IList{T}"/> object.
         /// </summary>
         /// <typeparam name="T">The target dynamic type of the enumerable.</typeparam>
         /// <param name="value">The actual enumerable instance.</param>

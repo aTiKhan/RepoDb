@@ -21,6 +21,72 @@ namespace RepoDb.Reflection
     /// </summary>
     internal static class FunctionFactory
     {
+        #region SubClasses
+
+        /// <summary>
+        /// A helper class for type enum.
+        /// </summary>
+        private class EnumHelper
+        {
+            /// <summary>
+            /// Parses the string value to a desired enum. It uses the method <see cref="Enum.Parse(Type, string)"/> underneath.
+            /// </summary>
+            /// <param name="enumType">The type of enum.</param>
+            /// <param name="value">The value to parse.</param>
+            /// <param name="ignoreCase">The case sensitivity of the parse operation.</param>
+            /// <returns>The enum value.</returns>
+            public static object Parse(Type enumType,
+                string value,
+                bool ignoreCase)
+            {
+                if (!string.IsNullOrEmpty(value))
+                {
+                    return Enum.Parse(enumType?.GetUnderlyingType(), value, ignoreCase);
+                }
+                if (enumType.IsNullable())
+                {
+                    var nullable = typeof(Nullable<>).MakeGenericType(new[] { enumType });
+                    return Activator.CreateInstance(nullable);
+                }
+                else
+                {
+                    return Activator.CreateInstance(enumType);
+                }
+            }
+
+
+            /// <summary>
+            /// Converts the value using the desired convert method (of type <see cref="MethodInfo"/>). If not given, it will use the <see cref="Convert"/> class.
+            /// </summary>
+            /// <param name="sourceType">The source type.</param>
+            /// <param name="targetType">The target type.</param>
+            /// <param name="value">The value to parse.</param>
+            /// <param name="converterMethod">The converter method to be checked and used.</param>
+            /// <returns>The converted value value.</returns>
+            public static object Convert(Type sourceType,
+                Type targetType,
+                object value,
+                MethodInfo converterMethod)
+            {
+                if (value == null)
+                {
+                    return sourceType.IsNullable() ? null :
+                        targetType.IsValueType ? Activator.CreateInstance(targetType) : null;
+                }
+                if (converterMethod != null)
+                {
+                    return converterMethod.Invoke(null, new[] { value });
+                }
+                else
+                {
+                    return Converter.DbNullToNull(value) == null ? Activator.CreateInstance(targetType) :
+                        System.Convert.ChangeType(value, targetType);
+                }
+            }
+        }
+
+        #endregion
+
         #region GetDataReaderToDataEntityConverterFunction
 
         /// <summary>
@@ -94,21 +160,24 @@ namespace RepoDb.Reflection
             var typeOfDateTime = typeof(DateTime);
             var typeOfTimeSpan = typeof(TimeSpan);
             var typeOfSingle = typeof(Single);
-            var isDefaultConversion = TypeMapper.ConversionType == ConversionType.Default;
             var properties = PropertyCache.Get<TEntity>().Where(property => property.PropertyInfo.CanWrite);
             var fieldNames = readerFields.Select(f => f.Name.ToLower()).AsList();
             var dbSetting = connection?.GetDbSetting();
 
             // Filter the properties by reader fields
+            foreach(var p in properties)
+            {
+                var mappedName = p.GetMappedName().AsUnquoted(true, dbSetting);
+            }
             properties = properties.Where(property =>
                 fieldNames.FirstOrDefault(field =>
                     string.Equals(field.AsUnquoted(true, dbSetting), property.GetMappedName().AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase)) != null);
 
             // Iterate each properties
-            foreach (var property in properties)
+            foreach (var classProperty in properties)
             {
                 // Gets the mapped name and the ordinal
-                var mappedName = property.GetMappedName().AsUnquoted(true, dbSetting);
+                var mappedName = classProperty.GetMappedName().AsUnquoted(true, dbSetting);
                 var ordinal = fieldNames.IndexOf(mappedName.ToLower());
 
                 // Process only if there is a correct ordinal
@@ -116,12 +185,14 @@ namespace RepoDb.Reflection
                 {
                     // Variables needed for the iteration
                     var readerField = readerFields.First(f => string.Equals(f.Name.AsUnquoted(true, dbSetting), mappedName.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase));
-                    var underlyingType = Nullable.GetUnderlyingType(property.PropertyInfo.PropertyType);
-                    var propertyType = underlyingType ?? property.PropertyInfo.PropertyType;
+                    var propertyType = classProperty.PropertyInfo.PropertyType;
+                    var underlyingType = Nullable.GetUnderlyingType(propertyType);
+                    var targetType = underlyingType ?? propertyType;
                     var convertType = readerField.Type;
-                    var isConversionNeeded = readerField.Type != propertyType;
+                    var isDefaultConversion = (Converter.ConversionType == ConversionType.Default);
+                    var isConversionNeeded = readerField.Type != targetType;
                     var isNullable = readerField.DbField == null || readerField.DbField?.IsNullable == true;
-                    var propertyHandlerAttribute = property.PropertyInfo.GetCustomAttribute<PropertyHandlerAttribute>();
+                    var propertyHandlerAttribute = classProperty.PropertyInfo.GetCustomAttribute<PropertyHandlerAttribute>();
                     var handlerInstance = (object)null;
                     var handlerGetMethod = (MethodInfo)null;
                     var getParameter = (ParameterInfo)null;
@@ -135,7 +206,7 @@ namespace RepoDb.Reflection
                     if (propertyHandlerAttribute != null)
                     {
                         // Get from the attribute
-                        handlerInstance = PropertyHandlerInstanceCache.Get(propertyHandlerAttribute.HandlerType);
+                        handlerInstance = PropertyHandlerCache.Get<TEntity, object>(classProperty.PropertyInfo);
                         handlerGetMethod = propertyHandlerAttribute.HandlerType.GetMethod("Get");
                     }
                     else
@@ -143,7 +214,7 @@ namespace RepoDb.Reflection
                         // Get from the type level mappings (DB type)
                         if (readerField.Type != null)
                         {
-                            handlerInstance = PropertyTypeHandlerMapper.Get<object>(readerField.Type.GetUnderlyingType());
+                            handlerInstance = PropertyHandlerMapper.Get<object>(readerField.Type.GetUnderlyingType());
                             if (handlerInstance != null)
                             {
                                 handlerGetMethod = handlerInstance.GetType().GetMethod("Get");
@@ -159,8 +230,14 @@ namespace RepoDb.Reflection
 
                     #endregion
 
+                    // Make sure the conversion is default if there is property handler
+                    if (isDefaultConversion == false)
+                    {
+                        isDefaultConversion = (handlerInstance != null);
+                    }
+
                     // Ignore for the TimeSpan
-                    if (propertyType != typeOfTimeSpan)
+                    if (targetType != typeOfTimeSpan)
                     {
                         readerGetValueMethod = typeOfDbDataReader.GetMethod(string.Concat("Get", readerField.Type?.Name));
                     }
@@ -171,13 +248,13 @@ namespace RepoDb.Reflection
                         // Single value is throwing an exception in GetString(), skip it and use the GetValue() instead
                         if (isDefaultConversion == false && readerField.Type != typeOfSingle)
                         {
-                            readerGetValueMethod = typeOfDbDataReader.GetMethod(string.Concat("Get", propertyType.Name));
+                            readerGetValueMethod = typeOfDbDataReader.GetMethod(string.Concat("Get", targetType.Name));
                         }
 
                         // If present, then use the property type, otherwise, use the object
                         if (readerGetValueMethod != null)
                         {
-                            convertType = propertyType;
+                            convertType = targetType;
                         }
                         else
                         {
@@ -207,7 +284,7 @@ namespace RepoDb.Reflection
                         {
                             if (handlerInstance == null || (handlerInstance != null && getParameterUnderlyingType != null))
                             {
-                                trueExpression = Expression.New(typeof(Nullable<>).MakeGenericType(getParameter?.ParameterType.GetUnderlyingType() ?? propertyType));
+                                trueExpression = Expression.New(typeof(Nullable<>).MakeGenericType(getParameter?.ParameterType.GetUnderlyingType() ?? targetType));
                                 isNullableAlreadySet = true;
                             }
                         }
@@ -215,7 +292,7 @@ namespace RepoDb.Reflection
                         // Check if it has been set
                         if (trueExpression == null)
                         {
-                            trueExpression = Expression.Default(getParameter?.ParameterType.GetUnderlyingType() ?? propertyType);
+                            trueExpression = Expression.Default(getParameter?.ParameterType.GetUnderlyingType() ?? targetType);
                         }
 
                         #region PropertyHandler (TrueExpression)
@@ -232,18 +309,18 @@ namespace RepoDb.Reflection
                                 trueExpression = Expression.Call(Expression.Constant(handlerInstance),
                                     handlerGetMethod,
                                     Expression.Convert(trueExpression, getParameter.ParameterType.GetUnderlyingType()),
-                                    Expression.Constant(property));
+                                    Expression.Constant(classProperty));
                             }
                             else
                             {
                                 trueExpression = Expression.Call(Expression.Constant(handlerInstance),
                                     handlerGetMethod,
                                     trueExpression,
-                                    Expression.Constant(property));
+                                    Expression.Constant(classProperty));
                             }
-                            if (handlerGetMethod.ReturnType != property.PropertyInfo.PropertyType)
+                            if (handlerGetMethod.ReturnType != classProperty.PropertyInfo.PropertyType)
                             {
-                                trueExpression = Expression.Convert(trueExpression, property.PropertyInfo.PropertyType);
+                                trueExpression = Expression.Convert(trueExpression, classProperty.PropertyInfo.PropertyType);
                             }
                         }
 
@@ -257,69 +334,77 @@ namespace RepoDb.Reflection
                         {
                             if (isDefaultConversion == true)
                             {
-                                if (propertyType.IsEnum)
+                                if (handlerInstance == null)
                                 {
-                                    #region StringToEnum
-
-                                    if (readerField.Type == typeof(string))
+                                    if (targetType.IsEnum)
                                     {
-                                        var enumParseMethod = typeof(Enum).GetMethod("Parse", new[] { typeof(Type), typeof(string), typeof(bool) });
-                                        falseExpression = Expression.Call(enumParseMethod, new[]
+                                        #region StringToEnum
+
+                                        if (readerField.Type == typeof(string))
                                         {
+                                            var enumParseMethod = typeof(EnumHelper).GetMethod("Parse", new[] { typeof(Type), typeof(string), typeof(bool) });
+                                            falseExpression = Expression.Call(enumParseMethod, new[]
+                                            {
                                             Expression.Constant(propertyType),
                                             falseExpression,
                                             Expression.Constant(true)
                                         });
-                                        falseExpression = Expression.Convert(falseExpression, propertyType);
-                                    }
-
-                                    #endregion
-
-                                    #region <Bool|Numbers>ToEnum
-
-                                    else
-                                    {
-                                        var enumUnderlyingType = Enum.GetUnderlyingType(propertyType);
-                                        var enumToObjectMethod = typeof(Enum).GetMethod("ToObject", new[] { typeof(Type), readerField.Type });
-                                        if (readerField.Type == typeof(bool))
-                                        {
-                                            falseExpression = Expression.Convert(falseExpression, typeof(object));
+                                            var enumPropertyType = targetType;
+                                            if (propertyType.IsNullable())
+                                            {
+                                                enumPropertyType = typeof(Nullable<>).MakeGenericType(targetType);
+                                            }
+                                            falseExpression = Expression.Convert(falseExpression, enumPropertyType);
                                         }
-                                        falseExpression = Expression.Call(enumToObjectMethod, new[]
+
+                                        #endregion
+
+                                        #region <Bool|Numbers>ToEnum
+
+                                        else
                                         {
-                                            Expression.Constant(propertyType),
+                                            var enumUnderlyingType = Enum.GetUnderlyingType(targetType);
+                                            var enumToObjectMethod = typeof(Enum).GetMethod("ToObject", new[] { typeof(Type), readerField.Type });
+                                            if (readerField.Type == typeof(bool))
+                                            {
+                                                falseExpression = Expression.Convert(falseExpression, typeof(object));
+                                            }
+                                            falseExpression = Expression.Call(enumToObjectMethod, new[]
+                                            {
+                                            Expression.Constant(targetType),
                                             falseExpression
                                         });
-                                        falseExpression = Expression.Convert(falseExpression, propertyType);
+                                            falseExpression = Expression.Convert(falseExpression, targetType);
+                                        }
+
+                                        #endregion
                                     }
-
-                                    #endregion
-                                }
-                                else
-                                {
-                                    #region TimeSpanToDateTime
-
-                                    if (readerField.Type == typeOfDateTime && propertyType == typeOfTimeSpan)
-                                    {
-                                        falseExpression = Expression.Convert(falseExpression, typeOfDateTime);
-                                    }
-
-                                    #endregion
-
-                                    #region Default
-
                                     else
                                     {
-                                        falseExpression = Expression.Convert(falseExpression,
-                                            getParameter?.ParameterType?.GetUnderlyingType() ?? propertyType);
-                                    }
+                                        #region TimeSpanToDateTime
 
-                                    #endregion
+                                        if (readerField.Type == typeOfDateTime && targetType == typeOfTimeSpan)
+                                        {
+                                            falseExpression = Expression.Convert(falseExpression, typeOfDateTime);
+                                        }
+
+                                        #endregion
+
+                                        #region Default
+
+                                        else
+                                        {
+                                            falseExpression = Expression.Convert(falseExpression,
+                                                getParameter?.ParameterType?.GetUnderlyingType() ?? targetType);
+                                        }
+
+                                        #endregion
+                                    }
                                 }
                             }
                             else
                             {
-                                falseExpression = ConvertValueExpressionForDataEntity(falseExpression, readerField, propertyType, convertType);
+                                falseExpression = ConvertValueExpressionForDataEntity(falseExpression, readerField, targetType, convertType);
                             }
 
                             #region DateTimeToTimeSpan
@@ -327,10 +412,13 @@ namespace RepoDb.Reflection
                             // In SqLite, the Time column is represented as System.DateTime in .NET. If in any case that the models
                             // has been designed to have it as System.TimeSpan, then we should somehow be able to set it properly.
 
-                            if (readerField.Type == typeOfDateTime && propertyType == typeOfTimeSpan)
+                            if (handlerInstance == null)
                             {
-                                var timeOfDayProperty = typeof(DateTime).GetProperty("TimeOfDay");
-                                falseExpression = Expression.Property(falseExpression, timeOfDayProperty);
+                                if (readerField.Type == typeOfDateTime && targetType == typeOfTimeSpan)
+                                {
+                                    var timeOfDayProperty = typeof(DateTime).GetProperty("TimeOfDay");
+                                    falseExpression = Expression.Property(falseExpression, timeOfDayProperty);
+                                }
                             }
 
                             #endregion
@@ -340,11 +428,15 @@ namespace RepoDb.Reflection
                         isNullableAlreadySet = false;
                         if (underlyingType != null && underlyingType.IsValueType == true)
                         {
-                            var nullableConstructorExpression = typeof(Nullable<>).MakeGenericType(propertyType).GetConstructor(new[] { propertyType });
-                            if (handlerInstance == null)
+                            var setNullable = (targetType.IsEnum == false) || (targetType.IsEnum && readerField.Type != typeof(string));
+                            if (setNullable == true)
                             {
-                                falseExpression = Expression.New(nullableConstructorExpression, falseExpression);
-                                isNullableAlreadySet = true;
+                                var nullableConstructorExpression = typeof(Nullable<>).MakeGenericType(targetType).GetConstructor(new[] { targetType });
+                                if (handlerInstance == null)
+                                {
+                                    falseExpression = Expression.New(nullableConstructorExpression, falseExpression);
+                                    isNullableAlreadySet = true;
+                                }
                             }
                         }
 
@@ -352,6 +444,10 @@ namespace RepoDb.Reflection
 
                         if (handlerInstance != null)
                         {
+                            if (targetType != getParameterUnderlyingType)
+                            {
+                                falseExpression = Expression.Convert(falseExpression, getParameter.ParameterType.GetUnderlyingType());
+                            }
                             if (isNullableAlreadySet == false && getParameterUnderlyingType != null)
                             {
                                 var nullableGetConstructor = getParameter?.ParameterType.GetConstructor(new[] { getParameterUnderlyingType });
@@ -360,10 +456,10 @@ namespace RepoDb.Reflection
                             falseExpression = Expression.Call(Expression.Constant(handlerInstance),
                                 handlerGetMethod,
                                 falseExpression,
-                                Expression.Constant(property));
-                            if (handlerGetMethod.ReturnType != property.PropertyInfo.PropertyType)
+                                Expression.Constant(classProperty));
+                            if (handlerGetMethod.ReturnType != classProperty.PropertyInfo.PropertyType)
                             {
-                                falseExpression = Expression.Convert(falseExpression, property.PropertyInfo.PropertyType);
+                                falseExpression = Expression.Convert(falseExpression, classProperty.PropertyInfo.PropertyType);
                             }
                         }
 
@@ -382,22 +478,26 @@ namespace RepoDb.Reflection
                             ordinalExpression);
 
                         // Convert to correct type if necessary
-                        if (isConversionNeeded == true)
+                        if (isConversionNeeded == true && handlerInstance == null)
                         {
                             valueExpression = ConvertValueExpressionForDataEntity(valueExpression,
                                 readerField,
-                                getParameter?.ParameterType?.GetUnderlyingType() ?? propertyType,
+                                getParameter?.ParameterType?.GetUnderlyingType() ?? targetType,
                                 convertType);
                         }
 
                         // Set for the 'Nullable' property
                         if (underlyingType != null && underlyingType.IsValueType == true)
                         {
-                            var nullableConstructorExpression = typeof(Nullable<>).MakeGenericType(propertyType).GetConstructor(new[] { propertyType });
-                            if (handlerInstance == null)
+                            var setNullable = (targetType.IsEnum == false) || (targetType.IsEnum && readerField.Type != typeof(string));
+                            if (setNullable == true)
                             {
-                                valueExpression = Expression.New(nullableConstructorExpression, valueExpression);
-                                isNullableAlreadySet = true;
+                                var nullableConstructorExpression = typeof(Nullable<>).MakeGenericType(targetType).GetConstructor(new[] { targetType });
+                                if (handlerInstance == null)
+                                {
+                                    valueExpression = Expression.New(nullableConstructorExpression, valueExpression);
+                                    isNullableAlreadySet = true;
+                                }
                             }
                         }
 
@@ -413,10 +513,10 @@ namespace RepoDb.Reflection
                             valueExpression = Expression.Call(Expression.Constant(handlerInstance),
                                 handlerGetMethod,
                                 valueExpression,
-                                Expression.Constant(property));
-                            if (handlerGetMethod.ReturnType != property.PropertyInfo.PropertyType)
+                                Expression.Constant(classProperty));
+                            if (handlerGetMethod.ReturnType != classProperty.PropertyInfo.PropertyType)
                             {
-                                valueExpression = Expression.Convert(valueExpression, property.PropertyInfo.PropertyType);
+                                valueExpression = Expression.Convert(valueExpression, classProperty.PropertyInfo.PropertyType);
                             }
                         }
 
@@ -424,7 +524,7 @@ namespace RepoDb.Reflection
                     }
 
                     // Set the actual property value
-                    memberAssignments.Add(Expression.Bind(property.PropertyInfo, valueExpression));
+                    memberAssignments.Add(Expression.Bind(classProperty.PropertyInfo, valueExpression));
                 }
             }
 
@@ -437,8 +537,50 @@ namespace RepoDb.Reflection
             Type propertyType,
             Type convertType)
         {
-            if (TypeMapper.ConversionType == ConversionType.Default)
+            if (Converter.ConversionType == ConversionType.Default)
             {
+                if (propertyType.IsEnum)
+                {
+                    #region StringToEnum
+
+                    if (readerField.Type == typeof(string))
+                    {
+                        var enumParseMethod = typeof(EnumHelper).GetMethod("Parse", new[] { typeof(Type), typeof(string), typeof(bool) });
+                        expression = Expression.Call(enumParseMethod, new[]
+                        {
+                            Expression.Constant(propertyType),
+                            expression,
+                            Expression.Constant(true)
+                        });
+                        var enumPropertyType = propertyType;
+                        if (propertyType.IsNullable())
+                        {
+                            enumPropertyType = typeof(Nullable<>).MakeGenericType(propertyType);
+                        }
+                        expression = Expression.Convert(expression, enumPropertyType);
+                    }
+
+                    #endregion
+
+                    #region <Bool|Numbers>ToEnum
+
+                    else
+                    {
+                        var enumToObjectMethod = typeof(Enum).GetMethod("ToObject", new[] { typeof(Type), readerField.Type });
+                        if (readerField.Type == typeof(bool))
+                        {
+                            expression = Expression.Convert(expression, typeof(object));
+                        }
+                        expression = Expression.Call(enumToObjectMethod, new[]
+                        {
+                            Expression.Constant(propertyType),
+                            expression
+                        });
+                    }
+
+                    #endregion
+                }
+
                 return Expression.Convert(expression, propertyType);
             }
             else
@@ -689,7 +831,7 @@ namespace RepoDb.Reflection
             // Reusable function for input/output fields
             var func = new Func<Expression, ParameterExpression, DbField, ClassProperty, bool, ParameterDirection, Expression>((Expression instance,
                 ParameterExpression property,
-                DbField field,
+                DbField dbField,
                 ClassProperty classProperty,
                 bool skipValueAssignment,
                 ParameterDirection direction) =>
@@ -698,7 +840,7 @@ namespace RepoDb.Reflection
                 var parameterAssignments = new List<Expression>();
 
                 // Parameter variables
-                var parameterName = field.Name.AsUnquoted(true, dbSetting).AsAlphaNumeric();
+                var parameterName = dbField.Name.AsUnquoted(true, dbSetting).AsAlphaNumeric();
                 var parameterVariable = Expression.Variable(typeOfDbParameter, string.Concat("parameter", parameterName));
                 var parameterInstance = Expression.Call(commandParameterExpression, dbCommandCreateParameterMethod);
                 parameterAssignments.Add(Expression.Assign(parameterVariable, parameterInstance));
@@ -710,7 +852,7 @@ namespace RepoDb.Reflection
                 // Property instance
                 var instanceProperty = (PropertyInfo)null;
                 var propertyType = (Type)null;
-                var fieldType = field.Type?.GetUnderlyingType();
+                var fieldType = dbField.Type?.GetUnderlyingType();
 
                 //  Property handlers
                 var handlerInstance = (object)null;
@@ -730,6 +872,28 @@ namespace RepoDb.Reflection
                         instanceProperty = classProperty.PropertyInfo; // typeOfEntity.GetProperty(classProperty.PropertyInfo.Name);
                     }
 
+                    #region PropertyHandler
+
+                    var propertyHandlerAttribute = instanceProperty?.GetCustomAttribute<PropertyHandlerAttribute>();
+
+                    if (propertyHandlerAttribute != null)
+                    {
+                        // Get from the attribute
+                        handlerInstance = PropertyHandlerCache.Get<TEntity, object>(classProperty.PropertyInfo);
+                        handlerSetMethod = propertyHandlerAttribute.HandlerType.GetMethod("Set");
+                    }
+                    else
+                    {
+                        // Get from the type level mappings (DB type)
+                        handlerInstance = PropertyHandlerMapper.Get<object>(dbField.Type.GetUnderlyingType());
+                        if (handlerInstance != null)
+                        {
+                            handlerSetMethod = handlerInstance.GetType().GetMethod("Set");
+                        }
+                    }
+
+                    #endregion
+
                     #region Instance.Property or PropertyInfo.GetValue()
 
                     // Set the value
@@ -744,95 +908,104 @@ namespace RepoDb.Reflection
                     {
                         propertyType = instanceProperty.PropertyType.GetUnderlyingType();
 
-                        // Parse with Guid if necessary
-                        if (TypeMapper.ConversionType == ConversionType.Automatic)
+                        if (handlerInstance == null)
                         {
-                            var valueToConvert = Expression.Property(instance, instanceProperty);
-
-                            #region StringToGuid
-
-                            // Create a new guid here
-                            if (propertyType == typeOfString && fieldType == typeOfGuid /* StringToGuid */)
+                            if (Converter.ConversionType == ConversionType.Automatic)
                             {
-                                value = Expression.New(typeOfGuid.GetConstructor(new[] { typeOfString }), new[] { valueToConvert });
-                            }
+                                var valueToConvert = Expression.Property(instance, instanceProperty);
 
-                            #endregion
+                                #region StringToGuid
 
-                            #region GuidToString
-
-                            // Call the System.Convert conversion
-                            else if (propertyType == typeOfGuid && fieldType == typeOfString/* GuidToString*/)
-                            {
-                                var convertMethod = typeof(Convert).GetMethod("ToString", new[] { typeOfObject });
-                                value = Expression.Call(convertMethod, Expression.Convert(valueToConvert, typeOfObject));
-                                value = Expression.Convert(value, fieldType);
-                            }
-
-                            #endregion
-
-                            else
-                            {
-                                value = valueToConvert;
-                            }
-                        }
-                        else
-                        {
-                            // Get the Class.Property
-                            value = Expression.Property(instance, instanceProperty);
-                        }
-
-                        #region EnumAsIntForString
-
-                        if (propertyType.IsEnum)
-                        {
-                            var mappedToType = classProperty?.GetDbType();
-                            if (mappedToType == null)
-                            {
-                                mappedToType = new ClientTypeToDbTypeResolver().Resolve(field.Type);
-                            }
-                            if (mappedToType != null)
-                            {
-                                var convertToTypeMethod = typeOfConvert.GetMethod(string.Concat("To", mappedToType.ToString()), new[] { typeOfObject });
-                                if (convertToTypeMethod != null)
+                                // Create a new guid here
+                                if (propertyType == typeOfString && fieldType == typeOfGuid /* StringToGuid */)
                                 {
-                                    value = Expression.Call(convertToTypeMethod, Expression.Convert(value, typeOfObject));
+                                    value = Expression.New(typeOfGuid.GetConstructor(new[] { typeOfString }), new[] { valueToConvert });
+                                }
+
+                                #endregion
+
+                                #region GuidToString
+
+                                // Call the System.Convert conversion
+                                else if (propertyType == typeOfGuid && fieldType == typeOfString/* GuidToString*/)
+                                {
+                                    var convertMethod = typeof(Convert).GetMethod("ToString", new[] { typeOfObject });
+                                    value = Expression.Call(convertMethod, Expression.Convert(valueToConvert, typeOfObject));
+                                    value = Expression.Convert(value, fieldType);
+                                }
+
+                                #endregion
+
+                                else
+                                {
+                                    value = valueToConvert;
                                 }
                             }
-                        }
+                            else
+                            {
+                                // Get the Class.Property
+                                value = Expression.Property(instance, instanceProperty);
+                            }
 
-                        #endregion
+                            #region EnumAsIntForString
 
-                        #region PropertyHandler
+                            if (propertyType.IsEnum)
+                            {
+                                var convertToTypeMethod = (MethodInfo)null;
+                                if (convertToTypeMethod == null)
+                                {
+                                    var mappedToType = classProperty?.GetDbType();
+                                    if (mappedToType == null)
+                                    {
+                                        mappedToType = new ClientTypeToDbTypeResolver().Resolve(dbField.Type);
+                                    }
+                                    if (mappedToType != null)
+                                    {
+                                        convertToTypeMethod = typeOfConvert.GetMethod(string.Concat("To", mappedToType.ToString()), new[] { typeOfObject });
+                                    }
+                                }
+                                if (convertToTypeMethod == null)
+                                {
+                                    convertToTypeMethod = typeOfConvert.GetMethod(string.Concat("To", dbField.Type.Name), new[] { typeOfObject });
+                                }
+                                if (convertToTypeMethod == null)
+                                {
+                                    throw new ConverterNotFoundException($"The convert between '{propertyType.FullName}' and database type '{dbField.DatabaseType}' (of .NET CLR '{dbField.Type.FullName}') is not found.");
+                                }
+                                else
+                                {
+                                    var converterMethod = typeof(EnumHelper).GetMethod("Convert");
+                                    if (converterMethod != null)
+                                    {
+                                        value = Expression.Call(converterMethod,
+                                            Expression.Constant(instanceProperty.PropertyType),
+                                            Expression.Constant(dbField.Type),
+                                            Expression.Convert(value, typeOfObject),
+                                            Expression.Constant(convertToTypeMethod));
+                                    }
+                                }
+                            }
 
-                        var propertyHandlerAttribute = instanceProperty.GetCustomAttribute<PropertyHandlerAttribute>();
-
-                        if (propertyHandlerAttribute != null)
-                        {
-                            // Get from the attribute
-                            handlerInstance = PropertyHandlerInstanceCache.Get(propertyHandlerAttribute.HandlerType);
-                            handlerSetMethod = propertyHandlerAttribute.HandlerType.GetMethod("Set");
+                            #endregion
                         }
                         else
                         {
-                            // Get from the type level mappings (DB type)
-                            handlerInstance = PropertyTypeHandlerMapper.Get<object>(field.Type.GetUnderlyingType());
+                            // Get the value directly from the property
+                            value = Expression.Property(instance, instanceProperty);
+
+                            #region PropertyHandler
+
                             if (handlerInstance != null)
                             {
-                                handlerSetMethod = handlerInstance.GetType().GetMethod("Set");
+                                var setParameter = handlerSetMethod.GetParameters().First();
+                                value = Expression.Call(Expression.Constant(handlerInstance),
+                                    handlerSetMethod,
+                                    Expression.Convert(value, setParameter.ParameterType),
+                                    Expression.Constant(classProperty));
                             }
-                        }
 
-                        if (handlerInstance != null)
-                        {
-                            var setParameter = handlerSetMethod.GetParameters().First();
-                            value = Expression.Call(Expression.Constant(handlerInstance),
-                                handlerSetMethod,
-                                Expression.Convert(value, setParameter.ParameterType),
-                                Expression.Constant(classProperty));
+                            #endregion
                         }
-
-                        #endregion
 
                         // Convert to object
                         value = Expression.Convert(value, typeOfObject);
@@ -840,7 +1013,7 @@ namespace RepoDb.Reflection
 
                     // Declare the variable for the value assignment
                     var valueBlock = (Expression)null;
-                    var isNullable = field.IsNullable == true ||
+                    var isNullable = dbField.IsNullable == true ||
                         instanceProperty == null ||
                         (
                             instanceProperty != null &&
@@ -887,10 +1060,10 @@ namespace RepoDb.Reflection
                         #region DBNull.Value
 
                         // Set the default type value
-                        if (field.IsNullable == false && field.Type != null)
+                        if (dbField.IsNullable == false && dbField.Type != null)
                         {
                             dbNullValueAssignment = Expression.Call(parameterVariable, dbParameterValueSetMethod,
-                                Expression.Convert(Expression.Default(field.Type), typeOfObject));
+                                Expression.Convert(Expression.Default(dbField.Type), typeOfObject));
                         }
 
                         // Set the DBNull value
@@ -924,7 +1097,7 @@ namespace RepoDb.Reflection
                 var dbType = (DbType?)null;
 
                 // Identify the conversion
-                if (TypeMapper.ConversionType == ConversionType.Automatic)
+                if (Converter.ConversionType == ConversionType.Automatic)
                 {
                     // Identity the conversion
                     if (propertyType == typeOfDateTime && fieldType == typeOfString /* DateTimeToString */ ||
@@ -960,7 +1133,7 @@ namespace RepoDb.Reflection
                 // Get the class property
                 if (dbType == null && handlerInstance == null)
                 {
-                    if (fieldOrPropertyType != typeof(SqlVariant) && !string.Equals(field.DatabaseType, "sql_variant", StringComparison.OrdinalIgnoreCase))
+                    if (fieldOrPropertyType != typeof(SqlVariant) && !string.Equals(dbField.DatabaseType, "sql_variant", StringComparison.OrdinalIgnoreCase))
                     {
                         dbType = classProperty?.GetDbType();
                     }
@@ -969,7 +1142,7 @@ namespace RepoDb.Reflection
                 // Set to normal if null
                 if (fieldOrPropertyType == null)
                 {
-                    fieldOrPropertyType = field.Type?.GetUnderlyingType() ?? instanceProperty?.PropertyType.GetUnderlyingType();
+                    fieldOrPropertyType = dbField.Type?.GetUnderlyingType() ?? instanceProperty?.PropertyType.GetUnderlyingType();
                 }
 
                 if (fieldOrPropertyType != null)
@@ -1090,9 +1263,9 @@ namespace RepoDb.Reflection
                 //if (!string.Equals(field.DatabaseType, "image", StringComparison.OrdinalIgnoreCase))
                 //{
                 // Set the Size
-                if (field.Size != null)
+                if (dbField.Size != null)
                 {
-                    var sizeAssignment = Expression.Call(parameterVariable, dbParameterSizeSetMethod, Expression.Constant(field.Size.Value));
+                    var sizeAssignment = Expression.Call(parameterVariable, dbParameterSizeSetMethod, Expression.Constant(dbField.Size.Value));
                     parameterAssignments.Add(sizeAssignment);
                 }
                 //}
@@ -1102,9 +1275,9 @@ namespace RepoDb.Reflection
                 #region Precision
 
                 // Set the Precision
-                if (field.Precision != null)
+                if (dbField.Precision != null)
                 {
-                    var precisionAssignment = Expression.Call(parameterVariable, dbParameterPrecisionSetMethod, Expression.Constant(field.Precision.Value));
+                    var precisionAssignment = Expression.Call(parameterVariable, dbParameterPrecisionSetMethod, Expression.Constant(dbField.Precision.Value));
                     parameterAssignments.Add(precisionAssignment);
                 }
 
@@ -1113,9 +1286,9 @@ namespace RepoDb.Reflection
                 #region Scale
 
                 // Set the Scale
-                if (field.Scale != null)
+                if (dbField.Scale != null)
                 {
-                    var scaleAssignment = Expression.Call(parameterVariable, dbParameterScaleSetMethod, Expression.Constant(field.Scale.Value));
+                    var scaleAssignment = Expression.Call(parameterVariable, dbParameterScaleSetMethod, Expression.Constant(dbField.Scale.Value));
                     parameterAssignments.Add(scaleAssignment);
                 }
 
@@ -1336,7 +1509,7 @@ namespace RepoDb.Reflection
             var func = new Func<int, Expression, ParameterExpression, DbField, ClassProperty, bool, ParameterDirection, Expression>((int entityIndex,
                 Expression instance,
                 ParameterExpression property,
-                DbField field,
+                DbField dbField,
                 ClassProperty classProperty,
                 bool skipValueAssignment,
                 ParameterDirection direction) =>
@@ -1345,7 +1518,7 @@ namespace RepoDb.Reflection
                 var parameterAssignments = new List<Expression>();
 
                 // Parameter variables
-                var parameterName = field.Name.AsUnquoted(true, dbSetting).AsAlphaNumeric();
+                var parameterName = dbField.Name.AsUnquoted(true, dbSetting).AsAlphaNumeric();
                 var parameterVariable = Expression.Variable(typeOfDbParameter, string.Concat("parameter", parameterName));
                 var parameterInstance = Expression.Call(commandParameterExpression, dbCommandCreateParameterMethod);
                 parameterAssignments.Add(Expression.Assign(parameterVariable, parameterInstance));
@@ -1358,7 +1531,7 @@ namespace RepoDb.Reflection
                 // Property instance
                 var instanceProperty = (PropertyInfo)null;
                 var propertyType = (Type)null;
-                var fieldType = field.Type?.GetUnderlyingType();
+                var fieldType = dbField.Type?.GetUnderlyingType();
 
                 //  Property handlers
                 var handlerInstance = (object)null;
@@ -1378,6 +1551,28 @@ namespace RepoDb.Reflection
                         instanceProperty = classProperty.PropertyInfo; // typeOfEntity.GetProperty(classProperty.PropertyInfo.Name);
                     }
 
+                    #region PropertyHandler
+
+                    var propertyHandlerAttribute = instanceProperty?.GetCustomAttribute<PropertyHandlerAttribute>();
+
+                    if (propertyHandlerAttribute != null)
+                    {
+                        // Get from the attribute
+                        handlerInstance = PropertyHandlerCache.Get<TEntity, object>(classProperty.PropertyInfo);
+                        handlerSetMethod = propertyHandlerAttribute.HandlerType.GetMethod("Set");
+                    }
+                    else
+                    {
+                        // Get from the type level mappings (DB type)
+                        handlerInstance = PropertyHandlerMapper.Get<object>(dbField.Type.GetUnderlyingType());
+                        if (handlerInstance != null)
+                        {
+                            handlerSetMethod = handlerInstance.GetType().GetMethod("Set");
+                        }
+                    }
+
+                    #endregion
+
                     #region Instance.Property or PropertyInfo.GetValue()
 
                     // Set the value
@@ -1392,95 +1587,104 @@ namespace RepoDb.Reflection
                     {
                         propertyType = instanceProperty?.PropertyType.GetUnderlyingType();
 
-                        // Parse with Guid if necessary
-                        if (TypeMapper.ConversionType == ConversionType.Automatic)
+                        if (handlerInstance == null)
                         {
-                            var valueToConvert = Expression.Property(instance, instanceProperty);
-
-                            #region StringToGuid
-
-                            // Create a new guid here
-                            if (propertyType == typeOfString && fieldType == typeOfGuid /* StringToGuid */)
+                            if (Converter.ConversionType == ConversionType.Automatic)
                             {
-                                value = Expression.New(typeOfGuid.GetConstructor(new[] { typeOfString }), new[] { valueToConvert });
-                            }
+                                var valueToConvert = Expression.Property(instance, instanceProperty);
 
-                            #endregion
+                                #region StringToGuid
 
-                            #region GuidToString
-
-                            // Call the System.Convert conversion
-                            else if (propertyType == typeOfGuid && fieldType == typeOfString/* GuidToString*/)
-                            {
-                                var convertMethod = typeof(Convert).GetMethod("ToString", new[] { typeOfObject });
-                                value = Expression.Call(convertMethod, Expression.Convert(valueToConvert, typeOfObject));
-                                value = Expression.Convert(value, fieldType);
-                            }
-
-                            #endregion
-
-                            else
-                            {
-                                value = valueToConvert;
-                            }
-                        }
-                        else
-                        {
-                            // Get the Class.Property
-                            value = Expression.Property(instance, instanceProperty);
-                        }
-
-                        #region EnumAsIntForString
-
-                        if (propertyType.IsEnum)
-                        {
-                            var mappedToType = classProperty?.GetDbType();
-                            if (mappedToType == null)
-                            {
-                                mappedToType = new ClientTypeToDbTypeResolver().Resolve(field.Type);
-                            }
-                            if (mappedToType != null)
-                            {
-                                var convertToTypeMethod = typeOfConvert.GetMethod(string.Concat("To", mappedToType.ToString()), new[] { typeOfObject });
-                                if (convertToTypeMethod != null)
+                                // Create a new guid here
+                                if (propertyType == typeOfString && fieldType == typeOfGuid /* StringToGuid */)
                                 {
-                                    value = Expression.Call(convertToTypeMethod, Expression.Convert(value, typeOfObject));
+                                    value = Expression.New(typeOfGuid.GetConstructor(new[] { typeOfString }), new[] { valueToConvert });
+                                }
+
+                                #endregion
+
+                                #region GuidToString
+
+                                // Call the System.Convert conversion
+                                else if (propertyType == typeOfGuid && fieldType == typeOfString/* GuidToString*/)
+                                {
+                                    var convertMethod = typeof(Convert).GetMethod("ToString", new[] { typeOfObject });
+                                    value = Expression.Call(convertMethod, Expression.Convert(valueToConvert, typeOfObject));
+                                    value = Expression.Convert(value, fieldType);
+                                }
+
+                                #endregion
+
+                                else
+                                {
+                                    value = valueToConvert;
                                 }
                             }
-                        }
+                            else
+                            {
+                                // Get the Class.Property
+                                value = Expression.Property(instance, instanceProperty);
+                            }
 
-                        #endregion
+                            #region EnumAsIntForString
 
-                        #region PropertyHandler
+                            if (propertyType.IsEnum)
+                            {
+                                var convertToTypeMethod = (MethodInfo)null;
+                                if (convertToTypeMethod == null)
+                                {
+                                    var mappedToType = classProperty?.GetDbType();
+                                    if (mappedToType == null)
+                                    {
+                                        mappedToType = new ClientTypeToDbTypeResolver().Resolve(dbField.Type);
+                                    }
+                                    if (mappedToType != null)
+                                    {
+                                        convertToTypeMethod = typeOfConvert.GetMethod(string.Concat("To", mappedToType.ToString()), new[] { typeOfObject });
+                                    }
+                                }
+                                if (convertToTypeMethod == null)
+                                {
+                                    convertToTypeMethod = typeOfConvert.GetMethod(string.Concat("To", dbField.Type.Name), new[] { typeOfObject });
+                                }
+                                if (convertToTypeMethod == null)
+                                {
+                                    throw new ConverterNotFoundException($"The convert between '{propertyType.FullName}' and database type '{dbField.DatabaseType}' (of .NET CLR '{dbField.Type.FullName}') is not found.");
+                                }
+                                else
+                                {
+                                    var converterMethod = typeof(EnumHelper).GetMethod("Convert");
+                                    if (converterMethod != null)
+                                    {
+                                        value = Expression.Call(converterMethod,
+                                            Expression.Constant(instanceProperty.PropertyType),
+                                            Expression.Constant(dbField.Type),
+                                            Expression.Convert(value, typeOfObject),
+                                            Expression.Constant(convertToTypeMethod));
+                                    }
+                                }
+                            }
 
-                        var propertyHandlerAttribute = instanceProperty.GetCustomAttribute<PropertyHandlerAttribute>();
-
-                        if (propertyHandlerAttribute != null)
-                        {
-                            // Get from the attribute
-                            handlerInstance = PropertyHandlerInstanceCache.Get(propertyHandlerAttribute.HandlerType);
-                            handlerSetMethod = propertyHandlerAttribute.HandlerType.GetMethod("Set");
+                            #endregion
                         }
                         else
                         {
-                            // Get from the type level mappings (DB type)
-                            handlerInstance = PropertyTypeHandlerMapper.Get<object>(field.Type.GetUnderlyingType());
+                            // Get the value directly from the property
+                            value = Expression.Property(instance, instanceProperty);
+
+                            #region PropertyHandler
+
                             if (handlerInstance != null)
                             {
-                                handlerSetMethod = handlerInstance.GetType().GetMethod("Set");
+                                var setParameter = handlerSetMethod.GetParameters().First();
+                                value = Expression.Call(Expression.Constant(handlerInstance),
+                                    handlerSetMethod,
+                                    Expression.Convert(value, setParameter.ParameterType),
+                                    Expression.Constant(classProperty));
                             }
-                        }
 
-                        if (handlerInstance != null)
-                        {
-                            var setParameter = handlerSetMethod.GetParameters().First();
-                            value = Expression.Call(Expression.Constant(handlerInstance),
-                                handlerSetMethod,
-                                Expression.Convert(value, setParameter.ParameterType),
-                                Expression.Constant(classProperty));
+                            #endregion
                         }
-
-                        #endregion
 
                         // Convert to object
                         value = Expression.Convert(value, typeOfObject);
@@ -1488,7 +1692,7 @@ namespace RepoDb.Reflection
 
                     // Declare the variable for the value assignment
                     var valueBlock = (Expression)null;
-                    var isNullable = field.IsNullable == true ||
+                    var isNullable = dbField.IsNullable == true ||
                         instanceProperty == null ||
                         (
                             instanceProperty != null &&
@@ -1535,10 +1739,10 @@ namespace RepoDb.Reflection
                         #region DBNull.Value
 
                         // Set the default type value
-                        if (field.IsNullable == false && field.Type != null)
+                        if (dbField.IsNullable == false && dbField.Type != null)
                         {
                             dbNullValueAssignment = Expression.Call(parameterVariable, dbParameterValueSetMethod,
-                                Expression.Convert(Expression.Default(field.Type), typeOfObject));
+                                Expression.Convert(Expression.Default(dbField.Type), typeOfObject));
                         }
 
                         // Set the DBNull value
@@ -1572,7 +1776,7 @@ namespace RepoDb.Reflection
                 var dbType = (DbType?)null;
 
                 // Identify the conversion
-                if (TypeMapper.ConversionType == ConversionType.Automatic)
+                if (Converter.ConversionType == ConversionType.Automatic)
                 {
                     // Identity the conversion
                     if (propertyType == typeOfDateTime && fieldType == typeOfString /* DateTimeToString */ ||
@@ -1608,7 +1812,7 @@ namespace RepoDb.Reflection
                 // Get the class property
                 if (dbType == null && handlerInstance == null)
                 {
-                    if (fieldOrPropertyType != typeof(SqlVariant) && !string.Equals(field.DatabaseType, "sql_variant", StringComparison.OrdinalIgnoreCase))
+                    if (fieldOrPropertyType != typeof(SqlVariant) && !string.Equals(dbField.DatabaseType, "sql_variant", StringComparison.OrdinalIgnoreCase))
                     {
                         dbType = classProperty?.GetDbType();
                     }
@@ -1617,7 +1821,7 @@ namespace RepoDb.Reflection
                 // Set to normal if null
                 if (fieldOrPropertyType == null)
                 {
-                    fieldOrPropertyType = field.Type?.GetUnderlyingType() ?? instanceProperty?.PropertyType.GetUnderlyingType();
+                    fieldOrPropertyType = dbField.Type?.GetUnderlyingType() ?? instanceProperty?.PropertyType.GetUnderlyingType();
                 }
 
                 if (fieldOrPropertyType != null)
@@ -1738,9 +1942,9 @@ namespace RepoDb.Reflection
                 //if (!string.Equals(field.DatabaseType, "image", StringComparison.OrdinalIgnoreCase))
                 //{
                 // Set the Size
-                if (field.Size != null)
+                if (dbField.Size != null)
                 {
-                    var sizeAssignment = Expression.Call(parameterVariable, dbParameterSizeSetMethod, Expression.Constant(field.Size.Value));
+                    var sizeAssignment = Expression.Call(parameterVariable, dbParameterSizeSetMethod, Expression.Constant(dbField.Size.Value));
                     parameterAssignments.Add(sizeAssignment);
                 }
                 //}
@@ -1750,9 +1954,9 @@ namespace RepoDb.Reflection
                 #region Precision
 
                 // Set the Precision
-                if (field.Precision != null)
+                if (dbField.Precision != null)
                 {
-                    var precisionAssignment = Expression.Call(parameterVariable, dbParameterPrecisionSetMethod, Expression.Constant(field.Precision.Value));
+                    var precisionAssignment = Expression.Call(parameterVariable, dbParameterPrecisionSetMethod, Expression.Constant(dbField.Precision.Value));
                     parameterAssignments.Add(precisionAssignment);
                 }
 
@@ -1761,9 +1965,9 @@ namespace RepoDb.Reflection
                 #region Scale
 
                 // Set the Scale
-                if (field.Scale != null)
+                if (dbField.Scale != null)
                 {
-                    var scaleAssignment = Expression.Call(parameterVariable, dbParameterScaleSetMethod, Expression.Constant(field.Scale.Value));
+                    var scaleAssignment = Expression.Call(parameterVariable, dbParameterScaleSetMethod, Expression.Constant(dbField.Scale.Value));
                     parameterAssignments.Add(scaleAssignment);
                 }
 
@@ -1918,7 +2122,7 @@ namespace RepoDb.Reflection
         /// <summary>
         /// Gets a compiled function that is used to set the data entity object property value based from the value of <see cref="DbCommand"/> parameter object.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The target <see cref="Field"/>.</param>
         /// <param name="parameterName">The name of the parameter.</param>
         /// <param name="index">The index of the batches.</param>
@@ -1977,7 +2181,7 @@ namespace RepoDb.Reflection
         /// <summary>
         /// Gets a compiled function that is used to set the data entity object property value.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The target <see cref="Field"/>.</param>
         /// <returns>A compiled function that is used to set the data entity object property value.</returns>
         public static Action<TEntity, object> GetDataEntityPropertyValueSetterFunction<TEntity>(Field field)
@@ -1986,7 +2190,7 @@ namespace RepoDb.Reflection
             // Variables for type
             var typeOfEntity = typeof(TEntity);
             var typeOfObject = typeof(object);
-            var typeOfObjectConverter = typeof(ObjectConverter);
+            var typeOfConverter = typeof(Converter);
 
             // Variables for argument
             var entityParameter = Expression.Parameter(typeOfEntity, "entity");
@@ -1996,7 +2200,7 @@ namespace RepoDb.Reflection
             var property = (typeOfEntity.GetProperty(field.Name) ?? typeOfEntity.GetPropertyByMapping(field.Name)?.PropertyInfo)?.SetMethod;
 
             // Get the converter
-            var toTypeMethod = typeOfObjectConverter.GetMethod("ToType").MakeGenericMethod(field.Type.GetUnderlyingType());
+            var toTypeMethod = typeOfConverter.GetMethod("ToType", new[] { typeOfObject }).MakeGenericMethod(field.Type.GetUnderlyingType());
 
             // Assign the value into DataEntity.Property
             var propertyAssignment = Expression.Call(entityParameter, property,

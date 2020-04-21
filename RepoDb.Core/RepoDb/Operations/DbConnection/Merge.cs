@@ -23,7 +23,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
 		/// <param name="hints">The table hints to be used.</param>
@@ -54,7 +54,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
 		/// <param name="hints">The table hints to be used.</param>
@@ -87,7 +87,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
 		/// <param name="hints">The table hints to be used.</param>
@@ -120,7 +120,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
@@ -152,7 +152,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
@@ -186,7 +186,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
@@ -220,7 +220,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
@@ -287,7 +287,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database in an asychronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
 		/// <param name="hints">The table hints to be used.</param>
@@ -318,7 +318,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database in an asychronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
 		/// <param name="hints">The table hints to be used.</param>
@@ -351,7 +351,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database in an asychronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
 		/// <param name="hints">The table hints to be used.</param>
@@ -384,7 +384,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database in an asychronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
@@ -416,7 +416,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database in an asychronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
@@ -450,7 +450,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database in an asychronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
@@ -484,7 +484,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database in an asychronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
@@ -1231,7 +1231,7 @@ namespace RepoDb
                 context.ParametersSetterFunc(command, entity);
 
                 // Actual Execution
-                result = ObjectConverter.ToType<TResult>(command.ExecuteScalar());
+                result = Converter.ToType<TResult>(command.ExecuteScalar());
 
                 // Set the return value
                 if (Equals(result, default(TResult)) == false)
@@ -1290,7 +1290,7 @@ namespace RepoDb
             var primaryKey = (ClassProperty)null;
 
             // Get the properties
-            if (type.GetTypeInfo().IsGenericType == true)
+            if (type.IsGenericType == true)
             {
                 properties = type.GetClassProperties();
             }
@@ -1404,7 +1404,7 @@ namespace RepoDb
                     if (primaryKey != null)
                     {
                         // Set the result
-                        result = ObjectConverter.ToType<TResult>(primaryKey.PropertyInfo.GetValue(entity));
+                        result = Converter.ToType<TResult>(primaryKey.PropertyInfo.GetValue(entity));
                     }
                 }
             }
@@ -1434,7 +1434,7 @@ namespace RepoDb
                 }
 
                 // Set the result
-                result = ObjectConverter.ToType<TResult>(insertResult);
+                result = Converter.ToType<TResult>(insertResult);
             }
 
             // After Execution
@@ -1593,7 +1593,7 @@ namespace RepoDb
                 context.ParametersSetterFunc(command, entity);
 
                 // Actual Execution
-                result = ObjectConverter.ToType<TResult>(await command.ExecuteScalarAsync());
+                result = Converter.ToType<TResult>(await command.ExecuteScalarAsync());
 
                 // Set the return value
                 if (Equals(result, default(TResult)) == false)
@@ -1652,7 +1652,7 @@ namespace RepoDb
             var primaryKey = (ClassProperty)null;
 
             // Get the properties
-            if (type.GetTypeInfo().IsGenericType == true)
+            if (type.IsGenericType == true)
             {
                 properties = type.GetClassProperties();
             }
@@ -1766,7 +1766,7 @@ namespace RepoDb
                     if (primaryKey != null)
                     {
                         // Set the result
-                        result = ObjectConverter.ToType<TResult>(primaryKey.PropertyInfo.GetValue(entity));
+                        result = Converter.ToType<TResult>(primaryKey.PropertyInfo.GetValue(entity));
                     }
                 }
             }
@@ -1796,7 +1796,7 @@ namespace RepoDb
                 }
 
                 // Set the result
-                result = ObjectConverter.ToType<TResult>(insertResult);
+                result = Converter.ToType<TResult>(insertResult);
             }
 
             // After Execution

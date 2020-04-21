@@ -1,44 +1,41 @@
 [![CoreBuild](https://img.shields.io/appveyor/ci/mikependon/repodb-ek0nw)](https://ci.appveyor.com/project/mikependon/repodb-ek0nw)
 [![Home](https://img.shields.io/badge/home-github-important)](https://github.com/mikependon/RepoDb)
-[![Wiki](https://img.shields.io/badge/wiki-information-yellow)](https://github.com/mikependon/RepoDb/wiki)
+[![Website](https://img.shields.io/badge/website-information-yellow)](http://repodb.net)
+[![GetStarted](https://img.shields.io/badge/tutorial-getstarted-blueviolet)](http://repodb.net/tutorial/get-started-sqlserver)
 [![CoreVersion](https://img.shields.io/nuget/v/RepoDb)](https://www.nuget.org/packages/RepoDb)
 [![CoreUnitTests](https://img.shields.io/appveyor/tests/mikependon/repodb-yf1cx?label=unit%20tests)](https://ci.appveyor.com/project/mikependon/repodb-yf1cx/build/tests)
 [![CoreIntegrationTests](https://img.shields.io/appveyor/tests/mikependon/repodb-qksas?label=integration%20tests)](https://ci.appveyor.com/project/mikependon/repodb-qksas/build/tests)
 
-## RepoDb - a hybrid ORM library for .NET.
+# [RepoDb](http://repodb.net) - a hybrid ORM library for .NET.
 
-RepoDb is an open-source .NET ORM that bridge the gaps between micro-ORMs and macro-ORMs. It helps the developer to simplify the switch-over of when to use the “BASIC” and “ADVANCE” operations during the development.
+RepoDb is an open-source .NET ORM that bridge the gaps between micro-ORMs and full-ORMs. It helps the developer to simplify the switch-over of when to use the BASIC and ADVANCE operations during the development.
 
 It is the best alternative ORM to both Dapper and EntityFramework.
 
 ## Important Pages
 
 - [GitHub Home Page](https://github.com/mikependon/RepoDb) - to learn more about the core library.
-- [Wiki Page](https://github.com/mikependon/RepoDb/wiki) - usabilities, benefits, features, capabilities, learnings, topics and FAQs. 
+- [Website](http://repodb.net) - docs, features, classes, references, releases and blogs.
 
 ## Core Features
  
-- Asynchronous Operations
-- Batch Operations
-- Bulk Operations
-- Caching
-- Connection Persistency
-- Database Helpers
-- Database Settings
-- Expression Trees
-- Extension Methods
-- Field Mapping
-- Inline Hints
-- Massive Operations (Generics/Explicits/MethodCalls/TableBased)
-- Multi-Resultset Query
-- Property Handlers (Transformations)
-- Query Builder
-- Repositories
-- Resolvers (CLR Types, DB Types)
-- Statement Builder
-- Tracing
-- Transaction
-- Type Mapping
+- [Batch Operations](http://repodb.net/feature/batchoperations)
+- [Bulk Operations](http://repodb.net/feature/bulkoperations)
+- [Caching](http://repodb.net/feature/caching)
+- [Class Mapping](http://repodb.net/feature/classmapping)
+- [Dynamics](http://repodb.net/feature/dynamics)
+- [Connection Persistency](http://repodb.net/feature/connectionpersistency)
+- [Enumeration](http://repodb.net/feature/enumeration)
+- [Expression Trees](http://repodb.net/feature/expressiontrees)
+- [Field/Class Mapping](http://repodb.net/feature/fieldclassmapping)
+- [Hints](http://repodb.net/feature/hints)
+- [Implicit Mapping](http://repodb.net/feature/implicitmapping)
+- [Multiple Query](http://repodb.net/feature/multiplequery)
+- [Property Handlers](http://repodb.net/feature/propertyhandlers)
+- [Repositories](http://repodb.net/feature/repositories)
+- [Tracing](http://repodb.net/feature/tracing)
+- [Transaction](http://repodb.net/feature/transaction)
+- [Type Mapping](http://repodb.net/feature/typemapping)
 
 ## Community engagements
 
@@ -49,19 +46,21 @@ It is the best alternative ORM to both Dapper and EntityFramework.
 
 ## License
 
-[Apache-2.0](http://apache.org/licenses/LICENSE-2.0.html) - Copyright © 2019 - Michael Camara Pendon
+[Apache-2.0](http://apache.org/licenses/LICENSE-2.0.html) - Copyright Â© 2019 - Michael Camara Pendon
 
 --------
 
 ## Installation
 
-At the *Package Manager Console*, write the command below.
+At the Package Manager Console, write the command below.
 
 ```
 Install-Package RepoDb
 ```
 
-## Getting Started
+Or, visit our [installation](http://repodb.net/tutorial/installation) page for more information.
+
+## Get Started
 
 After the installation, any library operation can then be called. Please see below for the samples.
 
@@ -70,14 +69,14 @@ After the installation, any library operation can then be called. Please see bel
 ```csharp
 using (var connection = new SqlConnection(ConnectionString))
 {
-	var customer = connection.Query<Customer>(c => c.Id == 10045);
+	var customer = connection.ExecuteQuery<Customer>("SELECT * FROM [dbo].[Customer] WHERE (Id = @Id);", new { Id = 10045 }).FirstOrDefault();
 }
 ```
 
 ### Insert
 
 ```csharp
-var customer = new Customer
+var customer = new
 {
 	FirstName = "John",
 	LastName = "Doe",
@@ -85,7 +84,7 @@ var customer = new Customer
 };
 using (var connection = new SqlConnection(ConnectionString))
 {
-	var id = connection.Insert<Customer>(customer);
+	var id = connection.ExecuteScalar<int>("INSERT INTO [dbo].[Customer](FirstName, LastName, IsActive) VALUES (@FirstName, @LastName, @IsActive); SELECT SCOPE_IDENTITY();", customer);
 }
 ```
 
@@ -94,10 +93,13 @@ using (var connection = new SqlConnection(ConnectionString))
 ```csharp
 using (var connection = new SqlConnection(ConnectionString))
 {
-	var customer = connection.Query<Customer>(10045);
-	customer.FirstName = "John";
-	customer.LastUpdatedUtc = DateTime.UtcNow;
-	var affectedRows = connection.Update<Customer>(customer);
+	var customer = new
+	{
+		Id = 10045,
+		FirstName = "John",
+		LastName = "Doe"
+	};
+	var affectedRows = connection.ExecuteNonQuery("UPDATE [dbo].[Customer] SET FirstName = @FirstName, LastName = @LastName, LastUpdatedUtc = GETUTCDATE() WHERE (Id = @Id);", customer);
 }
 ```
 
@@ -106,9 +108,26 @@ using (var connection = new SqlConnection(ConnectionString))
 ```csharp
 using (var connection = new SqlConnection(ConnectionString))
 {
-	var customer = connection.Query<Customer>(10045);
-	var deletedCount = connection.Delete<Customer>(customer);
+	var deletedRows = connection.ExecuteNonQuery("DELETE FROM [dbo].[Customer] WHERE (Id = @Id)", new { Id = 10045 });
 }
 ```
 
-To learn more, please visit our [reference implementations](https://github.com/mikependon/RepoDb/blob/master/RepoDb.Docs/Reference%20Implementations.md) page.
+### StoredProcedure
+
+```csharp
+using (var connection = new SqlConnection(ConnectionString))
+{
+	var customer = connection.ExecuteQuery<Customer>("[dbo].[sp_GetCustomer]", new { Id = 10045 }, commandType: CommandType.StoredProcdure).FirstOrDefault();
+}
+```
+
+Or via direct calls.
+
+```csharp
+using (var connection = new SqlConnection(ConnectionString))
+{
+	var customer = connection.ExecuteQuery<Customer>("EXEC [dbo].[sp_GetCustomer](@Id);", new { Id = 10045 }).FirstOrDefault();
+}
+```
+
+Or, visit the official [get-started](http://repodb.net/tutorial/get-started-sqlserver) page for SQL Server.

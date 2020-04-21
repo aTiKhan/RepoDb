@@ -20,7 +20,7 @@ namespace RepoDb
         /// <summary>
         /// Query all the data from the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="orderBy">The order definition of the fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -62,7 +62,7 @@ namespace RepoDb
         /// <summary>
         /// Query all the data from the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="orderBy">The order definition of the fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -108,7 +108,7 @@ namespace RepoDb
         /// <summary>
         /// Query all the data from the database in an asynchronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="orderBy">The order definition of the fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -150,7 +150,7 @@ namespace RepoDb
         /// <summary>
         /// Query all the data from the database in an asynchronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="orderBy">The order definition of the fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -388,7 +388,7 @@ namespace RepoDb
         /// <summary>
         /// Query all the data from the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="orderBy">The order definition of the fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -418,10 +418,10 @@ namespace RepoDb
             // Get Cache
             if (cacheKey != null)
             {
-                var item = cache?.Get(cacheKey, false);
+                var item = cache?.Get<IEnumerable<TEntity>>(cacheKey, false);
                 if (item != null)
                 {
-                    return (IEnumerable<TEntity>)item.Value;
+                    return item.Value;
                 }
             }
 
@@ -490,7 +490,7 @@ namespace RepoDb
         /// <summary>
         /// Query all the data from the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="orderBy">The order definition of the fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -520,10 +520,10 @@ namespace RepoDb
             // Get Cache
             if (cacheKey != null)
             {
-                var item = cache?.Get(cacheKey, false);
+                var item = cache?.Get<IEnumerable<TEntity>>(cacheKey, false);
                 if (item != null)
                 {
-                    return (IEnumerable<TEntity>)item.Value;
+                    return item.Value;
                 }
             }
 
@@ -627,10 +627,10 @@ namespace RepoDb
             // Get Cache
             if (cacheKey != null)
             {
-                var item = cache?.Get(cacheKey, false);
+                var item = cache?.Get<dynamic>(cacheKey, false);
                 if (item != null)
                 {
-                    return (IEnumerable<dynamic>)item.Value;
+                    return item.Value;
                 }
             }
 
@@ -738,10 +738,10 @@ namespace RepoDb
             // Get Cache
             if (cacheKey != null)
             {
-                var item = cache?.Get(cacheKey, false);
+                var item = cache?.Get<dynamic>(cacheKey, false);
                 if (item != null)
                 {
-                    return (IEnumerable<dynamic>)item.Value;
+                    return item.Value;
                 }
             }
 

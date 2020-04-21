@@ -23,7 +23,7 @@ namespace RepoDb
         /// <summary>
         /// Merges the multiple data entity objects into the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
         /// <param name="batchSize">The batch size of the merge operation.</param>
@@ -57,7 +57,7 @@ namespace RepoDb
         /// <summary>
         /// Merges the multiple data entity objects into the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
         /// <param name="qualifier">The qualifer field to be used during merge operation.</param>
@@ -93,7 +93,7 @@ namespace RepoDb
         /// <summary>
         /// Merges the multiple data entity objects into the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
         /// <param name="qualifiers">The list of qualifer fields to be used.</param>
@@ -129,7 +129,7 @@ namespace RepoDb
         /// <summary>
         /// Merges the multiple data entity objects into the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
         /// <param name="qualifiers">The list of qualifer fields to be used.</param>
@@ -197,7 +197,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database in an asychronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
         /// <param name="batchSize">The batch size of the merge operation.</param>
@@ -231,7 +231,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database in an asychronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
         /// <param name="qualifier">The field to be used during merge operation.</param>
@@ -267,7 +267,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database in an asychronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
         /// <param name="qualifiers">The list of qualifer fields to be used.</param>
@@ -303,7 +303,7 @@ namespace RepoDb
         /// <summary>
         /// Merges a data entity object into an existing data in the database in an asychronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
         /// <param name="qualifiers">The list of qualifer fields to be used.</param>
@@ -990,7 +990,7 @@ namespace RepoDb
                     if (batchSize == 1)
                     {
                         // Much better to use the actual single-based setter (performance)
-                        foreach (var entity in entities)
+                        foreach (var entity in entities.AsList())
                         {
                             // Set the values
                             context.SingleDataEntityParametersSetterFunc(command, entity);
@@ -1002,7 +1002,7 @@ namespace RepoDb
                             }
 
                             // Actual Execution
-                            var returnValue = ObjectConverter.DbNullToNull(command.ExecuteScalar());
+                            var returnValue = Converter.DbNullToNull(command.ExecuteScalar());
 
                             // Set the return value
                             if (returnValue != null)
@@ -1017,7 +1017,7 @@ namespace RepoDb
                     else
                     {
                         // Iterate the batches
-                        foreach (var batchEntities in entities.Split(batchSize))
+                        foreach (var batchEntities in entities.AsList().Split(batchSize))
                         {
                             var batchItems = batchEntities.AsList();
 
@@ -1069,7 +1069,7 @@ namespace RepoDb
                                     {
                                         if (reader.Read())
                                         {
-                                            var value = ObjectConverter.DbNullToNull(reader.GetValue(0));
+                                            var value = Converter.DbNullToNull(reader.GetValue(0));
                                             context.IdentityPropertySetterFunc.Invoke(batchItems[index], value);
                                             result++;
                                         }
@@ -1155,7 +1155,7 @@ namespace RepoDb
             var primaryKey = (ClassProperty)null;
 
             // Get the properties
-            if (type.GetTypeInfo().IsGenericType == true)
+            if (type.IsGenericType == true)
             {
                 properties = type.GetClassProperties();
             }
@@ -1219,7 +1219,7 @@ namespace RepoDb
                 }
 
                 // Iterate the entities
-                foreach (var entity in entities)
+                foreach (var entity in entities.AsList())
                 {
                     // Call the upsert
                     var upsertResult = connection.UpsertInternalBase<TEntity, object>(tableName,
@@ -1232,7 +1232,7 @@ namespace RepoDb
                         statementBuilder);
 
                     // Iterate the result
-                    if (ObjectConverter.DbNullToNull(upsertResult) != null)
+                    if (Converter.DbNullToNull(upsertResult) != null)
                     {
                         result += 1;
                     }
@@ -1501,7 +1501,7 @@ namespace RepoDb
                     if (batchSize == 1)
                     {
                         // Much better to use the actual single-based setter (performance)
-                        foreach (var entity in entities)
+                        foreach (var entity in entities.AsList())
                         {
                             // Set the values
                             context.SingleDataEntityParametersSetterFunc(command, entity);
@@ -1513,7 +1513,7 @@ namespace RepoDb
                             }
 
                             // Actual Execution
-                            var returnValue = ObjectConverter.DbNullToNull(await command.ExecuteScalarAsync());
+                            var returnValue = Converter.DbNullToNull(await command.ExecuteScalarAsync());
 
                             // Set the return value
                             if (returnValue != null)
@@ -1528,7 +1528,7 @@ namespace RepoDb
                     else
                     {
                         // Iterate the batches
-                        foreach (var batchEntities in entities.Split(batchSize))
+                        foreach (var batchEntities in entities.AsList().Split(batchSize))
                         {
                             var batchItems = batchEntities.AsList();
 
@@ -1580,7 +1580,7 @@ namespace RepoDb
                                     {
                                         if (await reader.ReadAsync())
                                         {
-                                            var value = ObjectConverter.DbNullToNull(reader.GetValue(0));
+                                            var value = Converter.DbNullToNull(reader.GetValue(0));
                                             context.IdentityPropertySetterFunc.Invoke(batchItems[index], value);
                                             result++;
                                         }
@@ -1666,7 +1666,7 @@ namespace RepoDb
             var primaryKey = (ClassProperty)null;
 
             // Get the properties
-            if (type.GetTypeInfo().IsGenericType == true)
+            if (type.IsGenericType == true)
             {
                 properties = type.GetClassProperties();
             }
@@ -1730,7 +1730,7 @@ namespace RepoDb
                 }
 
                 // Iterate the entities
-                foreach (var entity in entities)
+                foreach (var entity in entities.AsList())
                 {
                     // Call the upsert
                     var upsertResult = await connection.UpsertAsyncInternalBase<TEntity, object>(tableName,
@@ -1743,7 +1743,7 @@ namespace RepoDb
                         statementBuilder);
 
                     // Iterate the result
-                    if (ObjectConverter.DbNullToNull(upsertResult) != null)
+                    if (Converter.DbNullToNull(upsertResult) != null)
                     {
                         result += 1;
                     }
@@ -1791,7 +1791,7 @@ namespace RepoDb
         /// <summary>
         /// Throws an exception if the entities argument is null or empty.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the entity.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="entities">The enumerable list of entity objects.</param>
         private static void GuardMergeAll<TEntity>(IEnumerable<TEntity> entities)
             where TEntity : class

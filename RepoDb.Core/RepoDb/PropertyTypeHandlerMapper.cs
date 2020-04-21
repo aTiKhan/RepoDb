@@ -1,144 +1,253 @@
-﻿using RepoDb.Exceptions;
-using RepoDb.Extensions;
+﻿using RepoDb.Extensions;
 using RepoDb.Interfaces;
 using System;
-using System.Collections.Concurrent;
+using System.Linq.Expressions;
+using System.Reflection;
 
 namespace RepoDb
 {
     /// <summary>
-    /// A class that is used to map a property handler into a .NET CLR Type.
+    /// A class that is used to map a .NET CLR type or a class property into a property handler object.
     /// </summary>
+    [Obsolete("Please use the 'PropertyHandlerMapper' class instead.")]
     public static class PropertyTypeHandlerMapper
     {
-        private static readonly ConcurrentDictionary<int, object> m_maps = new ConcurrentDictionary<int, object>();
+        #region Methods
+
+        #region Type Level
+
+        /*
+         * Add
+         */
 
         /// <summary>
-        /// Throws an exception if null.
-        /// </summary>
-        private static void GuardPresence(Type type)
-        {
-            if (type == null)
-            {
-                throw new NullReferenceException("Property handler type.");
-            }
-        }
-
-        /// <summary>
-        /// Throws an exception if the type does not implemented the <see cref="IPropertyHandler{TInput, TResult}"/> interface.
-        /// </summary>
-        private static void Guard(Type type)
-        {
-            GuardPresence(type);
-            var isInterfacedTo = type.IsInterfacedTo(typeof(IPropertyHandler<,>));
-            if (isInterfacedTo == false)
-            {
-                throw new InvalidTypeException($"Type '{type.FullName}' must implement the '{typeof(IPropertyHandler<,>).FullName}' interface.");
-            }
-        }
-
-        /// <summary>
-        /// Gets the mapped property handler for .NET CLR Type.
+        /// Type Level: Adds a mapping between the .NET CLR Type and a property handler.
         /// </summary>
         /// <typeparam name="TType">The .NET CLR type.</typeparam>
         /// <typeparam name="TPropertyHandler">The type of the handler.</typeparam>
-        /// <returns>An instance of mapped property handler for .NET CLR Type.</returns>
-        public static TPropertyHandler Get<TType, TPropertyHandler>()
-        {
-            return Get<TPropertyHandler>(typeof(TType));
-        }
+        /// <param name="propertyHandler">The instance of the property handler. The type must implement the <see cref="IPropertyHandler{TInput, TResult}"/> interface.</param>
+        /// <param name="override">Set to true if to override the existing mapping, otherwise an exception will be thrown if the mapping is already present.</param>
+        public static void Add<TType, TPropertyHandler>(TPropertyHandler propertyHandler,
+            bool @override = false) =>
+            PropertyHandlerMapper.Add(typeof(TType), propertyHandler, @override);
 
         /// <summary>
-        /// Gets the mapped property handler for .NET CLR Type.
-        /// </summary>
-        /// <typeparam name="TPropertyHandler">The type of the handler.</typeparam>
-        /// <param name="type">The .NET CLR type.</param>
-        /// <returns>An instance of mapped property handler for .NET CLR Type.</returns>
-        public static TPropertyHandler Get<TPropertyHandler>(Type type)
-        {
-            // Check the presence
-            GuardPresence(type);
-
-            // Variables for the cache
-            var value = (object)null;
-
-            // get the value
-            m_maps.TryGetValue(type.FullName.GetHashCode(), out value);
-
-            // Check the result
-            if (value == null || value is TPropertyHandler)
-            {
-                return (TPropertyHandler)value;
-            }
-
-            // Throw an exception
-            throw new InvalidTypeException($"The cache item is not convertible to '{typeof(TPropertyHandler).FullName}' type.");
-        }
-
-        /// <summary>
-        /// Adds a mapping between the .NET CLR Type and a property handler..
+        /// Type Level: Adds a mapping between the .NET CLR Type and a property handler.
         /// </summary>
         /// <param name="type">The .NET CLR Type.</param>
         /// <param name="propertyHandler">The instance of the property handler. The type must implement the <see cref="IPropertyHandler{TInput, TResult}"/> interface.</param>
         /// <param name="override">Set to true if to override the existing mapping, otherwise an exception will be thrown if the mapping is already present.</param>
         public static void Add(Type type,
             object propertyHandler,
-            bool @override = false)
-        {
-            // Guard the type
-            GuardPresence(type);
-            Guard(propertyHandler?.GetType());
+            bool @override = false) =>
+            PropertyHandlerMapper.Add(type, propertyHandler, @override);
 
-            // Variables for cache
-            var key = type.FullName.GetHashCode();
-            var existing = (object)null;
-
-            // Try get the mappings
-            if (m_maps.TryGetValue(key, out existing))
-            {
-                if (@override)
-                {
-                    // Override the existing one
-                    m_maps.TryUpdate(key, propertyHandler, existing);
-                }
-                else
-                {
-                    // Throw an exception
-                    throw new MappingExistsException($"The property handler mapping for '{type.FullName}' already exists.");
-                }
-            }
-            else
-            {
-                // Add to mapping
-                m_maps.TryAdd(key, propertyHandler);
-            }
-        }
+        /*
+         * Get
+         */
 
         /// <summary>
-        /// Removes an existing property handler mapping.
+        /// Type Level: Gets the mapped property handler for .NET CLR Type.
+        /// </summary>
+        /// <typeparam name="TType">The .NET CLR type.</typeparam>
+        /// <typeparam name="TPropertyHandler">The type of the handler.</typeparam>
+        /// <returns>An instance of mapped property handler for .NET CLR Type.</returns>
+        public static TPropertyHandler Get<TType, TPropertyHandler>() =>
+            PropertyHandlerMapper.Get<TType, TPropertyHandler>();
+
+        /// <summary>
+        /// Type Level: Gets the mapped property handler for .NET CLR Type.
+        /// </summary>
+        /// <typeparam name="TPropertyHandler">The type of the handler.</typeparam>
+        /// <param name="type">The .NET CLR type.</param>
+        /// <returns>An instance of mapped property handler for .NET CLR Type.</returns>
+        public static TPropertyHandler Get<TPropertyHandler>(Type type) =>
+            PropertyHandlerMapper.Get<TPropertyHandler>(type);
+
+        /*
+         * Remove
+         */
+
+        /// <summary>
+        /// Type Level: Removes an existing property handler mapping.
+        /// </summary>
+        /// <typeparam name="T">The .NET CLR type.</typeparam>
+        public static void Remove<T>() =>
+            PropertyHandlerMapper.Remove(typeof(T));
+
+        /// <summary>
+        /// Type Level: Removes an existing property handler mapping.
         /// </summary>
         /// <param name="type">The .NET CLR Type.</param>
-        /// <param name="throwException">If true, it throws an exception if the mapping is not present.</param>
-        /// <returns>True if the removal is successful, otherwise false.</returns>
-        public static bool Remove(Type type,
-            bool throwException = true)
-        {
-            // Check the presence
-            GuardPresence(type);
+        public static void Remove(Type type) =>
+            PropertyHandlerMapper.Remove(type);
 
-            // Variables for cache
-            var key = type.FullName.GetHashCode();
-            var existing = (object)null;
-            var result = m_maps.TryRemove(key, out existing);
+        #endregion
 
-            // Throws an exception if necessary
-            if (result == false && throwException == true)
-            {
-                throw new MissingMappingException($"There is no mapping defined for '{type.FullName}'.");
-            }
+        #region Property Level
 
-            // Return false
-            return result;
-        }
+        /*
+         * Add
+         */
+
+        /// <summary>
+        /// Property Level: Adds a property handler mapping into a class property (via expression).
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TPropertyHandler">The type of the property handler.</typeparam>
+        /// <param name="expression">The expression to be parsed.</param>
+        /// <param name="propertyHandler">The instance of the property handler.</param>
+        public static void Add<TEntity, TPropertyHandler>(Expression<Func<TEntity, object>> expression,
+            TPropertyHandler propertyHandler)
+            where TEntity : class =>
+            PropertyHandlerMapper.Add<TEntity, TPropertyHandler>(expression, propertyHandler, false);
+
+        /// <summary>
+        /// Property Level: Adds a property handler mapping into a class property (via expression).
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TPropertyHandler">The type of the property handler.</typeparam>
+        /// <param name="expression">The expression to be parsed.</param>
+        /// <param name="propertyHandler">The instance of the property handler.</param>
+        /// <param name="force">A value that indicates whether to force the mapping. If one is already exists, then it will be overwritten.</param>
+        public static void Add<TEntity, TPropertyHandler>(Expression<Func<TEntity, object>> expression,
+            TPropertyHandler propertyHandler,
+            bool force)
+            where TEntity : class =>
+            PropertyHandlerMapper.Add<TEntity, TPropertyHandler>(ExpressionExtension.GetProperty<TEntity>(expression), propertyHandler, force);
+
+        /// <summary>
+        /// Property Level: Adds a property handler mapping into a class property (via property name).
+        /// </summary>
+        /// <typeparam name="TEntity">The target .NET CLR type.</typeparam>
+        /// <typeparam name="TPropertyHandler">The type of the property handler.</typeparam>
+        /// <param name="propertyName">The instance of property handler.</param>
+        /// <param name="propertyHandler">The instance of the property handler.</param>
+        public static void Add<TEntity, TPropertyHandler>(string propertyName,
+            TPropertyHandler propertyHandler)
+            where TEntity : class =>
+            PropertyHandlerMapper.Add<TEntity, TPropertyHandler>(propertyName, propertyHandler, false);
+
+        /// <summary>
+        /// Property Level: Adds a property handler mapping into a class property (via property name).
+        /// </summary>
+        /// <typeparam name="TEntity">The target .NET CLR type.</typeparam>
+        /// <typeparam name="TPropertyHandler">The type of the property handler.</typeparam>
+        /// <param name="propertyName">The instance of property handler.</param>
+        /// <param name="propertyHandler">The instance of property handler.</param>
+        /// <param name="force">A value that indicates whether to force the mapping. If one is already exists, then it will be overwritten.</param>
+        public static void Add<TEntity, TPropertyHandler>(string propertyName,
+            TPropertyHandler propertyHandler,
+            bool force)
+            where TEntity : class =>
+            PropertyHandlerMapper.Add<TEntity, TPropertyHandler>(propertyName, propertyHandler, force);
+
+        /// <summary>
+        /// Property Level: Adds a property handler mapping into a class property (via <see cref="Field"/> object).
+        /// </summary>
+        /// <typeparam name="TEntity">The target .NET CLR type.</typeparam>
+        /// <typeparam name="TPropertyHandler">The type of the property handler.</typeparam>
+        /// <param name="field">The instance of <see cref="Field"/> to be mapped.</param>
+        /// <param name="propertyHandler">The instance of the property handler.</param>
+        public static void Add<TEntity, TPropertyHandler>(Field field,
+            TPropertyHandler propertyHandler)
+            where TEntity : class =>
+            PropertyHandlerMapper.Add<TEntity, TPropertyHandler>(field, propertyHandler, false);
+
+        /// <summary>
+        /// Property Level: Adds a property handler mapping into a class property (via <see cref="Field"/> object).
+        /// </summary>
+        /// <typeparam name="TEntity">The target .NET CLR type.</typeparam>
+        /// <typeparam name="TPropertyHandler">The type of the property handler.</typeparam>
+        /// <param name="field">The instance of <see cref="Field"/> to be mapped.</param>
+        /// <param name="propertyHandler">The instance of the property handler.</param>
+        /// <param name="force">A value that indicates whether to force the mapping. If one is already exists, then it will be overwritten.</param>
+        public static void Add<TEntity, TPropertyHandler>(Field field,
+            TPropertyHandler propertyHandler,
+            bool force)
+            where TEntity : class =>
+            PropertyHandlerMapper.Add<TEntity, TPropertyHandler>(field, propertyHandler, force);
+
+        /*
+         * Get
+         */
+
+        /// <summary>
+        /// Property Level: Gets the mapped property handler of the class property (via expression).
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TPropertyHandler">The type of the property handler.</typeparam>
+        /// <param name="expression">The expression to be parsed.</param>
+        /// <returns>The mapped property handler object of the property.</returns>
+        public static TPropertyHandler Get<TEntity, TPropertyHandler>(Expression<Func<TEntity, object>> expression)
+            where TEntity : class =>
+            PropertyHandlerMapper.Get<TEntity, TPropertyHandler>(ExpressionExtension.GetProperty<TEntity>(expression));
+
+        /// <summary>
+        /// Property Level: Gets the mapped property handler of the class property (via property name).
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TPropertyHandler">The type of the property handler.</typeparam>
+        /// <param name="propertyName">The name of the property.</param>
+        /// <returns>The mapped property handler object of the property.</returns>
+        public static TPropertyHandler Get<TEntity, TPropertyHandler>(string propertyName)
+            where TEntity : class =>
+            PropertyHandlerMapper.Get<TEntity, TPropertyHandler>(TypeExtension.GetProperty<TEntity>(propertyName));
+
+        /// <summary>
+        /// Property Level: Gets the mapped property handler of the class property (via <see cref="Field"/> object).
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TPropertyHandler">The type of the property handler.</typeparam>
+        /// <param name="field">The instance of <see cref="Field"/> object.</param>
+        /// <returns>The mapped property handler object of the property.</returns>
+        public static TPropertyHandler Get<TEntity, TPropertyHandler>(Field field)
+            where TEntity : class =>
+            PropertyHandlerMapper.Get<TEntity, TPropertyHandler>(TypeExtension.GetProperty<TEntity>(field.Name));
+
+        /*
+         * Remove
+         */
+
+        /// <summary>
+        /// Property Level: Removes a mapped property handler from a class property (via expression).
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="expression">The expression to be parsed.</param>
+        public static void Remove<TEntity>(Expression<Func<TEntity, object>> expression)
+            where TEntity : class =>
+            PropertyHandlerMapper.Remove<TEntity>(ExpressionExtension.GetProperty<TEntity>(expression));
+
+        /// <summary>
+        /// Property Level: Removes a mapped property handler from a class property (via property name).
+        /// </summary>
+        /// <typeparam name="TEntity">The target .NET CLR type.</typeparam>
+        /// <param name="propertyName">The instance of property handler.</param>
+        public static void Remove<TEntity>(string propertyName)
+            where TEntity : class =>
+            PropertyHandlerMapper.Remove<TEntity>(propertyName);
+
+        /// <summary>
+        /// Property Level: Removes a mapped property handler from a class property (via <see cref="Field"/> object).
+        /// </summary>
+        /// <typeparam name="TEntity">The target .NET CLR type.</typeparam>
+        /// <param name="field">The instance of <see cref="Field"/> to be mapped.</param>
+        public static void Remove<TEntity>(Field field)
+            where TEntity : class =>
+            PropertyHandlerMapper.Remove<TEntity>(field);
+
+        /*
+         * Clear
+         */
+
+        /// <summary>
+        /// Clears all the existing cached property handlers.
+        /// </summary>
+        public static void Clear() =>
+            PropertyHandlerMapper.Clear();
+
+        #endregion
+
+        #endregion
     }
 }

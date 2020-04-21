@@ -55,7 +55,7 @@ namespace RepoDb
         /// <summary>
         /// Inserts multiple data in the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be inserted.</param>
         /// <param name="batchSize">The batch size of the insertion.</param>
@@ -95,7 +95,7 @@ namespace RepoDb
         /// <summary>
         /// Inserts multiple data in the database in asynchronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be inserted.</param>
         /// <param name="batchSize">The batch size of the insertion.</param>
@@ -128,7 +128,7 @@ namespace RepoDb
         /// <summary>
         /// Inserts multiple data in the database in asynchronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be inserted.</param>
         /// <param name="batchSize">The batch size of the insertion.</param>
@@ -541,7 +541,7 @@ namespace RepoDb
                     // Directly execute if the entities is only 1 (performance)
                     if (context.BatchSize == 1)
                     {
-                        foreach (var entity in entities)
+                        foreach (var entity in entities.AsList())
                         {
                             // Set the values
                             context.SingleDataEntityParametersSetterFunc(command, entity);
@@ -553,12 +553,12 @@ namespace RepoDb
                             }
 
                             // Actual Execution
-                            var returnValue = ObjectConverter.DbNullToNull(command.ExecuteScalar());
+                            var returnValue = Converter.DbNullToNull(command.ExecuteScalar());
 
                             // Get explicity if needed
                             if (Equals(returnValue, null) == true && dbSetting.IsMultiStatementExecutable == false)
                             {
-                                returnValue = ObjectConverter.DbNullToNull(connection.GetDbHelper().GetScopeIdentity(connection, transaction));
+                                returnValue = Converter.DbNullToNull(connection.GetDbHelper().GetScopeIdentity(connection, transaction));
                             }
 
                             // Set the return value
@@ -573,7 +573,7 @@ namespace RepoDb
                     }
                     else
                     {
-                        foreach (var batchEntities in entities.Split(batchSize))
+                        foreach (var batchEntities in entities.AsList().Split(batchSize))
                         {
                             var batchItems = batchEntities.AsList();
 
@@ -625,7 +625,7 @@ namespace RepoDb
                                     {
                                         if (reader.Read())
                                         {
-                                            var value = ObjectConverter.DbNullToNull(reader.GetValue(0));
+                                            var value = Converter.DbNullToNull(reader.GetValue(0));
                                             context.IdentityPropertySetterFunc.Invoke(batchItems[index], value);
                                             result++;
                                         }
@@ -893,7 +893,7 @@ namespace RepoDb
                     // Directly execute if the entities is only 1 (performance)
                     if (context.BatchSize == 1)
                     {
-                        foreach (var entity in entities)
+                        foreach (var entity in entities.AsList())
                         {
                             // Set the values
                             context.SingleDataEntityParametersSetterFunc(command, entity);
@@ -905,12 +905,12 @@ namespace RepoDb
                             }
 
                             // Actual Execution
-                            var returnValue = ObjectConverter.DbNullToNull(await command.ExecuteScalarAsync());
+                            var returnValue = Converter.DbNullToNull(await command.ExecuteScalarAsync());
 
                             // Get explicity if needed
                             if (Equals(returnValue, null) == true && dbSetting.IsMultiStatementExecutable == false)
                             {
-                                returnValue = ObjectConverter.DbNullToNull(await connection.GetDbHelper().GetScopeIdentityAsync(connection, transaction));
+                                returnValue = Converter.DbNullToNull(await connection.GetDbHelper().GetScopeIdentityAsync(connection, transaction));
                             }
 
                             // Set the return value
@@ -925,7 +925,7 @@ namespace RepoDb
                     }
                     else
                     {
-                        foreach (var batchEntities in entities.Split(batchSize))
+                        foreach (var batchEntities in entities.AsList().Split(batchSize))
                         {
                             var batchItems = batchEntities.AsList();
 
@@ -977,7 +977,7 @@ namespace RepoDb
                                     {
                                         if (await reader.ReadAsync())
                                         {
-                                            var value = ObjectConverter.DbNullToNull(reader.GetValue(0));
+                                            var value = Converter.DbNullToNull(reader.GetValue(0));
                                             context.IdentityPropertySetterFunc.Invoke(batchItems[index], value);
                                             result++;
                                         }
@@ -1032,7 +1032,7 @@ namespace RepoDb
         /// <summary>
         /// Throws an exception if the entities argument is null or empty.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the entity.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="entities">The enumerable list of entity objects.</param>
         private static void GuardInsertAll<TEntity>(IEnumerable<TEntity> entities)
             where TEntity : class

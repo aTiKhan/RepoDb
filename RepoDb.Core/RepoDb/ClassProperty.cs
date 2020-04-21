@@ -1,6 +1,5 @@
 ﻿using RepoDb.Attributes;
 using RepoDb.Extensions;
-using RepoDb.Interfaces;
 using RepoDb.Resolvers;
 using System;
 using System.Data;
@@ -17,12 +16,28 @@ namespace RepoDb
         /// Creates a new instance of <see cref="ClassProperty"/> object.
         /// </summary>
         /// <param name="property">The wrapped property.</param>
-        public ClassProperty(PropertyInfo property)
+        public ClassProperty(PropertyInfo property) :
+            this(property.DeclaringType, property)
+        { }
+
+        /// <summary>
+        /// Creates a new instance of <see cref="ClassProperty"/> object.
+        /// </summary>
+        /// <param name="parentType">The declaring type (avoiding the interface collision).</param>
+        /// <param name="property">The wrapped property.</param>
+        public ClassProperty(Type parentType,
+            PropertyInfo property)
         {
+            DeclaringType = parentType;
             PropertyInfo = property;
         }
 
         #region Properties
+
+        /// <summary>
+        /// Gets the original declaring type (avoiding the interface collision).
+        /// </summary>
+        public Type DeclaringType { get; }
 
         /// <summary>
         /// Gets the wrapped property of this object.
@@ -121,6 +136,14 @@ namespace RepoDb
                 return m_isPrimary;
             }
 
+            // PrimaryMapper
+            var classProperty = PrimaryMapper.Get(GetDeclaringType());
+            m_isPrimary = (classProperty == this);
+            if (m_isPrimary == true)
+            {
+                return m_isPrimary;
+            }
+
             // Id Property
             m_isPrimary = string.Equals(PropertyInfo.Name, "id", StringComparison.OrdinalIgnoreCase);
             if (m_isPrimary == true)
@@ -129,14 +152,14 @@ namespace RepoDb
             }
 
             // Type.Name + Id
-            m_isPrimary = string.Equals(PropertyInfo.Name, string.Concat(PropertyInfo.DeclaringType.Name, "id"), StringComparison.OrdinalIgnoreCase);
+            m_isPrimary = string.Equals(PropertyInfo.Name, string.Concat(GetDeclaringType().Name, "id"), StringComparison.OrdinalIgnoreCase);
             if (m_isPrimary == true)
             {
                 return m_isPrimary;
             }
 
             // Mapping.Name + Id
-            m_isPrimary = string.Equals(PropertyInfo.Name, string.Concat(ClassMappedNameCache.Get(PropertyInfo.DeclaringType), "id"), StringComparison.OrdinalIgnoreCase);
+            m_isPrimary = string.Equals(PropertyInfo.Name, string.Concat(ClassMappedNameCache.Get(GetDeclaringType()), "id"), StringComparison.OrdinalIgnoreCase);
             if (m_isPrimary == true)
             {
                 return m_isPrimary;
@@ -162,7 +185,24 @@ namespace RepoDb
             {
                 return m_isIdentity;
             }
-            return m_isIdentity = (GetIdentityAttribute() != null);
+
+            // Identity Attribute
+            m_isIdentity = (GetIdentityAttribute() != null);
+            if (m_isIdentity == true)
+            {
+                return m_isIdentity;
+            }
+
+            // PrimaryMapper
+            var classProperty = IdentityMapper.Get(GetDeclaringType());
+            m_isIdentity = (classProperty == this);
+            if (m_isIdentity == true)
+            {
+                return m_isIdentity;
+            }
+
+            // Return false
+            return (m_isIdentity = false);
         }
 
         /*
@@ -193,12 +233,13 @@ namespace RepoDb
 
             // Property and Type level mapping
             m_dbType = PropertyInfo.GetCustomAttribute<TypeMapAttribute>()?.DbType ??
-                TypeMapper.Get(propertyType);
+                TypeMapper.Get(GetDeclaringType(), PropertyInfo) ?? // Property Level
+                TypeMapper.Get(propertyType); // Type Level
 
             // Try to resolve if not found
-            if (m_dbType == null && propertyType.GetTypeInfo().IsEnum == false)
+            if (m_dbType == null && propertyType.IsEnum == false)
             {
-                m_dbType = m_clientTypeToSqlDbTypeResolver.Resolve(PropertyInfo.PropertyType);
+                m_dbType = m_clientTypeToSqlDbTypeResolver.Resolve(propertyType);
             }
 
             // Return the value
@@ -221,7 +262,7 @@ namespace RepoDb
             {
                 return m_mappedName;
             }
-            return m_mappedName = PropertyMappedNameCache.Get(PropertyInfo);
+            return m_mappedName = PropertyMappedNameCache.Get(GetDeclaringType(), PropertyInfo);
         }
 
         /// <summary>
@@ -231,6 +272,16 @@ namespace RepoDb
         public override string ToString()
         {
             return string.Concat(GetMappedName(), " (", PropertyInfo.PropertyType.Name, ")");
+        }
+
+        /// <summary>
+        /// Gets the declaring parent type of the current property info. If the class inherits an interface, then this will return 
+        /// the derived class type instead (if there is), otherwise the <see cref="PropertyInfo.DeclaringType"/> property.
+        /// </summary>
+        /// <returns>The declaring type.</returns>
+        public Type GetDeclaringType()
+        {
+            return (DeclaringType ?? PropertyInfo.DeclaringType);
         }
 
         #endregion
@@ -243,7 +294,7 @@ namespace RepoDb
         /// <returns>The hash code value.</returns>
         public override int GetHashCode()
         {
-            return PropertyInfo.GetHashCode();
+            return GetDeclaringType().FullName.GetHashCode() ^ PropertyInfo.GenerateCustomizedHashCode();
         }
 
         /// <summary>

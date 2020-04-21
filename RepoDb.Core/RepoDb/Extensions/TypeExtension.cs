@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace RepoDb.Extensions
 {
@@ -16,7 +17,7 @@ namespace RepoDb.Extensions
         /// <returns>Returns true if the current type is wrapped within <see cref="Nullable{T}"/> object.</returns>
         public static bool IsNullable(this Type type)
         {
-            return Nullable.GetUnderlyingType(type) == null;
+            return Nullable.GetUnderlyingType(type) != null;
         }
 
         /// <summary>
@@ -24,10 +25,8 @@ namespace RepoDb.Extensions
         /// </summary>
         /// <param name="type">The current type.</param>
         /// <returns>A list of <see cref="Field"/> objects.</returns>
-        internal static IEnumerable<Field> AsFields(this Type type)
-        {
-            return PropertyCache.Get(type).AsFields();
-        }
+        internal static IEnumerable<Field> AsFields(this Type type) =>
+            PropertyCache.Get(type).AsFields();
 
         /// <summary>
         /// Converts all properties of the type into an array of <see cref="ClassProperty"/> objects.
@@ -38,7 +37,7 @@ namespace RepoDb.Extensions
         {
             foreach (var property in type.GetProperties())
             {
-                yield return new ClassProperty(property);
+                yield return new ClassProperty(type, property);
             }
         }
 
@@ -141,6 +140,52 @@ namespace RepoDb.Extensions
         }
 
         #region Helpers
+
+        /// <summary>
+        /// Generates a hashcode for caching.
+        /// </summary>
+        /// <param name="type">The type of the data entity.</param>
+        /// <returns>The generated hashcode.</returns>
+        internal static int GenerateHashCode(Type type)
+        {
+            return type.GetUnderlyingType().FullName.GetHashCode();
+        }
+
+        /// <summary>
+        /// Generates a hashcode for caching.
+        /// </summary>
+        /// <param name="entityType">The type of the data entity.</param>
+        /// <param name="propertyInfo">The instance of <see cref="PropertyInfo"/>.</param>
+        /// <returns>The generated hashcode.</returns>
+        internal static int GenerateHashCode(Type entityType,
+            PropertyInfo propertyInfo)
+        {
+            return entityType.GetUnderlyingType().FullName.GetHashCode() + propertyInfo.GenerateCustomizedHashCode();
+        }
+
+        /// <summary>
+        /// A helper method to return the instance of <see cref="PropertyInfo"/> object based on name.
+        /// </summary>
+        /// <typeparam name="T">The target .NET CLR type.</typeparam>
+        /// <param name="propertyName">The name of the class property to be mapped.</param>
+        /// <returns>An instance of <see cref="PropertyInfo"/> object.</returns>
+        internal static PropertyInfo GetProperty<T>(string propertyName)
+            where T : class =>
+            GetProperty(typeof(T), propertyName);
+
+        /// <summary>
+        /// A helper method to return the instance of <see cref="PropertyInfo"/> object based on name.
+        /// </summary>
+        /// <param name="type">The target .NET CLR type.</param>
+        /// <param name="propertyName">The name of the class property to be mapped.</param>
+        /// <returns>An instance of <see cref="PropertyInfo"/> object.</returns>
+        internal static PropertyInfo GetProperty(Type type,
+            string propertyName)
+        {
+            return type
+                .GetProperties()
+                .FirstOrDefault(p => string.Equals(p.Name, propertyName, StringComparison.OrdinalIgnoreCase));
+        }
 
         /// <summary>
         /// Checks whether the generic arguments length are equal to both types.

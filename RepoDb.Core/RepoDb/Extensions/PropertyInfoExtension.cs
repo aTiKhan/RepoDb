@@ -81,7 +81,9 @@ namespace RepoDb.Extensions
         public static string GetMappedName(this PropertyInfo property)
         {
             var attribute = (MapAttribute)GetCustomAttribute(property, typeof(MapAttribute));
-            return (attribute?.Name ?? property.Name);
+            return attribute?.Name ??
+                PropertyMapper.Get(property) ??
+                property.Name;
         }
 
         /// <summary>
@@ -248,6 +250,18 @@ namespace RepoDb.Extensions
             IDbSetting dbSetting)
         {
             return properties?.Select(property => property.AsFieldAndAliasField(alias, dbSetting));
+        }
+
+        /// <summary>
+        /// Generates a hashcode of the <see cref="PropertyInfo"/> object based on the parent class name and its own name.
+        /// </summary>
+        /// <param name="property">The instance of the <see cref="PropertyInfo"/> object.</param>
+        /// <returns>The generated hashcode.</returns>
+        internal static int GenerateCustomizedHashCode(this PropertyInfo property)
+        {
+            return (property.DeclaringType.FullName.GetHashCode() ^
+                property.Name.GetHashCode() ^
+                property.PropertyType.FullName.GetHashCode());
         }
 
         /// <summary>

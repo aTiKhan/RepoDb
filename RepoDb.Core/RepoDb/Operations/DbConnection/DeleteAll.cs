@@ -16,12 +16,20 @@ namespace RepoDb
     /// </summary>
     public static partial class DbConnectionExtension
     {
+        /*
+         * The supposed maximum parameters of 2100 is not workin with Microsoft.Data.SqlClient.
+         * I reported this issue to SqlClient repository at Github.
+         * Link: https://github.com/dotnet/SqlClient/issues/531
+         */
+
+        private const int ParameterBatchCount = Constant.MaxParametersCount - 2;
+
         #region DeleteAll<TEntity> (Delete<TEntity>)
 
         /// <summary>
         /// Deletes all the target existing data from the database. It uses the <see cref="Delete{TEntity}(IDbConnection, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be deleted.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -54,7 +62,7 @@ namespace RepoDb
         /// <summary>
         /// Deletes all the target existing data from the database. It uses the <see cref="Delete{TEntity}(IDbConnection, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="primaryKeys">The list of the primary keys to be deleted.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -73,21 +81,21 @@ namespace RepoDb
             where TEntity : class
         {
             var primary = GetAndGuardPrimaryKey<TEntity>(connection, transaction);
-            var hasImplicitTransaction = (transaction != null);
+            var hasImplicitTransaction = false;
             var count = primaryKeys?.AsList()?.Count;
             var deletedRows = 0;
 
             try
             {
                 // Creates a transaction (if needed)
-                if (transaction == null && count > Constant.MaxParametersCount)
+                if (transaction == null && count > ParameterBatchCount)
                 {
-                    transaction = connection.BeginTransaction();
+                    transaction = connection.EnsureOpen().BeginTransaction();
                     hasImplicitTransaction = true;
                 }
 
                 // Call the underlying method
-                var splitted = primaryKeys.Split(Constant.MaxParametersCount).AsList();
+                var splitted = primaryKeys.Split(ParameterBatchCount).AsList();
                 foreach (var keys in splitted)
                 {
                     if (keys.Any() != true)
@@ -107,7 +115,7 @@ namespace RepoDb
                 // Commit the transaction
                 if (hasImplicitTransaction)
                 {
-                    transaction.Commit();
+                    transaction?.Commit();
                 }
 
             }
@@ -116,7 +124,7 @@ namespace RepoDb
                 // Dispose the transaction
                 if (hasImplicitTransaction)
                 {
-                    transaction.Dispose();
+                    transaction?.Dispose();
                 }
             }
 
@@ -131,7 +139,7 @@ namespace RepoDb
         /// <summary>
         /// Deletes all the target existing data from the database in an asynchronous way. It uses the <see cref="DeleteAsync{TEntity}(IDbConnection, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be deleted.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -164,7 +172,7 @@ namespace RepoDb
         /// <summary>
         /// Deletes all the target existing data from the database in an asynchronous way. It uses the <see cref="DeleteAsync{TEntity}(IDbConnection, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="primaryKeys">The list of the primary keys to be deleted.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -183,21 +191,21 @@ namespace RepoDb
             where TEntity : class
         {
             var primary = GetAndGuardPrimaryKey<TEntity>(connection, transaction);
-            var hasImplicitTransaction = (transaction != null);
+            var hasImplicitTransaction = false;
             var count = primaryKeys?.AsList()?.Count;
             var deletedRows = 0;
 
             try
             {
                 // Creates a transaction (if needed)
-                if (transaction == null && count > Constant.MaxParametersCount)
+                if (transaction == null && count > ParameterBatchCount)
                 {
-                    transaction = connection.BeginTransaction();
+                    transaction = connection.EnsureOpen().BeginTransaction();
                     hasImplicitTransaction = true;
                 }
 
                 // Call the underlying method
-                var splitted = primaryKeys.Split(Constant.MaxParametersCount).AsList();
+                var splitted = primaryKeys.Split(ParameterBatchCount).AsList();
                 foreach (var keys in splitted)
                 {
                     if (keys.Any() != true)
@@ -217,7 +225,7 @@ namespace RepoDb
                 // Commit the transaction
                 if (hasImplicitTransaction)
                 {
-                    transaction.Commit();
+                    transaction?.Commit();
                 }
 
             }
@@ -226,7 +234,7 @@ namespace RepoDb
                 // Dispose the transaction
                 if (hasImplicitTransaction)
                 {
-                    transaction.Dispose();
+                    transaction?.Dispose();
                 }
             }
 
@@ -241,7 +249,7 @@ namespace RepoDb
         /// <summary>
         /// Deletes all the data from the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
@@ -268,7 +276,7 @@ namespace RepoDb
         /// <summary>
         /// Deletes all the data from the database.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
@@ -306,7 +314,7 @@ namespace RepoDb
         /// <summary>
         /// Deletes all the data from the database in an asynchronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
@@ -333,7 +341,7 @@ namespace RepoDb
         /// <summary>
         /// Deletes all the data from the database in an asynchronous way.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
@@ -391,21 +399,21 @@ namespace RepoDb
         {
             var primary = GetAndGuardPrimaryKey(connection, tableName, transaction);
             var dbSetting = connection.GetDbSetting();
-            var hasImplicitTransaction = (transaction != null);
+            var hasImplicitTransaction = false;
             var count = primaryKeys?.AsList()?.Count;
             var deletedRows = 0;
 
             try
             {
                 // Creates a transaction (if needed)
-                if (transaction == null && count > Constant.MaxParametersCount)
+                if (transaction == null && count > ParameterBatchCount)
                 {
-                    transaction = connection.BeginTransaction();
+                    transaction = connection.EnsureOpen().BeginTransaction();
                     hasImplicitTransaction = true;
                 }
 
                 // Call the underlying method
-                var splitted = primaryKeys.Split(Constant.MaxParametersCount).AsList();
+                var splitted = primaryKeys.Split(ParameterBatchCount).AsList();
                 foreach (var keys in splitted)
                 {
                     if (keys.Any() != true)
@@ -426,7 +434,7 @@ namespace RepoDb
                 // Commit the transaction
                 if (hasImplicitTransaction)
                 {
-                    transaction.Commit();
+                    transaction?.Commit();
                 }
 
             }
@@ -435,7 +443,7 @@ namespace RepoDb
                 // Dispose the transaction
                 if (hasImplicitTransaction)
                 {
-                    transaction.Dispose();
+                    transaction?.Dispose();
                 }
             }
 
@@ -470,21 +478,21 @@ namespace RepoDb
         {
             var primary = GetAndGuardPrimaryKey(connection, tableName, transaction);
             var dbSetting = connection.GetDbSetting();
-            var hasImplicitTransaction = (transaction != null);
+            var hasImplicitTransaction = false;
             var count = primaryKeys?.AsList()?.Count;
             var deletedRows = 0;
 
             try
             {
                 // Creates a transaction (if needed)
-                if (transaction == null && count > Constant.MaxParametersCount)
+                if (transaction == null && count > ParameterBatchCount)
                 {
-                    transaction = connection.BeginTransaction();
+                    transaction = connection.EnsureOpen().BeginTransaction();
                     hasImplicitTransaction = true;
                 }
 
                 // Call the underlying method
-                var splitted = primaryKeys.Split(Constant.MaxParametersCount).AsList();
+                var splitted = primaryKeys.Split(ParameterBatchCount).AsList();
                 foreach (var keys in splitted)
                 {
                     if (keys.Any() != true)
@@ -505,7 +513,7 @@ namespace RepoDb
                 // Commit the transaction
                 if (hasImplicitTransaction)
                 {
-                    transaction.Commit();
+                    transaction?.Commit();
                 }
 
             }
@@ -514,7 +522,7 @@ namespace RepoDb
                 // Dispose the transaction
                 if (hasImplicitTransaction)
                 {
-                    transaction.Dispose();
+                    transaction?.Dispose();
                 }
             }
 

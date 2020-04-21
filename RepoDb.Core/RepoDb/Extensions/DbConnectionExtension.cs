@@ -9,7 +9,6 @@ using System.Data.Common;
 using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
 using System.Threading.Tasks;
 
 namespace RepoDb
@@ -250,7 +249,7 @@ namespace RepoDb
         /// Executes a query from the database. It uses the underlying method of <see cref="IDbCommand.ExecuteReader(CommandBehavior)"/> and
         /// converts the result back to an enumerable list of data entity object.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="commandText">The command text to be used.</param>
         /// <param name="param">
@@ -284,7 +283,7 @@ namespace RepoDb
         /// Executes a query from the database. It uses the underlying method of <see cref="IDbCommand.ExecuteReader(CommandBehavior)"/> and
         /// converts the result back to an enumerable list of data entity object.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="commandText">The command text to be used.</param>
         /// <param name="param">
@@ -334,7 +333,7 @@ namespace RepoDb
         /// Executes a query from the database in an asynchronous way. It uses the underlying method of <see cref="IDbCommand.ExecuteReader(CommandBehavior)"/> and
         /// converts the result back to an enumerable list of data entity object.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="commandText">The command text to be used.</param>
         /// <param name="param">
@@ -368,7 +367,7 @@ namespace RepoDb
         /// Executes a query from the database in an asynchronous way. It uses the underlying method of <see cref="IDbCommand.ExecuteReader(CommandBehavior)"/> and
         /// converts the result back to an enumerable list of data entity object.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="commandText">The command text to be used.</param>
         /// <param name="param">
@@ -863,7 +862,7 @@ namespace RepoDb
                 transaction: transaction,
                 skipCommandArrayParametersCheck: skipCommandArrayParametersCheck))
             {
-                return ObjectConverter.DbNullToNull(command.ExecuteScalar());
+                return Converter.DbNullToNull(command.ExecuteScalar());
             }
         }
 
@@ -932,7 +931,7 @@ namespace RepoDb
                 transaction: transaction,
                 skipCommandArrayParametersCheck: skipCommandArrayParametersCheck))
             {
-                return ObjectConverter.DbNullToNull(await command.ExecuteScalarAsync());
+                return Converter.DbNullToNull(await command.ExecuteScalarAsync());
             }
         }
 
@@ -1002,7 +1001,7 @@ namespace RepoDb
                 transaction: transaction,
                 skipCommandArrayParametersCheck: skipCommandArrayParametersCheck))
             {
-                return ObjectConverter.ToType<TResult>(command.ExecuteScalar());
+                return Converter.ToType<TResult>(command.ExecuteScalar());
             }
         }
 
@@ -1072,7 +1071,7 @@ namespace RepoDb
                 transaction: transaction,
                 skipCommandArrayParametersCheck: skipCommandArrayParametersCheck))
             {
-                return ObjectConverter.ToType<TResult>(await command.ExecuteScalarAsync());
+                return Converter.ToType<TResult>(await command.ExecuteScalarAsync());
             }
         }
 
@@ -1099,7 +1098,7 @@ namespace RepoDb
             // Check the presence
             if (setting == null)
             {
-                throw new MissingMappingException($"There is no database setting mapping found for '{connection.GetType().FullName}'. Either install the extension library (ie: 'RepoDb.SqlServer', 'RepoDb.SqLite', 'RepoDb.MySql', 'RepoDb.PostgreSql') and call their respective boostrapper once (ie: 'SqlServerBootstrap.Initialize()', 'SqLiteBootstrap.Initialize()', 'MySqlBootstrap.Initialize()', 'PostgreSqlBootstrap.Initialize()').");
+                throw new MissingMappingException($"There is no database setting mapping found for '{connection.GetType().FullName}'. Make sure to install the correct extension library and call the bootstrapper method. You can also visit the library's installation page (http://repodb.net/tutorials/installation).");
             }
 
             // Return the validator
@@ -1125,7 +1124,7 @@ namespace RepoDb
             // Check the presence
             if (helper == null)
             {
-                throw new MissingMappingException($"There is no database helper mapping found for '{connection.GetType().FullName}'. Either install the extension library (ie: 'RepoDb.SqlServer', 'RepoDb.SqLite', 'RepoDb.MySql', 'RepoDb.PostgreSql') and call their respective boostrapper once (ie: 'SqlServerBootstrap.Initialize()', 'SqLiteBootstrap.Initialize()', 'MySqlBootstrap.Initialize()', 'PostgreSqlBootstrap.Initialize()').");
+                throw new MissingMappingException($"There is no database helper mapping found for '{connection.GetType().FullName}'. Make sure to install the correct extension library and call the bootstrapper method. You can also visit the library's installation page (http://repodb.net/tutorials/installation).");
             }
 
             // Return the validator
@@ -1151,7 +1150,7 @@ namespace RepoDb
             // Check the presence
             if (statementBuilder == null)
             {
-                throw new MissingMappingException($"There is no database statement builder mapping found for '{connection.GetType().FullName}'. Either install the extension library (ie: 'RepoDb.SqlServer', 'RepoDb.SqLite', 'RepoDb.MySql', 'RepoDb.PostgreSql') and call their respective boostrapper once (ie: 'SqlServerBootstrap.Initialize()', 'SqLiteBootstrap.Initialize()', 'MySqlBootstrap.Initialize()', 'PostgreSqlBootstrap.Initialize()').");
+                throw new MissingMappingException($"There is no database statement builder mapping found for '{connection.GetType().FullName}'. Make sure to install the correct extension library and call the bootstrapper method. You can also visit the library's installation page (http://repodb.net/tutorials/installation).");
             }
 
             // Return the validator
@@ -1204,7 +1203,7 @@ namespace RepoDb
         /// <summary>
         /// Throws an exception if there is no defined primary key on the data entity type.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="transaction">The transaction object that is currently in used.</param>
         /// <returns>The primary <see cref="ClassProperty"/> of the type.</returns>
@@ -1254,7 +1253,7 @@ namespace RepoDb
         /// <summary>
         /// Extract the property value from the instances
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="entities">The list of data entity objects to be extracted.</param>
         /// <param name="property">The class property to be used.</param>
         /// <returns>An array of the results based on the target types.</returns>
@@ -1298,7 +1297,7 @@ namespace RepoDb
             var properties = (IEnumerable<ClassProperty>)null;
 
             // Identify
-            if (type.GetTypeInfo().IsGenericType)
+            if (type.IsGenericType)
             {
                 properties = type.GetClassProperties();
             }
@@ -1360,7 +1359,7 @@ namespace RepoDb
             {
                 return null;
             }
-            if (whereOrPrimaryKey.GetType().GetTypeInfo().IsGenericType)
+            if (whereOrPrimaryKey.GetType().IsGenericType)
             {
                 return QueryGroup.Parse(whereOrPrimaryKey);
             }
@@ -1381,7 +1380,7 @@ namespace RepoDb
         /// <summary>
         /// Converts the dynamic expression into a <see cref="QueryGroup"/> object.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="whereOrPrimaryKey">The dynamic expression or the actual value of the primary key.</param>
         /// <param name="transaction">The transaction object that is currently in used.</param>
@@ -1395,7 +1394,7 @@ namespace RepoDb
             {
                 return null;
             }
-            if (whereOrPrimaryKey.GetType().GetTypeInfo().IsGenericType)
+            if (whereOrPrimaryKey.GetType().IsGenericType)
             {
                 return QueryGroup.Parse(whereOrPrimaryKey);
             }
@@ -1430,7 +1429,7 @@ namespace RepoDb
             {
                 return null;
             }
-            if (where.GetType().GetTypeInfo().IsGenericType)
+            if (where.GetType().IsGenericType)
             {
                 return QueryGroup.Parse(where);
             }
@@ -1443,7 +1442,7 @@ namespace RepoDb
         /// <summary>
         /// Converts the primary key to <see cref="QueryGroup"/> object.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="where">The query expression.</param>
         /// <returns>An instance of <see cref="QueryGroup"/> object.</returns>
         private static QueryGroup ToQueryGroup<TEntity>(Expression<Func<TEntity, bool>> where)
@@ -1459,7 +1458,7 @@ namespace RepoDb
         /// <summary>
         /// Converts the primary key to <see cref="QueryGroup"/> object.
         /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity object.</typeparam>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="property">The instance of <see cref="ClassProperty"/> to be converted.</param>
         /// <param name="entity">The instance of the actual entity.</param>
         /// <returns>An instance of <see cref="QueryGroup"/> object.</returns>
@@ -1632,7 +1631,7 @@ namespace RepoDb
                     }
 
                     // Skip if it is an array
-                    if (property.DeclaringType.GetTypeInfo().IsGenericType == false && property.PropertyType == typeof(byte[]))
+                    if (property.DeclaringType.IsGenericType == false && property.PropertyType == typeof(byte[]))
                     {
                         continue;
                     }

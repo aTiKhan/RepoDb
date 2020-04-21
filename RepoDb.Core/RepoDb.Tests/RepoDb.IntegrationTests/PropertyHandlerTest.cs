@@ -24,9 +24,9 @@ namespace RepoDb.IntegrationTests
         [TestCleanup]
         public void Cleanup()
         {
-            PropertyTypeHandlerMapper.Remove(typeof(float), false);
-            PropertyTypeHandlerMapper.Remove(typeof(decimal), false);
-            PropertyTypeHandlerMapper.Remove(typeof(DateTime), false);
+            PropertyHandlerMapper.Remove(typeof(float));
+            PropertyHandlerMapper.Remove(typeof(decimal));
+            PropertyHandlerMapper.Remove(typeof(DateTime));
             Database.Cleanup();
         }
 
@@ -84,11 +84,11 @@ namespace RepoDb.IntegrationTests
                 {
                     if (property.PropertyInfo.PropertyType.IsNullable())
                     {
-                        return default(long);
+                        return null;
                     }
                     else
                     {
-                        return null;
+                        return default(long);
                     }
                 }
             }
@@ -117,11 +117,11 @@ namespace RepoDb.IntegrationTests
                 {
                     if (property.PropertyInfo.PropertyType.IsNullable())
                     {
-                        return default(long);
+                        return null;
                     }
                     else
                     {
-                        return null;
+                        return default(long);
                     }
                 }
             }
@@ -515,7 +515,7 @@ namespace RepoDb.IntegrationTests
         public void TestPropertyHandlerWithNumbersToLongHandler()
         {
             // Setup
-            PropertyTypeHandlerMapper.Add(typeof(decimal), new DecimalToLongTypeHandler(), true);
+            PropertyHandlerMapper.Add(typeof(decimal), new DecimalToLongTypeHandler(), true);
 
             // Setup
             var models = CreateEntityModelForNumberPropertiesToLongTypes(10).AsList();
@@ -541,7 +541,7 @@ namespace RepoDb.IntegrationTests
         public void TestPropertyHandlerWithNumbersToLongHandlerAtomic()
         {
             // Setup
-            PropertyTypeHandlerMapper.Add(typeof(decimal), new DecimalToLongTypeHandler(), true);
+            PropertyHandlerMapper.Add(typeof(decimal), new DecimalToLongTypeHandler(), true);
 
             // Setup
             var models = CreateEntityModelForNumberPropertiesToLongTypes(10).AsList();
@@ -567,7 +567,7 @@ namespace RepoDb.IntegrationTests
         public void TestPropertyHandlerWithNumbersToLongHandlerAsNull()
         {
             // Setup
-            PropertyTypeHandlerMapper.Add(typeof(decimal), new DecimalToLongTypeHandler(), true);
+            PropertyHandlerMapper.Add(typeof(decimal), new DecimalToLongTypeHandler(), true);
 
             // Setup
             var models = CreateEntityModelForNumberPropertiesToLongTypes(10, true).AsList();
@@ -593,7 +593,7 @@ namespace RepoDb.IntegrationTests
         public void TestPropertyHandlerWithNumbersToLongHandlerAsNullAtomic()
         {
             // Setup
-            PropertyTypeHandlerMapper.Add(typeof(decimal), new DecimalToLongTypeHandler(), true);
+            PropertyHandlerMapper.Add(typeof(decimal), new DecimalToLongTypeHandler(), true);
 
             // Setup
             var models = CreateEntityModelForNumberPropertiesToLongTypes(10, true).AsList();
@@ -623,7 +623,7 @@ namespace RepoDb.IntegrationTests
         public void TestPropertyHandlerForDateTimeKind()
         {
             // Setup
-            PropertyTypeHandlerMapper.Add(typeof(DateTime), new DateTimeToUtcKindHandler(), true);
+            PropertyHandlerMapper.Add(typeof(DateTime), new DateTimeToUtcKindHandler(), true);
 
             // Setup
             var models = CreateEntityModelForDateTimeKinds(10).AsList();
@@ -649,7 +649,7 @@ namespace RepoDb.IntegrationTests
         public void TestPropertyHandlerForDateTimeKindAtomic()
         {
             // Setup
-            PropertyTypeHandlerMapper.Add(typeof(DateTime), new DateTimeToUtcKindHandler(), true);
+            PropertyHandlerMapper.Add(typeof(DateTime), new DateTimeToUtcKindHandler(), true);
 
             // Setup
             var models = CreateEntityModelForDateTimeKinds(10).AsList();
@@ -675,7 +675,7 @@ namespace RepoDb.IntegrationTests
         public void TestPropertyHandlerForDateTimeKindAsNull()
         {
             // Setup
-            PropertyTypeHandlerMapper.Add(typeof(DateTime), new DateTimeToUtcKindHandler(), true);
+            PropertyHandlerMapper.Add(typeof(DateTime), new DateTimeToUtcKindHandler(), true);
 
             // Setup
             var models = CreateEntityModelForDateTimeKinds(10, true).AsList();
@@ -701,7 +701,7 @@ namespace RepoDb.IntegrationTests
         public void TestPropertyHandlerForDateTimeKindAsNullAtomic()
         {
             // Setup
-            PropertyTypeHandlerMapper.Add(typeof(DateTime), new DateTimeToUtcKindHandler(), true);
+            PropertyHandlerMapper.Add(typeof(DateTime), new DateTimeToUtcKindHandler(), true);
 
             // Setup
             var models = CreateEntityModelForDateTimeKinds(10, true).AsList();
