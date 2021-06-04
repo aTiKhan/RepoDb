@@ -1,13 +1,12 @@
 ﻿using RepoDb.Extensions;
 using RepoDb.Interfaces;
-using RepoDb.Types;
 using System;
 using System.Data;
 
 namespace RepoDb.Resolvers
 {
     /// <summary>
-    /// A class used to resolve the .NET CLR Types into its equivalent SQL Server <see cref="DbType"/> value.
+    /// A class that is being used to resolve the .NET CLR Types into its equivalent SQL Server <see cref="DbType"/> value.
     /// </summary>
     public class ClientTypeToDbTypeResolver : IResolver<Type, DbType?>
     {
@@ -17,9 +16,9 @@ namespace RepoDb.Resolvers
          */
 
         /// <summary>
-        /// Returns the equivalent <see cref="DbType"/> of the target .NET CLR Type.
+        /// Returns the equivalent <see cref="DbType"/> of the target .NET CLR type.
         /// </summary>
-        /// <param name="type">The .NET CLR Type.</param>
+        /// <param name="type">The .NET CLR type.</param>
         /// <returns>The equivalent <see cref="DbType"/> Type.</returns>
         public DbType? Resolve(Type type)
         {
@@ -27,80 +26,84 @@ namespace RepoDb.Resolvers
             {
                 throw new NullReferenceException("The type must not be null.");
             }
+            if (type.IsEnum)
+            {
+                return null;
+            }
 
-            type = type?.GetUnderlyingType();
+            type = type.GetUnderlyingType();
 
-            if (type == typeof(long))
+            if (type == StaticType.Int64)
             {
                 return DbType.Int64;
             }
-            else if (type == typeof(byte))
+            else if (type == StaticType.Byte)
             {
                 return DbType.Byte;
             }
-            else if (type == typeof(byte[]))
+            else if (type == StaticType.ByteArray)
             {
                 return DbType.Binary;
             }
-            else if (type == typeof(bool))
+            else if (type == StaticType.Boolean)
             {
                 return DbType.Boolean;
             }
-            else if (type == typeof(string))
+            else if (type == StaticType.String)
             {
                 return DbType.String;
             }
-            else if (type == typeof(DateTime))
+            else if (type == StaticType.DateTime)
             {
                 return DbType.DateTime;
             }
-            else if (type == typeof(DateTimeOffset))
+            else if (type == StaticType.DateTimeOffset)
             {
                 return DbType.DateTimeOffset;
             }
-            else if (type == typeof(decimal))
+            else if (type == StaticType.Decimal)
             {
                 return DbType.Decimal;
             }
-            else if (type == typeof(double))
+            else if (type == StaticType.Double)
             {
                 return DbType.Double;
             }
-            else if (type == typeof(int))
+            else if (type == StaticType.Int32)
             {
                 return DbType.Int32;
             }
-            else if (type == typeof(float))
+            else if (type == StaticType.Single)
             {
                 return DbType.Single;
             }
-            else if (type == typeof(short))
+            else if (type == StaticType.Int16)
             {
                 return DbType.Int16;
             }
-            else if (type == typeof(SqlVariant))
+            else if (type == StaticType.SqlVariant)
             {
                 return DbType.Object;
             }
             // Object must be defaulted to String, defaulted by .NET for DbType
-            else if (type == typeof(object))
+            else if (type == StaticType.Object)
             {
                 //return DbType.Object;
                 return DbType.String;
             }
-            else if (type == typeof(char[]))
+            else if (type == StaticType.CharArray)
             {
                 return DbType.String;
             }
-            else if (type == typeof(TimeSpan))
+            else if (type == StaticType.TimeSpan)
             {
                 return DbType.Time;
             }
-            else if (type == typeof(byte))
+            else if (type == StaticType.Byte)
             {
                 return DbType.Byte;
             }
-            else if (type == typeof(Guid))
+            else if (type == StaticType.Guid)
             {
                 return DbType.Guid;
             }

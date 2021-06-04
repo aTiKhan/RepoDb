@@ -1,21 +1,23 @@
 ﻿using System;
 using System.Data.Common;
+using System.Linq.Expressions;
 
 namespace RepoDb.Enumerations
 {
     /// <summary>
-    /// An enum used to define the conversion logic when converting an instance of <see cref="DbDataReader"/> into a .NET CLR class.
+    /// An enumeration that is used to define the conversion logic when converting an instance of <see cref="DbDataReader"/> into a .NET CLR class.
     /// </summary>
     public enum ConversionType
     {
         /// <summary>
-        /// The conversion is strict and there is no additional implied logic during the conversion of <see cref="DbDataReader"/> object into its
-        /// destination .NET CLR type.
+        /// The conversion is strict. There is no additional implied logic in used during the conversion of the <see cref="DbDataReader"/> object into its destination .NET CLR type.
         /// </summary>
         Default = 1,
+
         /// <summary>
-        /// The data type conversion is not strict. An additional logic from <see cref="Convert"/> object will be used to properly map the <see cref="DbDataReader"/> data type
-        /// into its destination .NET CLR type. The operation will only succeed if the data types are convertible.
+        /// The conversion is not strict (or automatic). An additional logic from the <see cref="Expression.Convert(Expression, Type)"/> and/or <see cref="Convert"/> objects
+        /// will be used to properly map the instance of <see cref="DbDataReader"/> object into its destination .NET CLR type. The operation is compiled ahead-of-time (AOT) and 
+        /// will only succeed if the data types of both objects are convertible.
         /// </summary>
         Automatic = 2
     }

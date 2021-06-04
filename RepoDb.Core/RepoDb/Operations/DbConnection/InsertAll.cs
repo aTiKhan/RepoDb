@@ -1,14 +1,15 @@
-﻿using RepoDb.Contexts.Execution;
+﻿using RepoDb.Contexts.Providers;
 using RepoDb.Exceptions;
 using RepoDb.Extensions;
 using RepoDb.Interfaces;
-using RepoDb.Requests;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Transactions;
 
 namespace RepoDb
 {
@@ -20,157 +21,12 @@ namespace RepoDb
         #region InsertAll<TEntity>
 
         /// <summary>
-        /// Inserts multiple data in the database.
+        /// Insert multiple rows in the table.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity objects.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entities">The list of data entity objects to be inserted.</param>
-        /// <param name="batchSize">The batch size of the insertion.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of inserted rows.</returns>
-        public static int InsertAll<TEntity>(this IDbConnection connection,
-            IEnumerable<TEntity> entities,
-            int batchSize = Constant.DefaultBatchOperationSize,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            return InsertAllInternal<TEntity>(connection: connection,
-                entities: entities,
-                batchSize: batchSize,
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Inserts multiple data in the database.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entities">The list of data entity objects to be inserted.</param>
-        /// <param name="batchSize">The batch size of the insertion.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of inserted rows.</returns>
-        internal static int InsertAllInternal<TEntity>(this IDbConnection connection,
-            IEnumerable<TEntity> entities,
-            int batchSize = Constant.DefaultBatchOperationSize,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            return InsertAllInternalBase<TEntity>(connection: connection,
-                tableName: ClassMappedNameCache.Get<TEntity>(),
-                entities: entities,
-                batchSize: batchSize,
-                fields: FieldCache.Get<TEntity>(),
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder,
-                skipIdentityCheck: false);
-        }
-
-        #endregion
-
-        #region InsertAllAsync<TEntity>
-
-        /// <summary>
-        /// Inserts multiple data in the database in asynchronous way.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entities">The list of data entity objects to be inserted.</param>
-        /// <param name="batchSize">The batch size of the insertion.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of inserted rows.</returns>
-        public static Task<int> InsertAllAsync<TEntity>(this IDbConnection connection,
-            IEnumerable<TEntity> entities,
-            int batchSize = Constant.DefaultBatchOperationSize,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            return InsertAllAsyncInternal<TEntity>(connection: connection,
-                entities: entities,
-                batchSize: batchSize,
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Inserts multiple data in the database in asynchronous way.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entities">The list of data entity objects to be inserted.</param>
-        /// <param name="batchSize">The batch size of the insertion.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of inserted rows.</returns>
-        internal static Task<int> InsertAllAsyncInternal<TEntity>(this IDbConnection connection,
-            IEnumerable<TEntity> entities,
-            int batchSize = Constant.DefaultBatchOperationSize,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            return InsertAllAsyncInternalBase<TEntity>(connection: connection,
-                tableName: ClassMappedNameCache.Get<TEntity>(),
-                entities: entities,
-                batchSize: batchSize,
-                fields: FieldCache.Get<TEntity>(),
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder,
-                skipIdentityCheck: false);
-        }
-
-        #endregion
-
-        #region InsertAll(TableName)
-
-        /// <summary>
-        /// Inserts multiple data in the database. By default, the database fields are used unless the 'fields' argument is defined.
-        /// </summary>
-        /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
-        /// <param name="entities">The list of dynamic objects to be inserted.</param>
+        /// <param name="entities">The list of data entity objects to be inserted.</param>
         /// <param name="batchSize">The batch size of the insertion.</param>
         /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -178,10 +34,10 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of inserted rows.</returns>
-        public static int InsertAll(this IDbConnection connection,
+        /// <returns>The number of inserted rows in the table.</returns>
+        public static int InsertAll<TEntity>(this IDbConnection connection,
             string tableName,
-            IEnumerable<object> entities,
+            IEnumerable<TEntity> entities,
             int batchSize = Constant.DefaultBatchOperationSize,
             IEnumerable<Field> fields = null,
             string hints = null,
@@ -189,6 +45,7 @@ namespace RepoDb
             IDbTransaction transaction = null,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
+            where TEntity : class
         {
             return InsertAllInternal(connection: connection,
                 tableName: tableName,
@@ -203,11 +60,11 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Inserts multiple data in the database. By default, the database fields are used unless the 'fields' argument is defined.
+        /// Insert multiple rows in the table.
         /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity objects.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
-        /// <param name="tableName">The name of the target table to be used.</param>
-        /// <param name="entities">The list of dynamic objects to be inserted.</param>
+        /// <param name="entities">The list of data entity objects to be inserted.</param>
         /// <param name="batchSize">The batch size of the insertion.</param>
         /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -215,10 +72,9 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of inserted rows.</returns>
-        internal static int InsertAllInternal(this IDbConnection connection,
-            string tableName,
-            IEnumerable<object> entities,
+        /// <returns>The number of inserted rows in the table.</returns>
+        public static int InsertAll<TEntity>(this IDbConnection connection,
+            IEnumerable<TEntity> entities,
             int batchSize = Constant.DefaultBatchOperationSize,
             IEnumerable<Field> fields = null,
             string hints = null,
@@ -226,52 +82,10 @@ namespace RepoDb
             IDbTransaction transaction = null,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
+            where TEntity : class
         {
-            // Return the result
-            return InsertAllInternalBase<object>(connection: connection,
-                tableName: tableName,
-                entities: entities,
-                batchSize: batchSize,
-                fields: fields,
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder,
-                skipIdentityCheck: true);
-        }
-
-        #endregion
-
-        #region InsertAllAsync(TableName)
-
-        /// <summary>
-        /// Inserts multiple data in the database in an asynchronous way. By default, the database fields are used unless the 'fields' argument is defined.
-        /// </summary>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="tableName">The name of the target table to be used.</param>
-        /// <param name="entities">The list of dynamic objects to be inserted.</param>
-        /// <param name="batchSize">The batch size of the insertion.</param>
-        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of inserted rows.</returns>
-        public static Task<int> InsertAllAsync(this IDbConnection connection,
-            string tableName,
-            IEnumerable<object> entities,
-            int batchSize = Constant.DefaultBatchOperationSize,
-            IEnumerable<Field> fields = null,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-        {
-            return InsertAllAsyncInternal(connection: connection,
-                tableName: tableName,
+            return InsertAllInternal<TEntity>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
                 entities: entities,
                 batchSize: batchSize,
                 fields: fields,
@@ -283,7 +97,211 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Inserts multiple data in the database in an asynchronous way. By default, the database fields are used unless the 'fields' argument is defined.
+        /// Insert multiple rows in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entities">The list of data entity objects to be inserted.</param>
+        /// <param name="batchSize">The batch size of the insertion.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of inserted rows in the table.</returns>
+        internal static int InsertAllInternal<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            if ((entities?.FirstOrDefault()?.GetType() ?? typeof(TEntity)).IsDictionaryStringObject())
+            {
+                return InsertAllInternalBase<IDictionary<string, object>>(connection: connection,
+                    tableName: tableName,
+                    entities: entities?.WithType<IDictionary<string, object>>(),
+                    batchSize: batchSize,
+                    fields: GetQualifiedFields<TEntity>(fields, entities?.FirstOrDefault()),
+                    hints: hints,
+                    commandTimeout: commandTimeout,
+                    transaction: transaction,
+                    trace: trace,
+                    statementBuilder: statementBuilder);
+            }
+            else
+            {
+                return InsertAllInternalBase<TEntity>(connection: connection,
+                    tableName: tableName,
+                    entities: entities,
+                    batchSize: batchSize,
+                    fields: GetQualifiedFields<TEntity>(fields, entities?.FirstOrDefault()),
+                    hints: hints,
+                    commandTimeout: commandTimeout,
+                    transaction: transaction,
+                    trace: trace,
+                    statementBuilder: statementBuilder);
+            }
+        }
+
+        #endregion
+
+        #region InsertAllAsync<TEntity>
+
+        /// <summary>
+        /// Insert multiple rows in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity objects.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entities">The list of data entity objects to be inserted.</param>
+        /// <param name="batchSize">The batch size of the insertion.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of inserted rows in the table.</returns>
+        public static Task<int> InsertAllAsync<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return InsertAllAsyncInternal(connection: connection,
+                tableName: tableName,
+                entities: entities,
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Insert multiple rows in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entities">The list of data entity objects to be inserted.</param>
+        /// <param name="batchSize">The batch size of the insertion.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of inserted rows in the table.</returns>
+        public static Task<int> InsertAllAsync<TEntity>(this IDbConnection connection,
+            IEnumerable<TEntity> entities,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return InsertAllAsyncInternal<TEntity>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entities: entities,
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Insert multiple rows in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entities">The list of data entity objects to be inserted.</param>
+        /// <param name="batchSize">The batch size of the insertion.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of inserted rows in the table.</returns>
+        internal static Task<int> InsertAllAsyncInternal<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            if ((entities?.FirstOrDefault()?.GetType() ?? typeof(TEntity)).IsDictionaryStringObject())
+            {
+                return InsertAllAsyncInternalBase<IDictionary<string, object>>(connection: connection,
+                    tableName: tableName,
+                    entities: entities?.WithType<IDictionary<string, object>>(),
+                    batchSize: batchSize,
+                    fields: GetQualifiedFields<TEntity>(fields, entities?.FirstOrDefault()),
+                    hints: hints,
+                    commandTimeout: commandTimeout,
+                    transaction: transaction,
+                    trace: trace,
+                    statementBuilder: statementBuilder,
+                    cancellationToken: cancellationToken);
+            }
+            else
+            {
+                return InsertAllAsyncInternalBase<TEntity>(connection: connection,
+                    tableName: tableName,
+                    entities: entities,
+                    batchSize: batchSize,
+                    fields: GetQualifiedFields<TEntity>(fields, entities?.FirstOrDefault()),
+                    hints: hints,
+                    commandTimeout: commandTimeout,
+                    transaction: transaction,
+                    trace: trace,
+                    statementBuilder: statementBuilder,
+                    cancellationToken: cancellationToken);
+            }
+        }
+
+        #endregion
+
+        #region InsertAll(TableName)
+
+        /// <summary>
+        /// Insert multiple rows in the table. By default, the table fields are used unless the 'fields' argument is defined.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
@@ -295,8 +313,8 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of inserted rows.</returns>
-        internal static Task<int> InsertAllAsyncInternal(this IDbConnection connection,
+        /// <returns>The number of inserted rows in the table.</returns>
+        public static int InsertAll(this IDbConnection connection,
             string tableName,
             IEnumerable<object> entities,
             int batchSize = Constant.DefaultBatchOperationSize,
@@ -307,8 +325,50 @@ namespace RepoDb
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
         {
-            // Return the result
-            return InsertAllAsyncInternalBase<object>(connection: connection,
+            return InsertAllInternal<object>(connection: connection,
+                tableName: tableName,
+                entities: entities,
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        #endregion
+
+        #region InsertAllAsync(TableName)
+
+        /// <summary>
+        /// Insert multiple rows in the table in an asynchronous way. By default, the table fields are used unless the 'fields' argument is defined.
+        /// </summary>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entities">The list of dynamic objects to be inserted.</param>
+        /// <param name="batchSize">The batch size of the insertion.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of inserted rows in the table.</returns>
+        public static Task<int> InsertAllAsync(this IDbConnection connection,
+            string tableName,
+            IEnumerable<object> entities,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+        {
+            return InsertAllAsyncInternal<object>(connection: connection,
                 tableName: tableName,
                 entities: entities,
                 batchSize: batchSize,
@@ -318,7 +378,7 @@ namespace RepoDb
                 transaction: transaction,
                 trace: trace,
                 statementBuilder: statementBuilder,
-                skipIdentityCheck: true);
+                cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -326,7 +386,7 @@ namespace RepoDb
         #region InsertAllInternalBase<TEntity>
 
         /// <summary>
-        /// Inserts multiple data in the database.
+        /// Insert multiple rows in the table.
         /// </summary>
         /// <typeparam name="TEntity">The type of the object (whether a data entity or a dynamic).</typeparam>
         /// <param name="connection">The connection object to be used.</param>
@@ -339,8 +399,7 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <param name="skipIdentityCheck">True to skip the identity check.</param>
-        /// <returns>The number of inserted rows.</returns>
+        /// <returns>The number of inserted rows in the table.</returns>
         internal static int InsertAllInternalBase<TEntity>(this IDbConnection connection,
             string tableName,
             IEnumerable<TEntity> entities,
@@ -350,157 +409,36 @@ namespace RepoDb
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null,
-            bool skipIdentityCheck = false)
+            IStatementBuilder statementBuilder = null)
             where TEntity : class
         {
             // Variables needed
             var dbSetting = connection.GetDbSetting();
 
             // Guard the parameters
-            GuardInsertAll(entities);
+            if (entities?.Any() != true)
+            {
+                return default;
+            }
 
             // Validate the batch size
             batchSize = (dbSetting.IsMultiStatementExecutable == true) ? Math.Min(batchSize, entities.Count()) : 1;
 
-            // Get the fields
-            var dbFields = DbFieldCache.Get(connection, tableName, transaction);
-            if (fields?.Any() != true)
-            {
-                var first = entities?.First();
-                fields = first != null ? Field.Parse(first) : dbFields?.AsFields();
-            }
-
-            // Get the function
-            var callback = new Func<int, InsertAllExecutionContext<TEntity>>((int batchSizeValue) =>
-            {
-                // Variables needed
-                var identity = (Field)null;
-                var inputFields = (IEnumerable<DbField>)null;
-                var identityDbField = dbFields?.FirstOrDefault(f => f.IsIdentity);
-
-                // Set the identity value
-                if (skipIdentityCheck == false)
-                {
-                    identity = IdentityCache.Get<TEntity>()?.AsField();
-                    if (identity == null && identityDbField != null)
-                    {
-                        identity = FieldCache.Get<TEntity>().FirstOrDefault(field =>
-                            string.Equals(field.Name.AsUnquoted(true, dbSetting), identityDbField.Name.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase));
-                    }
-                }
-
-                // Filter the actual properties for input fields
-                inputFields = dbFields?
-                    .Where(dbField => dbField.IsIdentity == false)
-                    .Where(dbField =>
-                        fields.FirstOrDefault(field => string.Equals(field.Name.AsUnquoted(true, dbSetting), dbField.Name.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase)) != null)
-                    .AsList();
-
-                // Variables for the context
-                var multipleEntitiesFunc = (Action<DbCommand, IList<TEntity>>)null;
-                var identitySettersFunc = (List<Action<TEntity, DbCommand>>)null;
-                var singleEntityFunc = (Action<DbCommand, TEntity>)null;
-                var identitySetterFunc = (Action<TEntity, object>)null;
-
-                // Get if we have not skipped it
-                if (skipIdentityCheck == false && identity != null)
-                {
-                    identitySetterFunc = FunctionCache.GetDataEntityPropertyValueSetterFunction<TEntity>(identity);
-                }
-
-                // Identity which objects to set
-                if (batchSizeValue <= 1)
-                {
-                    singleEntityFunc = FunctionCache.GetDataEntityDbCommandParameterSetterFunction<TEntity>(
-                        string.Concat(typeof(TEntity).FullName, ".", tableName, ".InsertAll"),
-                        inputFields?.AsList(),
-                        null,
-                        dbSetting);
-                }
-                else
-                {
-                    multipleEntitiesFunc = FunctionCache.GetDataEntitiesDbCommandParameterSetterFunction<TEntity>(
-                        string.Concat(typeof(TEntity).FullName, ".", tableName, ".InsertAll"),
-                        inputFields?.AsList(),
-                        null,
-                        batchSizeValue,
-                        dbSetting);
-                }
-
-                // Identify the requests
-                var insertAllRequest = (InsertAllRequest)null;
-                var insertRequest = (InsertRequest)null;
-
-                // Create a different kind of requests
-                if (typeof(TEntity) == typeof(object))
-                {
-                    if (batchSizeValue > 1)
-                    {
-                        insertAllRequest = new InsertAllRequest(tableName,
-                            connection,
-                            transaction,
-                            fields,
-                            batchSizeValue,
-                            hints,
-                            statementBuilder);
-                    }
-                    else
-                    {
-                        insertRequest = new InsertRequest(tableName,
-                            connection,
-                            transaction,
-                            fields,
-                            hints,
-                            statementBuilder);
-                    }
-                }
-                else
-                {
-                    if (batchSizeValue > 1)
-                    {
-                        insertAllRequest = new InsertAllRequest(typeof(TEntity),
-                            connection,
-                            transaction,
-                            fields,
-                            batchSizeValue,
-                            hints,
-                            statementBuilder);
-                    }
-                    else
-                    {
-                        insertRequest = new InsertRequest(typeof(TEntity),
-                            connection,
-                            transaction,
-                            fields,
-                            hints,
-                            statementBuilder);
-                    }
-                }
-
-                // Return the value
-                return new InsertAllExecutionContext<TEntity>
-                {
-                    CommandText = batchSizeValue > 1 ? CommandTextCache.GetInsertAllText(insertAllRequest) : CommandTextCache.GetInsertText(insertRequest),
-                    InputFields = inputFields,
-                    BatchSize = batchSizeValue,
-                    SingleDataEntityParametersSetterFunc = singleEntityFunc,
-                    MultipleDataEntitiesParametersSetterFunc = multipleEntitiesFunc,
-                    IdentityPropertySetterFunc = identitySetterFunc,
-                    IdentityPropertySettersFunc = identitySettersFunc
-                };
-            });
-
             // Get the context
-            var context = (InsertAllExecutionContext<TEntity>)null;
-
-            // Identify the number of entities (performance), get an execution context from cache
-            context = InsertAllExecutionContextCache<TEntity>.Get(tableName, fields, batchSize, callback);
+            var context = InsertAllExecutionContextProvider.Create<TEntity>(connection,
+                tableName,
+                batchSize,
+                fields,
+                hints,
+                transaction,
+                statementBuilder);
+            var sessionId = Guid.Empty;
 
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog(context.CommandText, entities, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, context.CommandText, entities, null);
                 trace.BeforeInsertAll(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -521,7 +459,7 @@ namespace RepoDb
             var result = 0;
 
             // Make sure to create transaction if there is no passed one
-            var hasTransaction = (transaction != null);
+            var hasTransaction = (transaction != null || Transaction.Current != null);
 
             try
             {
@@ -544,7 +482,7 @@ namespace RepoDb
                         foreach (var entity in entities.AsList())
                         {
                             // Set the values
-                            context.SingleDataEntityParametersSetterFunc(command, entity);
+                            context.SingleDataEntityParametersSetterFunc?.Invoke(command, entity);
 
                             // Prepare the command
                             if (dbSetting.IsPreparable)
@@ -555,7 +493,7 @@ namespace RepoDb
                             // Actual Execution
                             var returnValue = Converter.DbNullToNull(command.ExecuteScalar());
 
-                            // Get explicity if needed
+                            // Get explicitly if needed
                             if (Equals(returnValue, null) == true && dbSetting.IsMultiStatementExecutable == false)
                             {
                                 returnValue = Converter.DbNullToNull(connection.GetDbHelper().GetScopeIdentity(connection, transaction));
@@ -587,20 +525,27 @@ namespace RepoDb
                             if (batchItems.Count != batchSize)
                             {
                                 // Get a new execution context from cache
-                                context = InsertAllExecutionContextCache<TEntity>.Get(tableName, fields, batchItems.Count, callback);
+                                context = InsertAllExecutionContextProvider.Create<TEntity>(connection,
+                                    tableName,
+                                    batchItems.Count,
+                                    fields,
+                                    hints,
+                                    transaction,
+                                    statementBuilder);
 
                                 // Set the command properties
                                 command.CommandText = context.CommandText;
                             }
 
                             // Set the values
-                            if (batchItems?.Count() == 1)
+                            if (batchItems?.Count == 1)
                             {
-                                context.SingleDataEntityParametersSetterFunc(command, batchItems.First());
+                                context.SingleDataEntityParametersSetterFunc?.Invoke(command, batchItems.First());
                             }
                             else
                             {
-                                context.MultipleDataEntitiesParametersSetterFunc(command, batchItems);
+                                context.MultipleDataEntitiesParametersSetterFunc?.Invoke(command, batchItems);
+                                AddOrderColumnParameters(command, batchItems);
                             }
 
                             // Prepare the command
@@ -612,27 +557,28 @@ namespace RepoDb
                             // Actual Execution
                             if (context.IdentityPropertySetterFunc == null)
                             {
+                                // No identity setters
                                 result += command.ExecuteNonQuery();
                             }
                             else
                             {
-                                using (var reader = command.ExecuteReader())
-                                {
-                                    var index = 0;
+                                // Set the identity back
+                                using var reader = command.ExecuteReader();
 
-                                    // Get the results
-                                    do
+                                // Get the results
+                                var position = 0;
+                                do
+                                {
+                                    if (reader.Read())
                                     {
-                                        if (reader.Read())
-                                        {
-                                            var value = Converter.DbNullToNull(reader.GetValue(0));
-                                            context.IdentityPropertySetterFunc.Invoke(batchItems[index], value);
-                                            result++;
-                                        }
-                                        index++;
+                                        var value = Converter.DbNullToNull(reader.GetValue(0));
+                                        var index = batchItems.Count > 1 && reader.FieldCount > 1 ? reader.GetInt32(1) : position;
+                                        context.IdentityPropertySetterFunc.Invoke(batchItems[index], value);
+                                        result++;
                                     }
-                                    while (reader.NextResult());
+                                    position++;
                                 }
+                                while (reader.NextResult());
                             }
                         }
                     }
@@ -663,11 +609,8 @@ namespace RepoDb
             }
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterInsertAll(new TraceLog(context.CommandText, entities, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterInsertAll(new TraceLog(sessionId, context.CommandText, entities, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Return the result
             return result;
@@ -678,7 +621,7 @@ namespace RepoDb
         #region InsertAllAsyncInternalBase<TEntity>
 
         /// <summary>
-        /// Inserts multiple data in the database in an asynchronous way.
+        /// Insert multiple rows in the table in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the object (whether a data entity or a dynamic).</typeparam>
         /// <param name="connection">The connection object to be used.</param>
@@ -691,8 +634,8 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <param name="skipIdentityCheck">True to skip the identity check.</param>
-        /// <returns>The number of inserted rows.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of inserted rows in the table.</returns>
         internal static async Task<int> InsertAllAsyncInternalBase<TEntity>(this IDbConnection connection,
             string tableName,
             IEnumerable<TEntity> entities,
@@ -703,156 +646,37 @@ namespace RepoDb
             IDbTransaction transaction = null,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null,
-            bool skipIdentityCheck = false)
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Variables needed
             var dbSetting = connection.GetDbSetting();
 
             // Guard the parameters
-            GuardInsertAll(entities);
+            if (entities?.Any() != true)
+            {
+                return default;
+            }
 
             // Validate the batch size
             batchSize = (dbSetting.IsMultiStatementExecutable == true) ? Math.Min(batchSize, entities.Count()) : 1;
 
-            // Get the fields
-            var dbFields = await DbFieldCache.GetAsync(connection, tableName, transaction);
-            if (fields?.Any() != true)
-            {
-                var first = entities?.First();
-                fields = first != null ? Field.Parse(first) : dbFields?.AsFields();
-            }
-
-            // Get the function
-            var callback = new Func<int, InsertAllExecutionContext<TEntity>>((int batchSizeValue) =>
-            {
-                // Variables needed
-                var identity = (Field)null;
-                var inputFields = (IEnumerable<DbField>)null;
-                var identityDbField = dbFields?.FirstOrDefault(f => f.IsIdentity);
-
-                // Set the identity value
-                if (skipIdentityCheck == false)
-                {
-                    identity = IdentityCache.Get<TEntity>()?.AsField();
-                    if (identity == null && identityDbField != null)
-                    {
-                        identity = FieldCache.Get<TEntity>().FirstOrDefault(field =>
-                            string.Equals(field.Name.AsUnquoted(true, dbSetting), identityDbField.Name.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase));
-                    }
-                }
-
-                // Filter the actual properties for input fields
-                inputFields = dbFields?
-                    .Where(dbField => dbField.IsIdentity == false)
-                    .Where(dbField =>
-                        fields.FirstOrDefault(field => string.Equals(field.Name.AsUnquoted(true, dbSetting), dbField.Name.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase)) != null)
-                    .AsList();
-
-                // Variables for the context
-                var multipleEntitiesFunc = (Action<DbCommand, IList<TEntity>>)null;
-                var identitySettersFunc = (List<Action<TEntity, DbCommand>>)null;
-                var singleEntityFunc = (Action<DbCommand, TEntity>)null;
-                var identitySetterFunc = (Action<TEntity, object>)null;
-
-                // Get if we have not skipped it
-                if (skipIdentityCheck == false && identity != null)
-                {
-                    identitySetterFunc = FunctionCache.GetDataEntityPropertyValueSetterFunction<TEntity>(identity);
-                }
-
-                // Identity which objects to set
-                if (batchSizeValue <= 1)
-                {
-                    singleEntityFunc = FunctionCache.GetDataEntityDbCommandParameterSetterFunction<TEntity>(
-                        string.Concat(typeof(TEntity).FullName, ".", tableName, ".InsertAll"),
-                        inputFields?.AsList(),
-                        null,
-                        dbSetting);
-                }
-                else
-                {
-                    multipleEntitiesFunc = FunctionCache.GetDataEntitiesDbCommandParameterSetterFunction<TEntity>(
-                        string.Concat(typeof(TEntity).FullName, ".", tableName, ".InsertAll"),
-                        inputFields?.AsList(),
-                        null,
-                        batchSizeValue,
-                        dbSetting);
-                }
-
-                // Identify the requests
-                var insertAllRequest = (InsertAllRequest)null;
-                var insertRequest = (InsertRequest)null;
-
-                // Create a different kind of requests
-                if (typeof(TEntity) == typeof(object))
-                {
-                    if (batchSizeValue > 1)
-                    {
-                        insertAllRequest = new InsertAllRequest(tableName,
-                            connection,
-                            transaction,
-                            fields,
-                            batchSizeValue,
-                            hints,
-                            statementBuilder);
-                    }
-                    else
-                    {
-                        insertRequest = new InsertRequest(tableName,
-                            connection,
-                            transaction,
-                            fields,
-                            hints,
-                            statementBuilder);
-                    }
-                }
-                else
-                {
-                    if (batchSizeValue > 1)
-                    {
-                        insertAllRequest = new InsertAllRequest(typeof(TEntity),
-                            connection,
-                            transaction,
-                            fields,
-                            batchSizeValue,
-                            hints,
-                            statementBuilder);
-                    }
-                    else
-                    {
-                        insertRequest = new InsertRequest(typeof(TEntity),
-                            connection,
-                            transaction,
-                            fields,
-                            hints,
-                            statementBuilder);
-                    }
-                }
-
-                // Return the value
-                return new InsertAllExecutionContext<TEntity>
-                {
-                    CommandText = batchSizeValue > 1 ? CommandTextCache.GetInsertAllText(insertAllRequest) : CommandTextCache.GetInsertText(insertRequest),
-                    InputFields = inputFields,
-                    BatchSize = batchSizeValue,
-                    SingleDataEntityParametersSetterFunc = singleEntityFunc,
-                    MultipleDataEntitiesParametersSetterFunc = multipleEntitiesFunc,
-                    IdentityPropertySetterFunc = identitySetterFunc,
-                    IdentityPropertySettersFunc = identitySettersFunc
-                };
-            });
-
             // Get the context
-            var context = (InsertAllExecutionContext<TEntity>)null;
-
-            // Identify the number of entities (performance), get an execution context from cache
-            context = InsertAllExecutionContextCache<TEntity>.Get(tableName, fields, batchSize, callback);
+            var context = await InsertAllExecutionContextProvider.CreateAsync<TEntity>(connection,
+                tableName,
+                batchSize,
+                fields,
+                hints,
+                transaction,
+                statementBuilder,
+                cancellationToken);
+            var sessionId = Guid.Empty;
 
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog(context.CommandText, entities, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, context.CommandText, entities, null);
                 trace.BeforeInsertAll(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -873,12 +697,12 @@ namespace RepoDb
             var result = 0;
 
             // Make sure to create transaction if there is no passed one
-            var hasTransaction = (transaction != null);
+            var hasTransaction = (transaction != null || Transaction.Current != null);
 
             try
             {
                 // Ensure the connection is open
-                await connection.EnsureOpenAsync();
+                await connection.EnsureOpenAsync(cancellationToken);
 
                 if (hasTransaction == false)
                 {
@@ -896,7 +720,7 @@ namespace RepoDb
                         foreach (var entity in entities.AsList())
                         {
                             // Set the values
-                            context.SingleDataEntityParametersSetterFunc(command, entity);
+                            context.SingleDataEntityParametersSetterFunc?.Invoke(command, entity);
 
                             // Prepare the command
                             if (dbSetting.IsPreparable)
@@ -905,12 +729,12 @@ namespace RepoDb
                             }
 
                             // Actual Execution
-                            var returnValue = Converter.DbNullToNull(await command.ExecuteScalarAsync());
+                            var returnValue = Converter.DbNullToNull(await command.ExecuteScalarAsync(cancellationToken));
 
-                            // Get explicity if needed
+                            // Get explicitly if needed
                             if (Equals(returnValue, null) == true && dbSetting.IsMultiStatementExecutable == false)
                             {
-                                returnValue = Converter.DbNullToNull(await connection.GetDbHelper().GetScopeIdentityAsync(connection, transaction));
+                                returnValue = Converter.DbNullToNull(await connection.GetDbHelper().GetScopeIdentityAsync(connection, transaction, cancellationToken));
                             }
 
                             // Set the return value
@@ -939,20 +763,28 @@ namespace RepoDb
                             if (batchItems.Count != batchSize)
                             {
                                 // Get a new execution context from cache
-                                context = InsertAllExecutionContextCache<TEntity>.Get(tableName, fields, batchItems.Count, callback);
+                                context = await InsertAllExecutionContextProvider.CreateAsync<TEntity>(connection,
+                                    tableName,
+                                    batchItems.Count,
+                                    fields,
+                                    hints,
+                                    transaction,
+                                    statementBuilder,
+                                    cancellationToken);
 
                                 // Set the command properties
                                 command.CommandText = context.CommandText;
                             }
 
                             // Set the values
-                            if (batchItems?.Count() == 1)
+                            if (batchItems?.Count == 1)
                             {
-                                context.SingleDataEntityParametersSetterFunc(command, batchItems.First());
+                                context.SingleDataEntityParametersSetterFunc?.Invoke(command, batchItems.First());
                             }
                             else
                             {
-                                context.MultipleDataEntitiesParametersSetterFunc(command, batchItems);
+                                context.MultipleDataEntitiesParametersSetterFunc?.Invoke(command, batchItems);
+                                AddOrderColumnParameters<TEntity>(command, batchItems);
                             }
 
                             // Prepare the command
@@ -964,27 +796,29 @@ namespace RepoDb
                             // Actual Execution
                             if (context.IdentityPropertySetterFunc == null)
                             {
-                                result += await command.ExecuteNonQueryAsync();
+                                // No identity setters
+                                result += await command.ExecuteNonQueryAsync(cancellationToken);
                             }
                             else
                             {
-                                using (var reader = await command.ExecuteReaderAsync())
+                                // Set the identity back
+                                using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                                
+                                // Get the results
+                                var position = 0;
+                                do
                                 {
-                                    var index = 0;
-
-                                    // Get the results
-                                    do
+                                    if (await reader.ReadAsync(cancellationToken))
                                     {
-                                        if (await reader.ReadAsync())
-                                        {
-                                            var value = Converter.DbNullToNull(reader.GetValue(0));
-                                            context.IdentityPropertySetterFunc.Invoke(batchItems[index], value);
-                                            result++;
-                                        }
-                                        index++;
+                                        // No need to use async on this level (await reader.GetFieldValueAsync<object>(0, cancellationToken))
+                                        var value = Converter.DbNullToNull(reader.GetValue(0));
+                                        var index = batchItems.Count > 1 && reader.FieldCount > 1 ? reader.GetInt32(1) : position;
+                                        context.IdentityPropertySetterFunc.Invoke(batchItems[index], value);
+                                        result++;
                                     }
-                                    while (await reader.NextResultAsync());
+                                    position++;
                                 }
+                                while (await reader.NextResultAsync(cancellationToken));
                             }
                         }
                     }
@@ -1015,36 +849,11 @@ namespace RepoDb
             }
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterInsertAll(new TraceLog(context.CommandText, entities, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterInsertAll(new TraceLog(sessionId, context.CommandText, entities, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Return the result
             return result;
-        }
-
-        #endregion
-
-        #region Helpers
-
-        /// <summary>
-        /// Throws an exception if the entities argument is null or empty.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="entities">The enumerable list of entity objects.</param>
-        private static void GuardInsertAll<TEntity>(IEnumerable<TEntity> entities)
-            where TEntity : class
-        {
-            if (entities == null)
-            {
-                throw new NullReferenceException("The entities must not be null.");
-            }
-            if (entities.Any() == false)
-            {
-                throw new EmptyException("The entities must not be empty.");
-            }
         }
 
         #endregion

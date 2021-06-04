@@ -3,7 +3,7 @@ using RepoDb.Attributes;
 using RepoDb.Exceptions;
 using System;
 
-namespace RepoDb.UnitTests.Others
+namespace RepoDb.UnitTests.Mappers
 {
     [TestClass]
     public partial class PrimaryMapperTest
@@ -402,7 +402,7 @@ namespace RepoDb.UnitTests.Others
             PrimaryMapper.Add<PrimaryMapperTestClass>(propertyName: "  ");
         }
 
-        [TestMethod, ExpectedException(typeof(PropertyNotFoundException))]
+        [TestMethod, ExpectedException(typeof(NullReferenceException))]
         public void ThrowExceptionOnPrimaryMapperViaFieldThatIsEmptySpaces()
         {
             // Setup

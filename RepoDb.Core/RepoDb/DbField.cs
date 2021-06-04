@@ -3,11 +3,11 @@
 namespace RepoDb
 {
     /// <summary>
-    /// A class the holds the column definition of the database table columns.
+    /// A class the holds the column definition of the table.
     /// </summary>
     public class DbField : IEquatable<DbField>
     {
-        private int? m_hashCode = null;
+        private int? hashCode = null;
 
         /// <summary>
         /// Creates a new instance of <see cref="DbField"/> object.
@@ -32,7 +32,7 @@ namespace RepoDb
             string databaseType)
         {
             // Name is required
-            if (string.IsNullOrEmpty(name))
+            if (string.IsNullOrWhiteSpace(name))
             {
                 throw new NullReferenceException("Name");
             }
@@ -44,7 +44,7 @@ namespace RepoDb
             IsNullable = isNullable;
             Type = type;
             Size = size;
-            if (type == typeof(double) && precision > 38)
+            if (type == StaticType.Double && precision > 38)
             {
                 Precision = 38;
             }
@@ -111,10 +111,8 @@ namespace RepoDb
         /// Gets the string that represents the instance of this <see cref="DbField"/> object.
         /// </summary>
         /// <returns>The string that represents the instance of this <see cref="DbField"/> object.</returns>
-        public override string ToString()
-        {
-            return string.Concat(Name, ", ", IsPrimary.ToString(), " (", m_hashCode, ")");
-        }
+        public override string ToString() =>
+            string.Concat(Name, ", ", IsPrimary.ToString(), " (", hashCode.ToString(), ")");
 
         #endregion
 
@@ -126,9 +124,9 @@ namespace RepoDb
         /// <returns>The hashcode value.</returns>
         public override int GetHashCode()
         {
-            if (m_hashCode != null)
+            if (this.hashCode != null)
             {
-                return m_hashCode.Value;
+                return this.hashCode.Value;
             }
 
             var hashCode = 0;
@@ -157,7 +155,7 @@ namespace RepoDb
             }
 
             // Set and return the hashcode
-            return (m_hashCode = hashCode).Value;
+            return (this.hashCode = hashCode).Value;
         }
 
         /// <summary>
@@ -165,20 +163,16 @@ namespace RepoDb
         /// </summary>
         /// <param name="obj">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equals.</returns>
-        public override bool Equals(object obj)
-        {
-            return obj?.GetHashCode() == GetHashCode();
-        }
+        public override bool Equals(object obj) =>
+            obj?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the <see cref="DbField"/> object equality against the given target object.
         /// </summary>
         /// <param name="other">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public bool Equals(DbField other)
-        {
-            return other?.GetHashCode() == GetHashCode();
-        }
+        public bool Equals(DbField other) =>
+            other?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the equality of the two <see cref="DbField"/> objects.
@@ -186,11 +180,12 @@ namespace RepoDb
         /// <param name="objA">The first <see cref="DbField"/> object.</param>
         /// <param name="objB">The second <see cref="DbField"/> object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public static bool operator ==(DbField objA, DbField objB)
+        public static bool operator ==(DbField objA,
+            DbField objB)
         {
-            if (ReferenceEquals(null, objA))
+            if (objA is null)
             {
-                return ReferenceEquals(null, objB);
+                return objB is null;
             }
             return objB?.GetHashCode() == objA.GetHashCode();
         }
@@ -201,10 +196,9 @@ namespace RepoDb
         /// <param name="objA">The first <see cref="DbField"/> object.</param>
         /// <param name="objB">The second <see cref="DbField"/> object.</param>
         /// <returns>True if the instances are not equal.</returns>
-        public static bool operator !=(DbField objA, DbField objB)
-        {
-            return (objA == objB) == false;
-        }
+        public static bool operator !=(DbField objA,
+            DbField objB) =>
+            (objA == objB) == false;
 
         #endregion
     }

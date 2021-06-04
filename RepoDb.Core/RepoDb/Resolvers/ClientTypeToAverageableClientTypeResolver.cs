@@ -5,15 +5,15 @@ using System;
 namespace RepoDb.Resolvers
 {
     /// <summary>
-    /// A class used to resolve the .NET CLR Type into its averageable .NET CLR Type.
+    /// A class that is being used to resolve the .NET CLR type into its averageable .NET CLR type.
     /// </summary>
     public class ClientTypeToAverageableClientTypeResolver : IResolver<Type, Type>
     {
         /// <summary>
-        /// Returns the avergeable .NET CLR Type.
+        /// Returns the averageable .NET CLR type.
         /// </summary>
-        /// <param name="type">The .NET CLR Type.</param>
-        /// <returns>The avergeable .NET CLR Type.</returns>
+        /// <param name="type">The .NET CLR type.</param>
+        /// <returns>The averageable .NET CLR type.</returns>
         public Type Resolve(Type type)
         {
             if (type == null)
@@ -22,17 +22,17 @@ namespace RepoDb.Resolvers
             }
 
             // Get the type
-            type = type?.GetUnderlyingType();
+            type = type.GetUnderlyingType();
 
             // Only convert those numerics
-            if (type == typeof(short) ||
-               type == typeof(int) ||
-               type == typeof(long) ||
-               type == typeof(UInt16) ||
-               type == typeof(UInt32) ||
-               type == typeof(UInt64))
+            if (type == StaticType.Int16 ||
+               type == StaticType.Int32 ||
+               type == StaticType.Int64 ||
+               type == StaticType.UInt16 ||
+               type == StaticType.UInt32 ||
+               type == StaticType.UInt64)
             {
-                type = typeof(double);
+                type = StaticType.Double;
             }
 
             // Return the type

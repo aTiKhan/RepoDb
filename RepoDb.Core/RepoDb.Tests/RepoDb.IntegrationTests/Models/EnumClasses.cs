@@ -13,7 +13,8 @@ namespace RepoDb.IntegrationTests.Models
         public Direction? ColumnNVarChar { get; set; }
         public Direction? ColumnInt { get; set; }
         public Direction? ColumnBigInt { get; set; }
-        public Direction? ColumnSmallInt { get; set; }
+        // Force to make this non-nullable
+        public Direction ColumnSmallInt { get; set; }
     }
 
     [Map("[dbo].[CompleteTable]")]
@@ -29,5 +30,20 @@ namespace RepoDb.IntegrationTests.Models
     {
         public Guid SessionId { get; set; }
         public Continent? ColumnNVarChar { get; set; }
+    }
+
+    [Map("[dbo].[CompleteTable]")]
+    public class FlaggedEnumForStringCompleteTable
+    {
+        public Guid SessionId { get; set; }
+        public StorageType? ColumnNVarChar { get; set; }
+    }
+
+    [Map("[dbo].[CompleteTable]")]
+    public class FlaggedEnumForIntCompleteTable
+    {
+        public Guid SessionId { get; set; }
+        [TypeMap(DbType.Int32)]
+        public StorageType? ColumnNVarChar { get; set; }
     }
 }

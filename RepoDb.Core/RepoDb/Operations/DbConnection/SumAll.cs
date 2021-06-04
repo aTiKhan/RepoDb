@@ -3,7 +3,9 @@ using RepoDb.Interfaces;
 using RepoDb.Requests;
 using System;
 using System.Data;
+using System.Linq;
 using System.Linq.Expressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RepoDb
@@ -16,7 +18,7 @@ namespace RepoDb
         #region SumAll<TEntity>
 
         /// <summary>
-        /// Summarizes the target field from all data of the database table.
+        /// Computes the sum value of the target field.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
@@ -26,7 +28,7 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>An integer value that holds the number of data from the database.</returns>
+        /// <returns>The sum value of the target field.</returns>
         public static object SumAll<TEntity>(this IDbConnection connection,
             Field field,
             string hints = null,
@@ -36,7 +38,7 @@ namespace RepoDb
             IStatementBuilder statementBuilder = null)
             where TEntity : class
         {
-            return SumAllInternal<TEntity>(connection: connection,
+            return SumAllInternal<TEntity, object>(connection: connection,
                 field: field,
                 hints: hints,
                 commandTimeout: commandTimeout,
@@ -46,7 +48,7 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Summarizes the target field from all data of the database table.
+        /// Computes the sum value of the target field.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
@@ -56,7 +58,7 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>An integer value that holds the number of data from the database.</returns>
+        /// <returns>The sum value of the target field.</returns>
         public static object SumAll<TEntity>(this IDbConnection connection,
             Expression<Func<TEntity, object>> field,
             string hints = null,
@@ -66,8 +68,8 @@ namespace RepoDb
             IStatementBuilder statementBuilder = null)
             where TEntity : class
         {
-            return SumAllInternal<TEntity>(connection: connection,
-                field: Field.Parse<TEntity>(field),
+            return SumAllInternal<TEntity, object>(connection: connection,
+                field: Field.Parse<TEntity>(field).First(),
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
@@ -76,9 +78,10 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Summarizes the target field from all data of the database table.
+        /// Computes the sum value of the target field.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="field">The field to be summarized.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -86,8 +89,70 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>An integer value that holds the number of data from the database.</returns>
-        internal static object SumAllInternal<TEntity>(this IDbConnection connection,
+        /// <returns>The sum value of the target field.</returns>
+        public static TResult SumAll<TEntity, TResult>(this IDbConnection connection,
+            Field field,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return SumAllInternal<TEntity, TResult>(connection: connection,
+                field: field,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Computes the sum value of the target field.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="field">The field to be summarized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The sum value of the target field.</returns>
+        public static TResult SumAll<TEntity, TResult>(this IDbConnection connection,
+            Expression<Func<TEntity, TResult>> field,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return SumAllInternal<TEntity, TResult>(connection: connection,
+                field: Field.Parse<TEntity, TResult>(field).First(),
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Computes the sum value of the target field.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="field">The field to be summarized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The sum value of the target field.</returns>
+        internal static TResult SumAllInternal<TEntity, TResult>(this IDbConnection connection,
             Field field,
             string hints = null,
             int? commandTimeout = null,
@@ -106,7 +171,7 @@ namespace RepoDb
             var param = (object)null;
 
             // Return the result
-            return SumAllInternalBase(connection: connection,
+            return SumAllInternalBase<TResult>(connection: connection,
                 request: request,
                 param: param,
                 commandTimeout: commandTimeout,
@@ -119,7 +184,7 @@ namespace RepoDb
         #region SumAllAsync<TEntity>
 
         /// <summary>
-        /// Summarizes the target field from all data of the database table in an asynchronous way.
+        /// Computes the sum value of the target field in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
@@ -129,27 +194,30 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>An integer value that holds the number of data from the database.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
         public static Task<object> SumAllAsync<TEntity>(this IDbConnection connection,
             Field field,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
-            return SumAllAsyncInternal<TEntity>(connection: connection,
+            return SumAllAsyncInternal<TEntity, object>(connection: connection,
                 field: field,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Summarizes the target field from all data of the database table in an asynchronous way.
+        /// Computes the sum value of the target field in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
@@ -159,29 +227,33 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>An integer value that holds the number of data from the database.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
         public static Task<object> SumAllAsync<TEntity>(this IDbConnection connection,
             Expression<Func<TEntity, object>> field,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
-            return SumAllAsyncInternal<TEntity>(connection: connection,
-                field: Field.Parse<TEntity>(field),
+            return SumAllAsyncInternal<TEntity, object>(connection: connection,
+                field: Field.Parse<TEntity>(field).First(),
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Summarizes the target field from all data of the database table in an asynchronous way.
+        /// Computes the sum value of the target field in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="field">The field to be summarized.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -189,14 +261,84 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>An integer value that holds the number of data from the database.</returns>
-        internal static Task<object> SumAllAsyncInternal<TEntity>(this IDbConnection connection,
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
+        public static Task<TResult> SumAllAsync<TEntity, TResult>(this IDbConnection connection,
             Field field,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return SumAllAsyncInternal<TEntity, TResult>(connection: connection,
+                field: field,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Computes the sum value of the target field in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="field">The field to be summarized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
+        public static Task<TResult> SumAllAsync<TEntity, TResult>(this IDbConnection connection,
+            Expression<Func<TEntity, TResult>> field,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return SumAllAsyncInternal<TEntity, TResult>(connection: connection,
+                field: Field.Parse<TEntity, TResult>(field).First(),
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Computes the sum value of the target field in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="field">The field to be summarized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
+        internal static Task<TResult> SumAllAsyncInternal<TEntity, TResult>(this IDbConnection connection,
+            Field field,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Variables
@@ -209,12 +351,13 @@ namespace RepoDb
             var param = (object)null;
 
             // Return the result
-            return SumAllInternalAsyncBase(connection: connection,
+            return SumAllAsyncInternalBase<TResult>(connection: connection,
                 request: request,
                 param: param,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
-                trace: trace);
+                trace: trace,
+                cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -222,7 +365,7 @@ namespace RepoDb
         #region SumAll(TableName)
 
         /// <summary>
-        /// Summarizes the target field from all data of the database table.
+        /// Computes the sum value of the target field.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
@@ -232,7 +375,7 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>An integer value that holds the number of data from the database.</returns>
+        /// <returns>The sum value of the target field.</returns>
         public static object SumAll(this IDbConnection connection,
             string tableName,
             Field field,
@@ -242,7 +385,7 @@ namespace RepoDb
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
         {
-            return SumAllInternal(connection: connection,
+            return SumAllInternal<object>(connection: connection,
                 tableName: tableName,
                 field: field,
                 hints: hints,
@@ -253,8 +396,9 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Summarizes the target field from all data of the database table.
+        /// Computes the sum value of the target field.
         /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="field">The field to be summarized.</param>
@@ -263,8 +407,40 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>An integer value that holds the number of data from the database.</returns>
-        internal static object SumAllInternal(this IDbConnection connection,
+        /// <returns>The sum value of the target field.</returns>
+        public static TResult SumAll<TResult>(this IDbConnection connection,
+            string tableName,
+            Field field,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+        {
+            return SumAllInternal<TResult>(connection: connection,
+                tableName: tableName,
+                field: field,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Computes the sum value of the target field.
+        /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="field">The field to be summarized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The sum value of the target field.</returns>
+        internal static TResult SumAllInternal<TResult>(this IDbConnection connection,
             string tableName,
             Field field,
             string hints = null,
@@ -280,12 +456,11 @@ namespace RepoDb
                 field,
                 hints,
                 statementBuilder);
-            var param = (object)null;
 
             // Return the result
-            return SumAllInternalBase(connection: connection,
+            return SumAllInternalBase<TResult>(connection: connection,
                 request: request,
-                param: param,
+                param: null,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace);
@@ -296,7 +471,7 @@ namespace RepoDb
         #region SumAllAsync(TableName)
 
         /// <summary>
-        /// Summarizes the target field from all data of the database table in an asynchronous way.
+        /// Computes the sum value of the target field in an asynchronous way.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
@@ -306,7 +481,8 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>An integer value that holds the number of data from the database.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
         public static Task<object> SumAllAsync(this IDbConnection connection,
             string tableName,
             Field field,
@@ -314,21 +490,24 @@ namespace RepoDb
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
-            return SumAllAsyncInternal(connection: connection,
+            return SumAllAsyncInternal<object>(connection: connection,
                 tableName: tableName,
                 field: field,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Summarizes the target field from all data of the database table in an asynchronous way.
+        /// Computes the sum value of the target field in an asynchronous way.
         /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="field">The field to be summarized.</param>
@@ -337,15 +516,52 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>An integer value that holds the number of data from the database.</returns>
-        internal static Task<object> SumAllAsyncInternal(this IDbConnection connection,
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
+        public static Task<TResult> SumAllAsync<TResult>(this IDbConnection connection,
             string tableName,
             Field field,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+        {
+            return SumAllAsyncInternal<TResult>(connection: connection,
+                tableName: tableName,
+                field: field,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Computes the sum value of the target field in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="field">The field to be summarized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
+        internal static Task<TResult> SumAllAsyncInternal<TResult>(this IDbConnection connection,
+            string tableName,
+            Field field,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
             // Variables
             var request = new SumAllRequest(tableName,
@@ -354,15 +570,15 @@ namespace RepoDb
                 field,
                 hints,
                 statementBuilder);
-            var param = (object)null;
 
             // Return the result
-            return SumAllInternalAsyncBase(connection: connection,
+            return SumAllAsyncInternalBase<TResult>(connection: connection,
                 request: request,
-                param: param,
+                param: null,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
-                trace: trace);
+                trace: trace,
+                cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -370,16 +586,17 @@ namespace RepoDb
         #region SumAllInternalBase
 
         /// <summary>
-        /// Summarizes the target field from all data of the database table.
+        /// Computes the sum value of the target field.
         /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="request">The actual <see cref="SumAllRequest"/> object.</param>
         /// <param name="param">The mapped object parameters.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
-        /// <returns>An integer value that holds the number of data from the database.</returns>
-        internal static object SumAllInternalBase(this IDbConnection connection,
+        /// <returns>The sum value of the target field.</returns>
+        internal static TResult SumAllInternalBase<TResult>(this IDbConnection connection,
             SumAllRequest request,
             object param,
             int? commandTimeout = null,
@@ -389,11 +606,13 @@ namespace RepoDb
             // Variables
             var commandType = CommandType.Text;
             var commandText = CommandTextCache.GetSumAllText(request);
+            var sessionId = Guid.Empty;
 
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog(commandText, param, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, commandText, param, null);
                 trace.BeforeSumAll(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -401,7 +620,7 @@ namespace RepoDb
                     {
                         throw new CancelledExecutionException(commandText);
                     }
-                    return default(int);
+                    return default;
                 }
                 commandText = (cancellableTraceLog.Statement ?? commandText);
                 param = (cancellableTraceLog.Parameter ?? param);
@@ -411,20 +630,22 @@ namespace RepoDb
             var beforeExecutionTime = DateTime.UtcNow;
 
             // Actual Execution
-            var result = ExecuteScalarInternal<object>(connection: connection,
+            var result = ExecuteScalarInternal<TResult>(connection: connection,
                 commandText: commandText,
                 param: param,
                 commandType: commandType,
+                cacheKey: null,
+                cacheItemExpiration: null,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
+                cache: null,
+                entityType: request.Type,
+                dbFields: DbFieldCache.Get(connection, request.Name, transaction, true),
                 skipCommandArrayParametersCheck: true);
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterSumAll(new TraceLog(commandText, param, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterSumAll(new TraceLog(sessionId, commandText, param, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Result
             return result;
@@ -435,30 +656,35 @@ namespace RepoDb
         #region SumAllAsyncInternalBase
 
         /// <summary>
-        /// Summarizes the target field from all data of the database table in an asynchronous way.
+        /// Computes the sum value of the target field in an asynchronous way.
         /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="request">The actual <see cref="SumAllRequest"/> object.</param>
         /// <param name="param">The mapped object parameters.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
-        /// <returns>An integer value that holds the number of data from the database.</returns>
-        internal static async Task<object> SumAllInternalAsyncBase(this IDbConnection connection,
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
+        internal static async Task<TResult> SumAllAsyncInternalBase<TResult>(this IDbConnection connection,
             SumAllRequest request,
             object param,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
-            ITrace trace = null)
+            ITrace trace = null,
+            CancellationToken cancellationToken = default)
         {
             // Variables
             var commandType = CommandType.Text;
             var commandText = CommandTextCache.GetSumAllText(request);
+            var sessionId = Guid.Empty;
 
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog(commandText, param, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, commandText, param, null);
                 trace.BeforeSumAll(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -466,7 +692,7 @@ namespace RepoDb
                     {
                         throw new CancelledExecutionException(commandText);
                     }
-                    return default(int);
+                    return default;
                 }
                 commandText = (cancellableTraceLog.Statement ?? commandText);
                 param = (cancellableTraceLog.Parameter ?? param);
@@ -476,20 +702,23 @@ namespace RepoDb
             var beforeExecutionTime = DateTime.UtcNow;
 
             // Actual Execution
-            var result = await ExecuteScalarAsyncInternal<object>(connection: connection,
+            var result = await ExecuteScalarAsyncInternal<TResult>(connection: connection,
                 commandText: commandText,
                 param: param,
                 commandType: commandType,
+                cacheKey: null,
+                cacheItemExpiration: null,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
+                cache: null,
+                cancellationToken: cancellationToken,
+                entityType: request.Type,
+                dbFields: await DbFieldCache.GetAsync(connection, request.Name, transaction, true, cancellationToken),
                 skipCommandArrayParametersCheck: true);
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterSumAll(new TraceLog(commandText, param, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterSumAll(new TraceLog(sessionId, commandText, param, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Result
             return result;

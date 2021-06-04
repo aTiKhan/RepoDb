@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RepoDb
@@ -17,237 +18,217 @@ namespace RepoDb
     public static partial class DbConnectionExtension
     {
         /*
-         * The supposed maximum parameters of 2100 is not workin with Microsoft.Data.SqlClient.
+         * The supposed maximum parameters of 2100 is not working with Microsoft.Data.SqlClient.
          * I reported this issue to SqlClient repository at Github.
          * Link: https://github.com/dotnet/SqlClient/issues/531
          */
 
         private const int ParameterBatchCount = Constant.MaxParametersCount - 2;
 
-        #region DeleteAll<TEntity> (Delete<TEntity>)
-
-        /// <summary>
-        /// Deletes all the target existing data from the database. It uses the <see cref="Delete{TEntity}(IDbConnection, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entities">The list of data entity objects to be deleted.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        public static int DeleteAll<TEntity>(this IDbConnection connection,
-            IEnumerable<TEntity> entities,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            var primary = GetAndGuardPrimaryKey<TEntity>(connection, transaction);
-            var primaryKeys = ExtractPropertyValues<TEntity>(entities, primary).AsList();
-
-            return DeleteAll<TEntity>(connection: connection,
-                primaryKeys: primaryKeys,
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Deletes all the target existing data from the database. It uses the <see cref="Delete{TEntity}(IDbConnection, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="primaryKeys">The list of the primary keys to be deleted.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        public static int DeleteAll<TEntity>(this IDbConnection connection,
-            IEnumerable<object> primaryKeys,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            var primary = GetAndGuardPrimaryKey<TEntity>(connection, transaction);
-            var hasImplicitTransaction = false;
-            var count = primaryKeys?.AsList()?.Count;
-            var deletedRows = 0;
-
-            try
-            {
-                // Creates a transaction (if needed)
-                if (transaction == null && count > ParameterBatchCount)
-                {
-                    transaction = connection.EnsureOpen().BeginTransaction();
-                    hasImplicitTransaction = true;
-                }
-
-                // Call the underlying method
-                var splitted = primaryKeys.Split(ParameterBatchCount).AsList();
-                foreach (var keys in splitted)
-                {
-                    if (keys.Any() != true)
-                    {
-                        break;
-                    }
-                    var field = new QueryField(primary.GetMappedName(), Operation.In, keys.AsList());
-                    deletedRows += DeleteInternal<TEntity>(connection: connection,
-                        where: new QueryGroup(field),
-                        hints: hints,
-                        commandTimeout: commandTimeout,
-                        transaction: transaction,
-                        trace: trace,
-                        statementBuilder: statementBuilder);
-                }
-
-                // Commit the transaction
-                if (hasImplicitTransaction)
-                {
-                    transaction?.Commit();
-                }
-
-            }
-            finally
-            {
-                // Dispose the transaction
-                if (hasImplicitTransaction)
-                {
-                    transaction?.Dispose();
-                }
-            }
-
-            // Return the value
-            return deletedRows;
-        }
-
-        #endregion
-
-        #region DeleteAllAsync<TEntity> (DeleteAsync<TEntity>)
-
-        /// <summary>
-        /// Deletes all the target existing data from the database in an asynchronous way. It uses the <see cref="DeleteAsync{TEntity}(IDbConnection, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entities">The list of data entity objects to be deleted.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        public static Task<int> DeleteAllAsync<TEntity>(this IDbConnection connection,
-            IEnumerable<TEntity> entities,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            var primary = GetAndGuardPrimaryKey<TEntity>(connection, transaction);
-            var primaryKeys = ExtractPropertyValues<TEntity>(entities, primary).AsList();
-
-            return DeleteAllAsync<TEntity>(connection: connection,
-                primaryKeys: primaryKeys,
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Deletes all the target existing data from the database in an asynchronous way. It uses the <see cref="DeleteAsync{TEntity}(IDbConnection, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="primaryKeys">The list of the primary keys to be deleted.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        public static async Task<int> DeleteAllAsync<TEntity>(this IDbConnection connection,
-            IEnumerable<object> primaryKeys,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            var primary = GetAndGuardPrimaryKey<TEntity>(connection, transaction);
-            var hasImplicitTransaction = false;
-            var count = primaryKeys?.AsList()?.Count;
-            var deletedRows = 0;
-
-            try
-            {
-                // Creates a transaction (if needed)
-                if (transaction == null && count > ParameterBatchCount)
-                {
-                    transaction = connection.EnsureOpen().BeginTransaction();
-                    hasImplicitTransaction = true;
-                }
-
-                // Call the underlying method
-                var splitted = primaryKeys.Split(ParameterBatchCount).AsList();
-                foreach (var keys in splitted)
-                {
-                    if (keys.Any() != true)
-                    {
-                        break;
-                    }
-                    var field = new QueryField(primary.GetMappedName(), Operation.In, keys?.AsList());
-                    deletedRows += await DeleteAsync<TEntity>(connection: connection,
-                        where: new QueryGroup(field),
-                        hints: hints,
-                        commandTimeout: commandTimeout,
-                        transaction: transaction,
-                        trace: trace,
-                        statementBuilder: statementBuilder);
-                }
-
-                // Commit the transaction
-                if (hasImplicitTransaction)
-                {
-                    transaction?.Commit();
-                }
-
-            }
-            finally
-            {
-                // Dispose the transaction
-                if (hasImplicitTransaction)
-                {
-                    transaction?.Dispose();
-                }
-            }
-
-            // Return the value
-            return deletedRows;
-        }
-
-        #endregion
-
         #region DeleteAll<TEntity>
 
         /// <summary>
-        /// Deletes all the data from the database.
+        /// Delete the rows from the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="entities">The list of data entity objects to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static int DeleteAll<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            var key = GetAndGuardPrimaryKeyOrIdentityKey<TEntity>(connection, tableName, transaction);
+            var keys = ExtractPropertyValues<TEntity, object>(entities, PropertyCache.Get<TEntity>(key)).AsList();
+
+            return DeleteAllInternal(connection: connection,
+                tableName: tableName,
+                keys: keys,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Delete the rows from the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TKey">The type of the key column.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static int DeleteAll<TEntity, TKey>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TKey> keys,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return DeleteAllInternal(connection: connection,
+                tableName: tableName,
+                keys: keys?.WithType<object>(),
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Delete the rows from the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static int DeleteAll<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<object> keys,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return DeleteAllInternal(connection: connection,
+                tableName: tableName,
+                keys: keys,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Delete the rows from the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entities">The list of data entity objects to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static int DeleteAll<TEntity>(this IDbConnection connection,
+            IEnumerable<TEntity> entities,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            var key = GetAndGuardPrimaryKeyOrIdentityKey<TEntity>(connection, transaction);
+            var keys = ExtractPropertyValues<TEntity, object>(entities, PropertyCache.Get<TEntity>(key))?.AsList();
+
+            return DeleteAllInternal(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                keys: keys?.WithType<object>(),
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Delete the rows from the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TKey">The type of the key column.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static int DeleteAll<TEntity, TKey>(this IDbConnection connection,
+            IEnumerable<TKey> keys,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return DeleteAllInternal(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                keys: keys?.WithType<object>(),
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Delete the rows from the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static int DeleteAll<TEntity>(this IDbConnection connection,
+            IEnumerable<object> keys,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return DeleteAllInternal(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                keys: keys,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Delete all the rows from the table.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
@@ -256,7 +237,7 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         public static int DeleteAll<TEntity>(this IDbConnection connection,
             string hints = null,
             int? commandTimeout = null,
@@ -274,7 +255,7 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Deletes all the data from the database.
+        /// Delete all the rows from the table.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
@@ -283,7 +264,7 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         internal static int DeleteAllInternal<TEntity>(this IDbConnection connection,
             string hints = null,
             int? commandTimeout = null,
@@ -312,7 +293,225 @@ namespace RepoDb
         #region DeleteAllAsync<TEntity>
 
         /// <summary>
-        /// Deletes all the data from the database in an asynchronous way.
+        /// Delete the rows from the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="entities">The list of data entity objects to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static async Task<int> DeleteAllAsync<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            var key = await GetAndGuardPrimaryKeyOrIdentityKeyAsync<TEntity>(connection, tableName, transaction, cancellationToken);
+            var keys = ExtractPropertyValues<TEntity, object>(entities, PropertyCache.Get<TEntity>(key)).AsList();
+
+            return await DeleteAllAsyncInternal(connection: connection,
+                tableName: tableName,
+                keys: keys,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Delete the rows from the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TKey">The type of the key column.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static Task<int> DeleteAllAsync<TEntity, TKey>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TKey> keys,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return DeleteAllAsyncInternal(connection: connection,
+                tableName: tableName,
+                keys: keys?.WithType<object>(),
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Delete the rows from the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static Task<int> DeleteAllAsync<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<object> keys,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return DeleteAllAsyncInternal(connection: connection,
+                tableName: tableName,
+                keys: keys,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Delete all the rows from the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entities">The list of data entity objects to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static async Task<int> DeleteAllAsync<TEntity>(this IDbConnection connection,
+            IEnumerable<TEntity> entities,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            var key = await GetAndGuardPrimaryKeyOrIdentityKeyAsync<TEntity>(connection, transaction, cancellationToken);
+            var keys = ExtractPropertyValues<TEntity, object>(entities, PropertyCache.Get<TEntity>(key))?.AsList();
+
+            return await DeleteAllAsyncInternal(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                keys: keys?.WithType<object>(),
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Delete all the rows from the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TKey">The type of the key column.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static Task<int> DeleteAllAsync<TEntity, TKey>(this IDbConnection connection,
+            IEnumerable<TKey> keys,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return DeleteAllAsyncInternal(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                keys: keys?.WithType<object>(),
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Delete all the rows from the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static Task<int> DeleteAllAsync<TEntity>(this IDbConnection connection,
+            IEnumerable<object> keys,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return DeleteAllAsyncInternal(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                keys: keys,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Delete all the rows from the table in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
@@ -321,13 +520,15 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         public static Task<int> DeleteAllAsync<TEntity>(this IDbConnection connection,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             return DeleteAllAsyncInternal<TEntity>(connection: connection,
@@ -335,11 +536,12 @@ namespace RepoDb
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Deletes all the data from the database in an asynchronous way.
+        /// Delete all the rows from the table in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
@@ -348,13 +550,15 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         internal static Task<int> DeleteAllAsyncInternal<TEntity>(this IDbConnection connection,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Variables
@@ -369,165 +573,8 @@ namespace RepoDb
                 request: request,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
-                trace: trace);
-        }
-
-        #endregion
-
-        #region DeleteAll(TableName) (Delete(TableName))
-
-        /// <summary>
-        /// Deletes all the target existing data from the database. It uses the <see cref="Delete(IDbConnection, string, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
-        /// </summary>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="tableName">The name of the target table.</param>
-        /// <param name="primaryKeys">The list of the primary keys to be deleted.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        public static int DeleteAll(this IDbConnection connection,
-            string tableName,
-            IEnumerable<object> primaryKeys,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-        {
-            var primary = GetAndGuardPrimaryKey(connection, tableName, transaction);
-            var dbSetting = connection.GetDbSetting();
-            var hasImplicitTransaction = false;
-            var count = primaryKeys?.AsList()?.Count;
-            var deletedRows = 0;
-
-            try
-            {
-                // Creates a transaction (if needed)
-                if (transaction == null && count > ParameterBatchCount)
-                {
-                    transaction = connection.EnsureOpen().BeginTransaction();
-                    hasImplicitTransaction = true;
-                }
-
-                // Call the underlying method
-                var splitted = primaryKeys.Split(ParameterBatchCount).AsList();
-                foreach (var keys in splitted)
-                {
-                    if (keys.Any() != true)
-                    {
-                        break;
-                    }
-                    var field = new QueryField(primary.Name.AsQuoted(dbSetting), Operation.In, keys?.AsList());
-                    deletedRows += DeleteInternal(connection: connection,
-                        tableName: tableName,
-                        where: new QueryGroup(field),
-                        hints: hints,
-                        commandTimeout: commandTimeout,
-                        transaction: transaction,
-                        trace: trace,
-                        statementBuilder: statementBuilder);
-                }
-
-                // Commit the transaction
-                if (hasImplicitTransaction)
-                {
-                    transaction?.Commit();
-                }
-
-            }
-            finally
-            {
-                // Dispose the transaction
-                if (hasImplicitTransaction)
-                {
-                    transaction?.Dispose();
-                }
-            }
-
-            // Return the value
-            return deletedRows;
-        }
-
-        #endregion
-
-        #region DeleteAllAsync(TableName) (DeleteAsync(TableName))
-
-        /// <summary>
-        /// Deletes all the target existing data from the database in an asynchronous way. It uses the <see cref="DeleteAsync(IDbConnection, string, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
-        /// </summary>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="tableName">The name of the target table.</param>
-        /// <param name="primaryKeys">The list of the primary keys to be deleted.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        public static async Task<int> DeleteAllAsync(this IDbConnection connection,
-            string tableName,
-            IEnumerable<object> primaryKeys,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-        {
-            var primary = GetAndGuardPrimaryKey(connection, tableName, transaction);
-            var dbSetting = connection.GetDbSetting();
-            var hasImplicitTransaction = false;
-            var count = primaryKeys?.AsList()?.Count;
-            var deletedRows = 0;
-
-            try
-            {
-                // Creates a transaction (if needed)
-                if (transaction == null && count > ParameterBatchCount)
-                {
-                    transaction = connection.EnsureOpen().BeginTransaction();
-                    hasImplicitTransaction = true;
-                }
-
-                // Call the underlying method
-                var splitted = primaryKeys.Split(ParameterBatchCount).AsList();
-                foreach (var keys in splitted)
-                {
-                    if (keys.Any() != true)
-                    {
-                        break;
-                    }
-                    var field = new QueryField(primary.Name.AsQuoted(dbSetting), Operation.In, keys?.AsList());
-                    deletedRows += await DeleteAsyncInternal(connection: connection,
-                        tableName: tableName,
-                        where: new QueryGroup(field),
-                        hints: hints,
-                        commandTimeout: commandTimeout,
-                        transaction: transaction,
-                        trace: trace,
-                        statementBuilder: statementBuilder);
-                }
-
-                // Commit the transaction
-                if (hasImplicitTransaction)
-                {
-                    transaction?.Commit();
-                }
-
-            }
-            finally
-            {
-                // Dispose the transaction
-                if (hasImplicitTransaction)
-                {
-                    transaction?.Dispose();
-                }
-            }
-
-            // Return the value
-            return deletedRows;
+                trace: trace,
+                cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -535,7 +582,38 @@ namespace RepoDb
         #region DeleteAll(TableName)
 
         /// <summary>
-        /// Deletes all the data from the database.
+        /// Delete the rows from the table.
+        /// </summary>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static int DeleteAll(this IDbConnection connection,
+            string tableName,
+            IEnumerable<object> keys,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+        {
+            return DeleteAllInternal(connection: connection,
+                tableName: tableName,
+                keys: keys,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Delete all the rows from the table.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -544,7 +622,7 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         public static int DeleteAll(this IDbConnection connection,
             string tableName,
             string hints = null,
@@ -563,7 +641,7 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Deletes all the data from the database.
+        /// Delete all the rows from the table.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -572,7 +650,7 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         internal static int DeleteAllInternal(this IDbConnection connection,
             string tableName,
             string hints = null,
@@ -596,12 +674,124 @@ namespace RepoDb
                 trace: trace);
         }
 
+        /// <summary>
+        /// Delete the rows from the table.
+        /// </summary>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        internal static int DeleteAllInternal(this IDbConnection connection,
+            string tableName,
+            IEnumerable<object> keys,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+        {
+            var key = GetAndGuardPrimaryKeyOrIdentityKey(connection, tableName, transaction);
+            var dbSetting = connection.GetDbSetting();
+            var hasImplicitTransaction = false;
+            var count = keys?.AsList()?.Count;
+            var deletedRows = 0;
+
+            try
+            {
+                // Creates a transaction (if needed)
+                if (transaction == null && count > ParameterBatchCount)
+                {
+                    transaction = connection.EnsureOpen().BeginTransaction();
+                    hasImplicitTransaction = true;
+                }
+
+                // Call the underlying method
+                var splitted = keys?.Split(ParameterBatchCount).AsList();
+                if (splitted?.Any() == true)
+                {
+                    foreach (var keyValues in splitted)
+                    {
+                        if (keyValues.Any() != true)
+                        {
+                            break;
+                        }
+                        var field = new QueryField(key.Name.AsQuoted(dbSetting), Operation.In, keyValues.AsList());
+                        deletedRows += DeleteInternal(connection: connection,
+                            tableName: tableName,
+                            where: new QueryGroup(field),
+                            hints: hints,
+                            commandTimeout: commandTimeout,
+                            transaction: transaction,
+                            trace: trace,
+                            statementBuilder: statementBuilder);
+                    }
+                }
+
+                // Commit the transaction
+                if (hasImplicitTransaction)
+                {
+                    transaction?.Commit();
+                }
+
+            }
+            finally
+            {
+                // Dispose the transaction
+                if (hasImplicitTransaction)
+                {
+                    transaction?.Dispose();
+                }
+            }
+
+            // Return the value
+            return deletedRows;
+        }
+
         #endregion
 
         #region DeleteAllAsync(TableName)
 
         /// <summary>
-        /// Deletes all the data from the database in an asynchronous way.
+        /// Delete all the rows from the table in an asynchronous way.
+        /// </summary>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static Task<int> DeleteAllAsync(this IDbConnection connection,
+            string tableName,
+            IEnumerable<object> keys,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+        {
+            return DeleteAllAsyncInternal(connection: connection,
+                tableName: tableName,
+                keys: keys,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Delete all the rows from the table in an asynchronous way.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -610,14 +800,16 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         public static Task<int> DeleteAllAsync(this IDbConnection connection,
             string tableName,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
             return DeleteAllAsyncInternal(connection: connection,
                 tableName: tableName,
@@ -625,11 +817,12 @@ namespace RepoDb
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Deletes all the data from the database in an asynchronous way.
+        /// Delete all the rows from the table in an asynchronous way.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -638,14 +831,16 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         internal static Task<int> DeleteAllAsyncInternal(this IDbConnection connection,
             string tableName,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
             // Variables
             var request = new DeleteAllRequest(tableName,
@@ -659,7 +854,89 @@ namespace RepoDb
                 request: request,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
-                trace: trace);
+                trace: trace,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Delete all the rows from the table in an asynchronous way.
+        /// </summary>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public static async Task<int> DeleteAllAsyncInternal(this IDbConnection connection,
+            string tableName,
+            IEnumerable<object> keys,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+        {
+            var key = await GetAndGuardPrimaryKeyOrIdentityKeyAsync(connection, tableName, transaction, cancellationToken);
+            var dbSetting = connection.GetDbSetting();
+            var hasImplicitTransaction = false;
+            var count = keys?.AsList()?.Count;
+            var deletedRows = 0;
+
+            try
+            {
+                // Creates a transaction (if needed)
+                if (transaction == null && count > ParameterBatchCount)
+                {
+                    transaction = (await connection.EnsureOpenAsync(cancellationToken)).BeginTransaction();
+                    hasImplicitTransaction = true;
+                }
+
+                // Call the underlying method
+                var splitted = keys?.Split(ParameterBatchCount).AsList();
+                if (splitted?.Any() == true)
+                {
+                    foreach (var keyValues in splitted)
+                    {
+                        if (keyValues.Any() != true)
+                        {
+                            break;
+                        }
+                        var field = new QueryField(key.Name.AsQuoted(dbSetting), Operation.In, keyValues.AsList());
+                        deletedRows += await DeleteAsyncInternal(connection: connection,
+                            tableName: tableName,
+                            where: new QueryGroup(field),
+                            hints: hints,
+                            commandTimeout: commandTimeout,
+                            transaction: transaction,
+                            trace: trace,
+                            statementBuilder: statementBuilder,
+                            cancellationToken: cancellationToken);
+                    }
+                }
+
+                // Commit the transaction
+                if (hasImplicitTransaction)
+                {
+                    transaction?.Commit();
+                }
+
+            }
+            finally
+            {
+                // Dispose the transaction
+                if (hasImplicitTransaction)
+                {
+                    transaction?.Dispose();
+                }
+            }
+
+            // Return the value
+            return deletedRows;
         }
 
         #endregion
@@ -667,14 +944,14 @@ namespace RepoDb
         #region DeleteAllInternalBase
 
         /// <summary>
-        /// Deletes all the data from the database.
+        /// Delete all the rows from the table.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="request">The actual <see cref="DeleteAllRequest"/> object.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         internal static int DeleteAllInternalBase(this IDbConnection connection,
             DeleteAllRequest request,
             int? commandTimeout = null,
@@ -684,11 +961,13 @@ namespace RepoDb
             // Variables
             var commandType = CommandType.Text;
             var commandText = CommandTextCache.GetDeleteAllText(request);
+            var sessionId = Guid.Empty;
 
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog(commandText, null, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, commandText, null, null);
                 trace.BeforeDeleteAll(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -711,14 +990,13 @@ namespace RepoDb
                 commandType: commandType,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
+                entityType: request.Type,
+                dbFields: DbFieldCache.Get(connection, request.Name, transaction, true),
                 skipCommandArrayParametersCheck: true);
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterDeleteAll(new TraceLog(commandText, null, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterDeleteAll(new TraceLog(sessionId, commandText, null, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Result
             return result;
@@ -729,28 +1007,32 @@ namespace RepoDb
         #region DeleteAllAsyncInternalBase
 
         /// <summary>
-        /// Deletes all the data from the database.
+        /// Delete all the rows from the table.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="request">The actual <see cref="DeleteAllRequest"/> object.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         internal static async Task<int> DeleteAllAsyncInternalBase(this IDbConnection connection,
             DeleteAllRequest request,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
-            ITrace trace = null)
+            ITrace trace = null,
+            CancellationToken cancellationToken = default)
         {
             // Variables
             var commandType = CommandType.Text;
             var commandText = CommandTextCache.GetDeleteAllText(request);
+            var sessionId = Guid.Empty;
 
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog(commandText, null, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, commandText, null, null);
                 trace.BeforeDeleteAll(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -773,14 +1055,14 @@ namespace RepoDb
                 commandType: commandType,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
+                cancellationToken: cancellationToken,
+                entityType: request.Type,
+                dbFields: await DbFieldCache.GetAsync(connection, request.Name, transaction, true, cancellationToken),
                 skipCommandArrayParametersCheck: true);
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterDeleteAll(new TraceLog(commandText, null, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterDeleteAll(new TraceLog(sessionId, commandText, null, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Result
             return result;

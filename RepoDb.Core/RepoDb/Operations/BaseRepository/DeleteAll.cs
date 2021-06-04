@@ -1,25 +1,22 @@
-﻿using RepoDb.Interfaces;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RepoDb
 {
-    /// <summary>
-    /// A base object for all entity-based repositories.
-    /// </summary>
     public abstract partial class BaseRepository<TEntity, TDbConnection> : IDisposable
     {
-        #region DeleteAll<TEntity> (Delete<TEntity>)
+        #region DeleteAll<TEntity>
 
         /// <summary>
-        /// Deletes all the target existing data from the database. It uses the <see cref="DbConnectionExtension.Delete{TEntity}(IDbConnection, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
+        /// Delete the rows from the table.
         /// </summary>
         /// <param name="entities">The list of data entity objects to be deleted.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         public int DeleteAll(IEnumerable<TEntity> entities,
             string hints = null,
             IDbTransaction transaction = null)
@@ -30,31 +27,44 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Deletes all the target existing data from the database. It uses the <see cref="DbConnectionExtension.Delete{TEntity}(IDbConnection, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
+        /// Delete the rows from the table.
         /// </summary>
-        /// <param name="primaryKeys">The list of the primary keys to be deleted.</param>
+        /// <typeparam name="TKey">The type of the key column.</typeparam>
+        /// <param name="keys">The list of the keys to be deleted.</param>
         /// <param name="hints">The table hints to be used.</param>
-		/// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        public int DeleteAll(IEnumerable<object> primaryKeys,
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public int DeleteAll<TKey>(IEnumerable<TKey> keys,
             string hints = null,
             IDbTransaction transaction = null)
         {
-            return DbRepository.DeleteAll<TEntity>(primaryKeys: primaryKeys,
+            return DbRepository.DeleteAll<TEntity, TKey>(keys: keys,
                 hints: hints,
                 transaction: transaction);
         }
 
-        #endregion
-
-        #region DeleteAll<TEntity>
+        /// <summary>
+        /// Delete the rows from the table.
+        /// </summary>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public int DeleteAll(IEnumerable<object> keys,
+            string hints = null,
+            IDbTransaction transaction = null)
+        {
+            return DbRepository.DeleteAll<TEntity>(keys: keys,
+                hints: hints,
+                transaction: transaction);
+        }
 
         /// <summary>
-        /// Deletes all the data from the database.
+        /// Delete all the rows from the table.
         /// </summary>
         /// <param name="hints">The table hints to be used.</param>
 		/// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         public int DeleteAll(string hints = null,
             IDbTransaction transaction = null)
         {
@@ -64,54 +74,80 @@ namespace RepoDb
 
         #endregion
 
-        #region DeleteAllAsync<TEntity> (DeleteAsync<TEntity>)
+        #region DeleteAllAsync<TEntity>
 
         /// <summary>
-        /// Deletes all the target existing data from the database in an asynchronous way. It uses the <see cref="DbConnectionExtension.Delete{TEntity}(IDbConnection, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
+        /// Delete the rows from the table in an asynchronous way.
         /// </summary>
         /// <param name="entities">The list of data entity objects to be deleted.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         public Task<int> DeleteAllAsync(IEnumerable<TEntity> entities,
             string hints = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
             return DbRepository.DeleteAllAsync<TEntity>(entities: entities,
                 hints: hints,
-                transaction: transaction);
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Deletes all the target existing data from the database. It uses the <see cref="DbConnectionExtension.Delete{TEntity}(IDbConnection, QueryGroup, string, int?, IDbTransaction, ITrace, IStatementBuilder)"/> operation as the underlying operation.
+        /// Delete the rows from the table in an asynchronous way.
         /// </summary>
-        /// <param name="primaryKeys">The list of the primary keys to be deleted.</param>
+        /// <typeparam name="TKey">The type of the key column.</typeparam>
+        /// <param name="keys">The list of the keys to be deleted.</param>
         /// <param name="hints">The table hints to be used.</param>
-		/// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        public Task<int> DeleteAllAsync(IEnumerable<object> primaryKeys,
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public Task<int> DeleteAllAsync<TKey>(IEnumerable<TKey> keys,
             string hints = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
-            return DbRepository.DeleteAllAsync<TEntity>(primaryKeys: primaryKeys,
+            return DbRepository.DeleteAllAsync<TEntity, TKey>(keys: keys,
                 hints: hints,
-                transaction: transaction);
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
-        #endregion
-
-        #region DeleteAllAsync<TEntity>
+        /// <summary>
+        /// Delete the rows from the table in an asynchronous way.
+        /// </summary>
+        /// <param name="keys">The list of the keys to be deleted.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
+        public Task<int> DeleteAllAsync(IEnumerable<object> keys,
+            string hints = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
+        {
+            return DbRepository.DeleteAllAsync<TEntity>(keys: keys,
+                hints: hints,
+                transaction: transaction,
+                cancellationToken: cancellationToken);
+        }
 
         /// <summary>
-        /// Deletes all the data from the database in an asynchronous way.
+        /// Delete all the rows from the table in an asynchronous way.
         /// </summary>
         /// <param name="hints">The table hints to be used.</param>
 		/// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of rows that has been deleted from the table.</returns>
         public Task<int> DeleteAllAsync(string hints = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
-            return DbRepository.DeleteAllAsync<TEntity>();
+            return DbRepository.DeleteAllAsync<TEntity>(hints: hints,
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         #endregion

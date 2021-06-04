@@ -1,41 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <Authors>Michael Camara Pendon</Authors>
-    <Version>1.11.0-beta4</Version>
-    <Company>RepoDb</Company>
-    <Product>RepoDb</Product>
+    <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
+    <Version>1.12.8-beta4</Version>
+    <AssemblyVersion>1.12.8.4</AssemblyVersion>
+    <FileVersion>1.12.8.4</FileVersion>
     <Description>A hybrid ORM library for .NET.</Description>
-    <Copyright>Copyright © 2019</Copyright>
-    <PackageTags>orm orm-framework orm-library hybrid-orm</PackageTags>
     <PackageReleaseNotes>http://repodb.net/release/core</PackageReleaseNotes>
-    <PackageProjectUrl>http://repodb.net/</PackageProjectUrl>
-    <PackageLicenseUrl></PackageLicenseUrl>
+    <PackageProjectUrl>https://repodb.net/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/mikependon/RepoDb/tree/master/RepoDb.Core</RepositoryUrl>
-    <RepositoryType>Github</RepositoryType>
-    <NeutralLanguage></NeutralLanguage>
-    <PostBuildEvent></PostBuildEvent>
-    <PreBuildEvent></PreBuildEvent>
-    <AssemblyVersion>1.11.0.4</AssemblyVersion>
-    <FileVersion>1.11.0.4</FileVersion>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <PackageRequireLicenseAcceptance>False</PackageRequireLicenseAcceptance>
-    <PackageIconUrl></PackageIconUrl>
-    <PackageLicenseExpression></PackageLicenseExpression>
-    <PackageIcon>RepoDb-64x64.png</PackageIcon>
-    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DocumentationFile>bin\Release\netstandard1.5\RepoDb.xml</DocumentationFile>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DocumentationFile>bin\Debug\netstandard1.5\.xml</DocumentationFile>
-    <Optimize>false</Optimize>
-    <DebugType>portable</DebugType>
-    <DebugSymbols>true</DebugSymbols>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -45,9 +20,25 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="ClassMap.cs" />
+    <Compile Remove="Contexts\Execution\InsertAllExecutionContextCache.cs" />
+    <Compile Remove="Contexts\Execution\InsertExecutionContextCache.cs" />
+    <Compile Remove="Contexts\Execution\MergeAllExecutionContextCache.cs" />
+    <Compile Remove="Contexts\Execution\MergeExecutionContextCache.cs" />
+    <Compile Remove="Contexts\Execution\UpdateAllExecutionContextCache.cs" />
+    <Compile Remove="Contexts\Execution\UpdateExecutionContextCache.cs" />
+    <Compile Remove="Extensions\DateTimeExtensions.cs" />
+    <Compile Remove="Extensions\TimeSpanExtenstion.cs" />
+    <Compile Remove="IdentityOptions.cs" />
+    <Compile Remove="Interfaces\IIdentityOptions.cs" />
+    <Compile Remove="Interfaces\IPrimaryOptions.cs" />
+    <Compile Remove="Interfaces\IPropertyOptions.cs" />
+    <Compile Remove="Mappers\PropertyTypeHandlerMapper.cs" />
     <Compile Remove="PerformanceMonitor.cs" />
+    <Compile Remove="PrimaryOptions.cs" />
     <Compile Remove="Properties\AssemblyInfo.cs" />
     <Compile Remove="PropertyHandlerInstanceCache.cs" />
+    <Compile Remove="PropertyOptions.cs" />
     <Compile Remove="Reflection\DataCommand.cs" />
     <Compile Remove="Reflection\DelegateCache.cs" />
     <Compile Remove="Reflection\DelegateFactory.cs" />
@@ -56,16 +47,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
     <PackageReference Include="System.Data.Common" Version="4.3.0" />
     <PackageReference Include="System.Dynamic.Runtime" Version="4.3.0" />
-    <PackageReference Include="System.Reflection.Emit" Version="4.3.0" />
-    <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.3.0" />
-    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.4.0" />
+    <PackageReference Include="System.Linq.Async" Version="5.0.0" />
+    <PackageReference Include="System.Reflection.Emit" Version="4.7.0" />
+    <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.7.0" />
+    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.7.0" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Properties\" />
+  
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="Microsoft.Bcl.HashCode" Version="1.1.1" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -73,11 +67,13 @@
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
-    <None Include="..\..\RepoDb.Raw\Icons\RepoDb-64x64.png">
-      <Pack>True</Pack>
-      <PackagePath></PackagePath>
-    </None>
     <None Include="..\.editorconfig" Link=".editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>RepoDb.UnitTests</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>

@@ -5,11 +5,11 @@ using System.Data;
 namespace RepoDb.Requests
 {
     /// <summary>
-    /// A class that holds the value of the truncate operation arguments.
+    /// A class that holds the value of the 'Truncate' operation arguments.
     /// </summary>
     internal class TruncateRequest : BaseRequest, IEquatable<TruncateRequest>
     {
-        private int? m_hashCode = null;
+        private int? hashCode = null;
 
         /// <summary>
         /// Creates a new instance of <see cref="TruncateRequest"/> object.
@@ -56,16 +56,16 @@ namespace RepoDb.Requests
         public override int GetHashCode()
         {
             // Make sure to return if it is already provided
-            if (m_hashCode != null)
+            if (this.hashCode != null)
             {
-                return m_hashCode.Value;
+                return this.hashCode.Value;
             }
 
             // Get first the entity hash code
-            var hashCode = string.Concat(Name, ".Truncate").GetHashCode();
+            var hashCode = HashCode.Combine(Name, ".Truncate");
 
             // Set and return the hashcode
-            return (m_hashCode = hashCode).Value;
+            return (this.hashCode = hashCode).Value;
         }
 
         /// <summary>
@@ -73,20 +73,16 @@ namespace RepoDb.Requests
         /// </summary>
         /// <param name="obj">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equals.</returns>
-        public override bool Equals(object obj)
-        {
-            return obj?.GetHashCode() == GetHashCode();
-        }
+        public override bool Equals(object obj) =>
+            obj?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the <see cref="TruncateRequest"/> object equality against the given target object.
         /// </summary>
         /// <param name="other">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public bool Equals(TruncateRequest other)
-        {
-            return other?.GetHashCode() == GetHashCode();
-        }
+        public bool Equals(TruncateRequest other) =>
+            other?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the equality of the two <see cref="TruncateRequest"/> objects.
@@ -94,11 +90,12 @@ namespace RepoDb.Requests
         /// <param name="objA">The first <see cref="TruncateRequest"/> object.</param>
         /// <param name="objB">The second <see cref="TruncateRequest"/> object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public static bool operator ==(TruncateRequest objA, TruncateRequest objB)
+        public static bool operator ==(TruncateRequest objA,
+            TruncateRequest objB)
         {
-            if (ReferenceEquals(null, objA))
+            if (objA is null)
             {
-                return ReferenceEquals(null, objB);
+                return objB is null;
             }
             return objB?.GetHashCode() == objA.GetHashCode();
         }
@@ -109,10 +106,9 @@ namespace RepoDb.Requests
         /// <param name="objA">The first <see cref="TruncateRequest"/> object.</param>
         /// <param name="objB">The second <see cref="TruncateRequest"/> object.</param>
         /// <returns>True if the instances are not equal.</returns>
-        public static bool operator !=(TruncateRequest objA, TruncateRequest objB)
-        {
-            return (objA == objB) == false;
-        }
+        public static bool operator !=(TruncateRequest objA,
+            TruncateRequest objB) =>
+            (objA == objB) == false;
 
         #endregion
     }

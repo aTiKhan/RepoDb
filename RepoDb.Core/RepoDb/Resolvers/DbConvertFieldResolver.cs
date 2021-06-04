@@ -6,7 +6,7 @@ using System.Data;
 namespace RepoDb.Resolvers
 {
     /// <summary>
-    /// A class used to resolve the <see cref="Field"/> name conversion.
+    /// A class that is being used to resolve the <see cref="Field"/> name conversion.
     /// </summary>
     public class DbConvertFieldResolver : IResolver<Field, IDbSetting, string>
     {
@@ -23,7 +23,7 @@ namespace RepoDb.Resolvers
         #region Properties
 
         /// <summary>
-        /// Gets the resolver that is being used to resolve the .NET CLR Type and <see cref="DbType"/>.
+        /// Gets the resolver that is being used to resolve the .NET CLR type and <see cref="DbType"/>.
         /// </summary>
         public IResolver<Type, DbType?> DbTypeResolver { get; }
 
@@ -45,7 +45,7 @@ namespace RepoDb.Resolvers
         public virtual string Resolve(Field field,
             IDbSetting dbSetting)
         {
-            if (field != null && field.Type != null)
+            if (field?.Type != null)
             {
                 var dbType = DbTypeResolver.Resolve(field.Type);
                 if (dbType != null)

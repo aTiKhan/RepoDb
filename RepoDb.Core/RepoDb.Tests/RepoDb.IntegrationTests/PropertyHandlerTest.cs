@@ -155,6 +155,30 @@ namespace RepoDb.IntegrationTests
             }
         }
 
+        /// <summary>
+        /// A class used to handle the property transformation of <see cref="IDictionary{TKey, TValue}" /> property.
+        /// </summary>
+        public class DictionaryPropertyHandlerForString : IPropertyHandler<string, IDictionary<string, string>>
+        {
+            public IDictionary<string, string> Get(string input, ClassProperty property)
+            {
+                if (input == null)
+                {
+                    return null;
+                }
+                return new Dictionary<string, string>() { { "MyKey", input } };
+            }
+
+            public string Set(IDictionary<string, string> input, ClassProperty property)
+            {
+                if (input == null)
+                {
+                    return null;
+                }
+                return input.First().Value;
+            }
+        }
+
         #endregion
 
         #region Classes
@@ -254,7 +278,15 @@ namespace RepoDb.IntegrationTests
 
             public decimal ColumnDecimalNotNull { get; set; } = 0;
 
-            public short ColumnFloatNotNull { get; set; } = 0;
+            public float ColumnFloatNotNull { get; set; } = 0;
+        }
+
+        [Map("[dbo].[CompleteTable]")]
+        public class CompleteTableWithPropertyHandlerForDictionary
+        {
+            public Guid SessionId { get; set; }
+            [PropertyHandler(typeof(DictionaryPropertyHandlerForString))]
+            public IDictionary<string, string> ColumnNVarChar { get; set; }
         }
 
         #endregion
@@ -302,6 +334,25 @@ namespace RepoDb.IntegrationTests
             }
         }
 
+        private IEnumerable<dynamic> CreateEntityModelForDateTimeKindForAnonymousTypes(int count,
+            bool isDateTimeNull = false)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                yield return new
+                {
+                    Id = (i + 1),
+                    ColumnDateTime = isDateTimeNull ? null : (DateTime?)DateTime.UtcNow.Date,
+                    ColumnDateTimeNotNull = (DateTime?)DateTime.UtcNow.Date,
+                    ColumnDateTime2 = isDateTimeNull ? null : (DateTime?)DateTime.UtcNow,
+                    ColumnDateTime2NotNull = (DateTime?)DateTime.UtcNow.Date,
+                    ColumnIntNotNull = default(int),
+                    ColumnDecimalNotNull = default(decimal),
+                    ColumnFloatNotNull = default(float)
+                };
+            }
+        }
+
         private IEnumerable<EntityModelForNumberPropertiesToLongType> CreateEntityModelForNumberPropertiesToLongTypes(int count,
             bool isIntNull = false)
         {
@@ -312,6 +363,51 @@ namespace RepoDb.IntegrationTests
                     DecimalAsLong = isIntNull ? null : (long?)100,
                     FloatAsLong = isIntNull ? null : (long?)200
                 };
+            }
+        }
+
+        public CompleteTableWithPropertyHandlerForDictionary CreateCompleteTableWithPropertyHandlerForDictionary()
+        {
+            return new CompleteTableWithPropertyHandlerForDictionary
+            {
+                SessionId = Guid.NewGuid(),
+                ColumnNVarChar = new Dictionary<string, string>() { { "MyKey", $"Value-{Guid.NewGuid()}" } }
+            };
+        }
+
+        public IEnumerable<CompleteTableWithPropertyHandlerForDictionary> CreateompleteTableWithPropertyHandlerForDictionaries(int count = 0)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                yield return new CompleteTableWithPropertyHandlerForDictionary
+                {
+                    SessionId = Guid.NewGuid(),
+                    ColumnNVarChar = new Dictionary<string, string>() { { $"Key-{i}", $"Value-{Guid.NewGuid()}" } }
+                };
+            }
+        }
+
+        #endregion
+
+        #region Expression
+
+        [TestMethod]
+        public void TestPropertyHandlerWithWhereConditionViaExpression()
+        {
+            // Setup
+            var model = CreateEntityModelForIntToStringTypes(1).First();
+
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb))
+            {
+                // Act
+                var id = connection.Insert<EntityModelForIntToStringType, long>(model);
+
+                // Act
+                var result = connection.Query<EntityModelForIntToStringType>(e => e.IntAsString == model.IntAsString).FirstOrDefault();
+
+                // Assert
+                Assert.IsNotNull(result);
+                Helper.AssertPropertiesEquality(model, result);
             }
         }
 
@@ -408,6 +504,32 @@ namespace RepoDb.IntegrationTests
                     var item = result.First(obj => obj.Id == e.Id);
                     Assert.IsNull(item.NVarCharAsClass.Value);
                 });
+            }
+        }
+
+        #endregion
+
+        #region PropertyToDictionary
+
+        [TestMethod]
+        public void TestPropertyHandlerWithPropertyToDictionary()
+        {
+            // Setup
+            var entity = CreateCompleteTableWithPropertyHandlerForDictionary();
+
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb))
+            {
+                // Act
+                var id = connection.ExecuteScalar<Guid>("INSERT INTO [dbo].[CompleteTable] " +
+                    "(SessionId, ColumnNVarChar) " +
+                    "VALUES " +
+                    "(@SessionId, @ColumnNVarChar); " +
+                    "SELECT CONVERT(UNIQUEIDENTIFIER, @SessionId);", entity);
+
+                // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTableWithPropertyHandlerForDictionary>());
+                Assert.AreNotEqual(id, Guid.Empty);
+                Assert.AreEqual(entity.SessionId, id);
             }
         }
 
@@ -710,6 +832,58 @@ namespace RepoDb.IntegrationTests
             {
                 // Act
                 models.ForEach(e => connection.Insert(e));
+
+                // Act
+                var result = connection.QueryAll<EntityModelForDateTimeKind>();
+
+                // Assert
+                models.ForEach(e =>
+                {
+                    var item = result.First(obj => obj.Id == e.Id);
+                    Helper.AssertPropertiesEquality(e, item);
+                });
+            }
+        }
+
+        [TestMethod]
+        public void TestPropertyHandlerForDateTimeKindForAnonymousTypes()
+        {
+            // Setup
+            PropertyHandlerMapper.Add(typeof(DateTime), new DateTimeToUtcKindHandler(), true);
+
+            // Setup
+            var models = CreateEntityModelForDateTimeKindForAnonymousTypes(10).AsList();
+
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb))
+            {
+                // Act
+                connection.InsertAll("[dbo].[PropertyHandler]", models);
+
+                // Act
+                var result = connection.QueryAll<EntityModelForDateTimeKind>();
+
+                // Assert
+                models.ForEach(e =>
+                {
+                    var item = result.First(obj => obj.Id == e.Id);
+                    Helper.AssertPropertiesEquality(e, item);
+                });
+            }
+        }
+
+        [TestMethod]
+        public void TestPropertyHandlerForDateTimeKindAtomicForAnonymousTypes()
+        {
+            // Setup
+            PropertyHandlerMapper.Add(typeof(DateTime), new DateTimeToUtcKindHandler(), true);
+
+            // Setup
+            var models = CreateEntityModelForDateTimeKindForAnonymousTypes(10).AsList();
+
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb))
+            {
+                // Act
+                models.ForEach(e => connection.Insert<int>("[dbo].[PropertyHandler]", (object)e));
 
                 // Act
                 var result = connection.QueryAll<EntityModelForDateTimeKind>();

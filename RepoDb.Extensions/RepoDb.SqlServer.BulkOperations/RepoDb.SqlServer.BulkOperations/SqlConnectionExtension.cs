@@ -1,10 +1,15 @@
-﻿using RepoDb.Extensions;
+﻿using RepoDb.Exceptions;
+using RepoDb.Extensions;
 using RepoDb.Interfaces;
+using RepoDb.SqlServer.BulkOperations;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Linq;
-using System.Reflection;
+using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace RepoDb
 {
@@ -13,94 +18,206 @@ namespace RepoDb
     /// </summary>
     public static partial class SqlConnectionExtension
     {
-        #region Privates
-
-        private static FieldInfo m_systemDataSqlBulkCopyRowsCopiedField = null;
-        private static FieldInfo m_microsoftDataSqlBulkCopyRowsCopiedField = null;
-
-        #endregion
-
-        #region System.Data
-
-        /// <summary>
-        /// Gets the <see cref="SqlBulkCopy"/> private variable reflected field.
-        /// </summary>
-        /// <returns>The actual field.</returns>
-        private static FieldInfo GetRowsCopiedFieldFromSystemDataSqlBulkCopy()
-        {
-            // Check if the call has made earlier
-            if (m_systemDataBulkInsertRowsCopiedFieldHasBeenSet == true)
-            {
-                return m_systemDataSqlBulkCopyRowsCopiedField;
-            }
-
-            // Set the flag
-            m_systemDataBulkInsertRowsCopiedFieldHasBeenSet = true;
-
-            // Get the field (whether null or not)
-            m_systemDataSqlBulkCopyRowsCopiedField = typeof(System.Data.SqlClient.SqlBulkCopy)
-                .GetField("_rowsCopied", BindingFlags.NonPublic | BindingFlags.GetField | BindingFlags.Instance);
-
-            // Return the value
-            return m_systemDataSqlBulkCopyRowsCopiedField;
-        }
-
-        #endregion
-
-        #region Microsoft.Data
-
-        /// <summary>
-        /// Gets the <see cref="SqlBulkCopy"/> private variable reflected field.
-        /// </summary>
-        /// <returns>The actual field.</returns>
-        private static FieldInfo GetRowsCopiedFieldFromMicrosoftDataSqlBulkCopy()
-        {
-            // Check if the call has made earlier
-            if (m_microsoftDataBulkInsertRowsCopiedFieldHasBeenSet == true)
-            {
-                return m_microsoftDataSqlBulkCopyRowsCopiedField;
-            }
-
-            // Set the flag
-            m_microsoftDataBulkInsertRowsCopiedFieldHasBeenSet = true;
-
-            // Get the field (whether null or not)
-            m_microsoftDataSqlBulkCopyRowsCopiedField = typeof(Microsoft.Data.SqlClient.SqlBulkCopy)
-                .GetField("_rowsCopied", BindingFlags.NonPublic | BindingFlags.GetField | BindingFlags.Instance);
-
-            // Return the value
-            return m_microsoftDataSqlBulkCopyRowsCopiedField;
-        }
-
-        #endregion
-
         #region Helpers
 
         /// <summary>
-        /// Gets the actual name of the table from the database.
+        /// 
         /// </summary>
-        /// <param name="tableName">The passed table name.</param>
-        /// <param name="dbSetting">The currently in used <see cref="IDbSetting"/> object.</param>
-        /// <returns>The actual table name.</returns>
-        private static string GetTableName(string tableName,
-            IDbSetting dbSetting)
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="entities"></param>
+        /// <param name="reader"></param>
+        /// <param name="identityField"></param>
+        private static int SetIdentityForEntities<TEntity>(IEnumerable<TEntity> entities,
+            DbDataReader reader,
+            Field identityField)
+            where TEntity : class
         {
-            // Get the schema and table name
-            if (tableName.IndexOf(dbSetting.SchemaSeparator) > 0)
+            var entityType = entities?.FirstOrDefault()?.GetType() ?? typeof(TEntity);
+            var list = entities.AsList();
+            var result = 0;
+
+            if (entityType.IsDictionaryStringObject())
             {
-                var splitted = tableName.Split(dbSetting.SchemaSeparator.ToCharArray());
-                return splitted[1].AsUnquoted(true, dbSetting);
+                while (reader.Read())
+                {
+                    var value = Converter.DbNullToNull(reader.GetFieldValue<object>(0));
+                    var index = reader.GetFieldValue<int>(1);
+                    var dictionary = (IDictionary<string, object>)list[index < 0 ? result : index];
+                    dictionary[identityField.Name] = value;
+                    result++;
+                }
+            }
+            else
+            {
+                var func = Compiler.GetPropertySetterFunc<TEntity>(identityField.Name);
+                if (func != null)
+                {
+                    while (reader.Read())
+                    {
+                        var value = Converter.DbNullToNull(reader.GetFieldValue<object>(0));
+                        var index = reader.GetFieldValue<int>(1);
+                        var entity = list[(index < 0 ? result : index)];
+                        func(entity, value);
+                        result++;
+                    }
+                }
             }
 
-            // Return the unquoted
-            return tableName.AsUnquoted(true, dbSetting);
+            return result;
         }
 
         /// <summary>
-        /// Validates whether the transaction object connection is object is equals to the connection object.
+        /// 
         /// </summary>
-        /// <param name="connection">The connection object to be validated.</param>
-        /// <param name="transaction">The transaction object to compare.</param>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="entities"></param>
+        /// <param name="reader"></param>
+        /// <param name="identityDbField"></param>
+        /// <param name="cancellationToken"></param>
+        private static async Task<int> SetIdentityForEntitiesAsync<TEntity>(IEnumerable<TEntity> entities,
+            DbDataReader reader,
+            DbField identityDbField,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            var entityType = entities?.FirstOrDefault()?.GetType() ?? typeof(TEntity);
+            var list = entities.AsList();
+            var result = 0;
+
+            if (entityType.IsDictionaryStringObject())
+            {
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    var value = Converter.DbNullToNull(await reader.GetFieldValueAsync<object>(0, cancellationToken));
+                    var index = await reader.GetFieldValueAsync<int>(1, cancellationToken);
+                    var dictionary = (IDictionary<string, object>)list[(index < 0 ? result : index)];
+                    dictionary[identityDbField.Name] = value;
+                    result++;
+                }
+            }
+            else
+            {
+                var func = Compiler.GetPropertySetterFunc<TEntity>(identityDbField.Name);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    var value = Converter.DbNullToNull(await reader.GetFieldValueAsync<object>(0, cancellationToken));
+                    var index = await reader.GetFieldValueAsync<int>(1, cancellationToken);
+                    var entity = list[(index < 0 ? result : index)];
+                    func(entity, value);
+                    result++;
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="dataTable"></param>
+        /// <param name="reader"></param>
+        /// <param name="identityColumn"></param>
+        /// <returns></returns>
+        private static int SetIdentityForEntities(DataTable dataTable,
+            DbDataReader reader,
+            DataColumn identityColumn)
+        {
+            var result = 0;
+            while (reader.Read())
+            {
+                var value = Converter.DbNullToNull(reader.GetFieldValue<object>(0));
+                dataTable.Rows[result][identityColumn] = value;
+                result++;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="dataTable"></param>
+        /// <param name="reader"></param>
+        /// <param name="identityColumn"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        private static async Task<int> SetIdentityForEntitiesAsync(DataTable dataTable,
+            DbDataReader reader,
+            DataColumn identityColumn,
+            CancellationToken cancellationToken = default)
+        {
+            var result = 0;
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var value = Converter.DbNullToNull(await reader.GetFieldValueAsync<object>(0, cancellationToken));
+                dataTable.Rows[result][identityColumn] = value;
+                result++;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <typeparam name="TSqlBulkCopy"></typeparam>
+        /// <typeparam name="TSqlBulkCopyColumnMappingCollection"></typeparam>
+        /// <typeparam name="TSqlBulkCopyColumnMapping"></typeparam>
+        /// <param name="sqlBulkCopy"></param>
+        /// <param name="mappings"></param>
+        private static void AddMappings<TSqlBulkCopy, TSqlBulkCopyColumnMappingCollection, TSqlBulkCopyColumnMapping>(TSqlBulkCopy sqlBulkCopy,
+            IEnumerable<BulkInsertMapItem> mappings)
+            where TSqlBulkCopy : class
+            where TSqlBulkCopyColumnMappingCollection : class
+        {
+            var columnMappingsProperty = Compiler.GetPropertyGetterFunc<TSqlBulkCopy, TSqlBulkCopyColumnMappingCollection>("ColumnMappings");
+            var columnMappingsInstance = columnMappingsProperty(sqlBulkCopy);
+            var types = new[] { typeof(string), typeof(string) };
+            var addMethod = Compiler.GetParameterizedMethodFunc<TSqlBulkCopyColumnMappingCollection, TSqlBulkCopyColumnMapping>("Add", types);
+            mappings
+                .AsList()
+                .ForEach(mapItem =>
+                    addMethod(columnMappingsInstance, new[] { mapItem.SourceColumn, mapItem.DestinationColumn }));
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="dictionary"></param>
+        /// <returns></returns>
+        private static IEnumerable<Field> GetDictionaryStringObjectFields(IDictionary<string, object> dictionary)
+        {
+            foreach (var kvp in dictionary)
+            {
+                yield return new Field(kvp.Key, kvp.Value?.GetType());
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="qualifiers"></param>
+        /// <returns></returns>
+        private static IEnumerable<Field> ParseExpression<TEntity>(Expression<Func<TEntity, object>> qualifiers)
+            where TEntity : class =>
+            qualifiers != null ? Field.Parse<TEntity>(qualifiers) : default;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="tableName"></param>
+        /// <param name="dbSetting"></param>
+        /// <returns></returns>
+        private static string GetTableName(string tableName,
+            IDbSetting dbSetting) =>
+            DataEntityExtension.GetTableName(tableName, dbSetting);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="transaction"></param>
         private static void ValidateTransactionConnectionObject(this IDbConnection connection,
             IDbTransaction transaction)
         {
@@ -111,10 +228,10 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Returns all the <see cref="DataTable"/> objects of the <see cref="DataTable"/>.
+        /// 
         /// </summary>
-        /// <param name="dataTable">The instance of <see cref="DataTable"/> where the list of <see cref="DataColumn"/> will be extracted.</param>
-        /// <returns>The list of <see cref="DataColumn"/> objects.</returns>
+        /// <param name="dataTable"></param>
+        /// <returns></returns>
         private static IEnumerable<DataColumn> GetDataColumns(DataTable dataTable)
         {
             foreach (var column in dataTable.Columns.OfType<DataColumn>())
@@ -124,11 +241,11 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Returns all the <see cref="DataRow"/> objects of the <see cref="DataTable"/> by state.
+        /// 
         /// </summary>
-        /// <param name="dataTable">The instance of <see cref="DataTable"/> where the list of <see cref="DataRow"/> will be extracted.</param>
-        /// <param name="rowState">The state of the <see cref="DataRow"/> objects to be extracted.</param>
-        /// <returns>The list of <see cref="DataRow"/> objects.</returns>
+        /// <param name="dataTable"></param>
+        /// <param name="rowState"></param>
+        /// <returns></returns>
         private static IEnumerable<DataRow> GetDataRows(DataTable dataTable,
             DataRowState? rowState = null)
         {
@@ -144,10 +261,40 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Gets the equivalent list of <see cref="BulkInsertMapItem"/> from the list of the <see cref="Field"/> objects.
+        /// 
         /// </summary>
-        /// <param name="fields">The list of <see cref="Field"/> objects to extract.</param>
-        /// <returns>The list of <see cref="BulkInsertMapItem"/> objects.</returns>
+        /// <param name="dataTable"></param>
+        /// <returns></returns>
+        private static void AddOrderColumn(DataTable dataTable)
+        {
+            if (dataTable == null)
+            {
+                return;
+            }
+            var column = new DataColumn("__RepoDb_OrderColumn", typeof(int));
+            dataTable.Columns.Add(column);
+            for (var i = 0; i < dataTable.Rows.Count; i++)
+            {
+                dataTable.Rows[i][column] = i;
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="mappings"></param>
+        private static IEnumerable<BulkInsertMapItem> AddOrderColumnMapping(IEnumerable<BulkInsertMapItem> mappings)
+        {
+            var list = mappings.AsList();
+            list.Add(new BulkInsertMapItem("__RepoDb_OrderColumn", "__RepoDb_OrderColumn"));
+            return list;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="fields"></param>
+        /// <returns></returns>
         private static IEnumerable<BulkInsertMapItem> GetBulkInsertMapItemsFromFields(IEnumerable<Field> fields)
         {
             foreach (var field in fields)
@@ -156,14 +303,74 @@ namespace RepoDb
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="reader"></param>
+        internal static void ThrowIfNullOrEmpty(DbDataReader reader)
+        {
+            if (reader == null)
+            {
+                throw new NullReferenceException("The reader must not be null.");
+            }
+            if (reader.HasRows == false)
+            {
+                throw new EmptyException("The reader must contain at least a single row.");
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="dataTable"></param>
+        internal static void ThrowIfNullOrEmpty(DataTable dataTable)
+        {
+            if (dataTable == null)
+            {
+                throw new NullReferenceException("The data table must not be null.");
+            }
+            if (dataTable.Rows.Count <= 0)
+            {
+                throw new EmptyException("The data table must contain at least a single row.");
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="entities"></param>
+        internal static void ThrowIfNullOrEmpty<TEntity>(IEnumerable<TEntity> entities)
+            where TEntity : class
+        {
+            if (entities == null)
+            {
+                throw new NullReferenceException("The entities must not be null.");
+            }
+            if (entities.Any() == false)
+            {
+                throw new EmptyException("The entities must not be empty.");
+            }
+        }
+
         #endregion
 
         #region SQL Helpers
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="tableName"></param>
+        /// <param name="tempTableName"></param>
+        /// <param name="fields"></param>
+        /// <param name="dbSetting"></param>
+        /// <param name="isReturnIdentity"></param>
+        /// <returns></returns>
         private static string GetCreateTemporaryTableSqlText(string tableName,
             string tempTableName,
             IEnumerable<Field> fields,
-            IDbSetting dbSetting)
+            IDbSetting dbSetting,
+            bool isReturnIdentity)
         {
             var builder = new QueryBuilder();
 
@@ -171,7 +378,16 @@ namespace RepoDb
             builder
                 .Clear()
                 .Select()
-                .FieldsFrom(fields, dbSetting)
+                .FieldsFrom(fields, dbSetting);
+
+            // Return Identity
+            if (isReturnIdentity)
+            {
+                builder.WriteText(", CONVERT(INT, NULL) AS [__RepoDb_OrderColumn]");
+            };
+
+            // Continuation
+            builder
                 .Into()
                 .WriteText(tempTableName.AsQuoted(dbSetting))
                 .From()
@@ -184,6 +400,13 @@ namespace RepoDb
             return builder.ToString();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="tempTableName"></param>
+        /// <param name="qualifiers"></param>
+        /// <param name="dbSetting"></param>
+        /// <returns></returns>
         private static string GetCreateTemporaryTableClusteredIndexSqlText(string tempTableName,
             IEnumerable<Field> qualifiers,
             IDbSetting dbSetting)
@@ -191,7 +414,7 @@ namespace RepoDb
             // Validate the presence
             if (qualifiers?.Any() != true)
             {
-                throw new MissingFieldException("There is no qualifer field(s) defined.");
+                throw new MissingFieldException("There is no qualifier field(s) defined.");
             }
 
             // Variables needed
@@ -216,12 +439,25 @@ namespace RepoDb
             return builder.ToString();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="tempTableName"></param>
+        /// <param name="dbSetting"></param>
+        /// <returns></returns>
         private static string GetDropTemporaryTableSqlText(string tempTableName,
-            IDbSetting dbSetting)
-        {
-            return $"DROP TABLE {tempTableName.AsQuoted(dbSetting)};";
-        }
+            IDbSetting dbSetting) =>
+            $"DROP TABLE {tempTableName.AsQuoted(dbSetting)};";
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="tableName"></param>
+        /// <param name="tempTableName"></param>
+        /// <param name="qualifiers"></param>
+        /// <param name="hints"></param>
+        /// <param name="dbSetting"></param>
+        /// <returns></returns>
         private static string GetBulkDeleteSqlText(string tableName,
             string tempTableName,
             IEnumerable<Field> qualifiers,
@@ -231,7 +467,7 @@ namespace RepoDb
             // Validate the presence
             if (qualifiers?.Any() != true)
             {
-                throw new MissingFieldException("There is no qualifer field(s) defined.");
+                throw new MissingFieldException("There is no qualifier field(s) defined.");
             }
 
             // Variables needed
@@ -260,6 +496,117 @@ namespace RepoDb
             return builder.ToString();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="tableName"></param>
+        /// <param name="tempTableName"></param>
+        /// <param name="fields"></param>
+        /// <param name="identityField"></param>
+        /// <param name="hints"></param>
+        /// <param name="dbSetting"></param>
+        /// <param name="isReturnIdentity"></param>
+        /// <returns></returns>
+        private static string GetBulkInsertSqlText(string tableName,
+            string tempTableName,
+            IEnumerable<Field> fields,
+            Field identityField,
+            string hints,
+            IDbSetting dbSetting,
+            bool isReturnIdentity)
+        {
+            // Validate the presence
+            if (fields?.Any() != true)
+            {
+                throw new MissingFieldException("There are no field(s) defined.");
+            }
+
+            // Variables needed
+            var builder = new QueryBuilder();
+
+            // Insertable fields
+            var insertableFields = fields
+                .Where(field => string.Equals(field.Name, identityField?.Name, StringComparison.OrdinalIgnoreCase) == false);
+
+            // Compose the statement
+            builder.Clear()
+                // MERGE T USING S
+                .Merge()
+                .TableNameFrom(tableName, dbSetting)
+                .HintsFrom(hints)
+                .As("T")
+                .Using()
+                .OpenParen()
+                .Select()
+                .Top()
+                .WriteText("100 PERCENT")
+                //.FieldsFrom(fields, dbSetting)
+                .WriteText("*") // Including the [__RepoDb_OrderColumn]
+                .From()
+                .TableNameFrom(tempTableName, dbSetting);
+
+            // Return Identity
+            if (isReturnIdentity && identityField != null)
+            {
+                builder
+                    .OrderBy()
+                    .WriteText("[__RepoDb_OrderColumn]")
+                    .Ascending();
+            }
+
+            // Continuation
+            builder
+                .CloseParen()
+                .As("S")
+                // QUALIFIERS
+                .On()
+                .OpenParen()
+                .WriteText("1 = 0")
+                .CloseParen()
+                // WHEN NOT MATCHED THEN INSERT VALUES
+                .When()
+                .Not()
+                .Matched()
+                .Then()
+                .Insert()
+                .OpenParen()
+                .FieldsFrom(insertableFields, dbSetting)
+                .CloseParen()
+                .Values()
+                .OpenParen()
+                .AsAliasFieldsFrom(insertableFields, "S", dbSetting)
+                .CloseParen();
+
+            // Set the output
+            if (isReturnIdentity == true && identityField != null)
+            {
+                builder
+                    .WriteText(string.Concat("OUTPUT INSERTED.", identityField.Name.AsField(dbSetting)))
+                        .As("[Result],")
+                    .WriteText("S.[__RepoDb_OrderColumn]")
+                        .As("[OrderColumn]");
+            }
+
+            // End
+            builder.End();
+
+            // Return the sql
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="tableName"></param>
+        /// <param name="tempTableName"></param>
+        /// <param name="fields"></param>
+        /// <param name="qualifiers"></param>
+        /// <param name="primaryField"></param>
+        /// <param name="identityField"></param>
+        /// <param name="hints"></param>
+        /// <param name="dbSetting"></param>
+        /// <param name="isReturnIdentity"></param>
+        /// <returns></returns>
         private static string GetBulkMergeSqlText(string tableName,
             string tempTableName,
             IEnumerable<Field> fields,
@@ -267,23 +614,21 @@ namespace RepoDb
             Field primaryField,
             Field identityField,
             string hints,
-            IDbSetting dbSetting)
+            IDbSetting dbSetting,
+            bool isReturnIdentity)
         {
             // Validate the presence
             if (fields?.Any() != true)
             {
-                throw new MissingFieldException("There is no field(s) defined.");
+                throw new MissingFieldException("There are no field(s) defined.");
             }
 
             if (qualifiers?.Any() != true)
             {
-                throw new MissingFieldException("There is no qualifer field(s) defined.");
+                throw new MissingFieldException("There is no qualifier field(s) defined.");
             }
 
             // Variables needed
-            var setFields = fields
-                .Select(field => field.AsJoinQualifier("T", "S", dbSetting))
-                .Join(", ");
             var builder = new QueryBuilder();
 
             // Insertable fields
@@ -302,20 +647,35 @@ namespace RepoDb
                 // MERGE T USING S
                 .Merge()
                 .TableNameFrom(tableName, dbSetting)
-                .As("T")
                 .HintsFrom(hints)
+                .As("T")
                 .Using()
                 .OpenParen()
                 .Select()
-                .FieldsFrom(fields, dbSetting)
+                .Top()
+                .WriteText("100 PERCENT")
+                //.FieldsFrom(fields, dbSetting)
+                .WriteText("*") // Including the [__RepoDb_OrderColumn]
                 .From()
-                .TableNameFrom(tempTableName, dbSetting)
+                .TableNameFrom(tempTableName, dbSetting);
+
+            // Return Identity
+            if (isReturnIdentity && identityField != null)
+            {
+                builder
+                    .OrderBy()
+                    .WriteText("[__RepoDb_OrderColumn]")
+                    .Ascending();
+            }
+
+            // Continuation
+            builder
                 .CloseParen()
                 .As("S")
                 // QUALIFIERS
                 .On()
                 .OpenParen()
-                .WriteText(qualifiers?
+                .WriteText(qualifiers
                     .Select(
                         field => field.AsJoinQualifier("S", "T", dbSetting))
                             .Join(" AND "))
@@ -339,13 +699,37 @@ namespace RepoDb
                 .Then()
                 .Update()
                 .Set()
-                .FieldsAndAliasFieldsFrom(updateableFields, "T", "S", dbSetting)
-                .End();
+                .FieldsAndAliasFieldsFrom(updateableFields, "T", "S", dbSetting);
+
+            // Set the output
+            if (isReturnIdentity == true && identityField != null)
+            {
+                builder
+                    .WriteText(string.Concat("OUTPUT INSERTED.", identityField.Name.AsField(dbSetting)))
+                        .As("[Result],")
+                    .WriteText("S.[__RepoDb_OrderColumn]")
+                        .As("[OrderColumn]");
+            }
+
+            // End the builder
+            builder.End();
 
             // Return the sql
             return builder.ToString();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="tableName"></param>
+        /// <param name="tempTableName"></param>
+        /// <param name="fields"></param>
+        /// <param name="qualifiers"></param>
+        /// <param name="primaryField"></param>
+        /// <param name="identityField"></param>
+        /// <param name="hints"></param>
+        /// <param name="dbSetting"></param>
+        /// <returns></returns>
         private static string GetBulkUpdateSqlText(string tableName,
             string tempTableName,
             IEnumerable<Field> fields,
@@ -358,12 +742,12 @@ namespace RepoDb
             // Validate the presence
             if (fields?.Any() != true)
             {
-                throw new MissingFieldException("There is no field(s) defined.");
+                throw new MissingFieldException("There are no field(s) defined.");
             }
 
             if (qualifiers?.Any() != true)
             {
-                throw new MissingFieldException("There is no qualifer field(s) defined.");
+                throw new MissingFieldException("There is no qualifier field(s) defined.");
             }
 
             // Variables needed
@@ -401,6 +785,12 @@ namespace RepoDb
             return builder.ToString();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="field"></param>
+        /// <param name="values"></param>
+        /// <returns></returns>
         private static DataTable CreateDataTableWithSingleColumn(Field field,
             IEnumerable<object> values)
         {

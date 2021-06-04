@@ -1,34 +1,32 @@
-﻿using RepoDb.Interfaces;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RepoDb
 {
-    /// <summary>
-    /// A base object for all shared-based repositories.
-    /// </summary>
-    public partial class DbRepository<TDbConnection> : IDisposable where TDbConnection : DbConnection
+    public partial class DbRepository<TDbConnection> : IDisposable
+        where TDbConnection : DbConnection
     {
         #region QueryMultiple<TEntity>
 
         #region T1, T2
 
         /// <summary>
-        /// Query a multiple resultset from the database based on the given 2 target types.
+        /// Query the data as multiple resultsets from the table based on the given 2 target types.
         /// </summary>
         /// <typeparam name="T1">The first target type.</typeparam>
         /// <typeparam name="T2">The second target type.</typeparam>
         /// <param name="where1">The query expression to be used (at T1).</param>
         /// <param name="where2">The query expression to be used (at T2).</param>
         /// <param name="orderBy1">The order definition of the fields to be used (at T1).</param>
-        /// <param name="top1">The top number of data to be used (at T1).</param>
+        /// <param name="top1">The number of rows to be returned (at T1).</param>
         /// <param name="hints1">The table hints to be used (at T1).</param>
         /// <param name="orderBy2">The order definition of the fields to be used (at T2).</param>
-        /// <param name="top2">The top number of data to be used (at T2).</param>
+        /// <param name="top2">The number of rows to be returned (at T2).</param>
         /// <param name="hints2">The table hints to be used (at T2).</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <returns>A tuple of 2 enumerable target data entity types.</returns>
@@ -63,11 +61,6 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
-            {
-                // Throw back the error
-                throw;
-            }
             finally
             {
                 // Dispose the connection
@@ -80,7 +73,7 @@ namespace RepoDb
         #region T1, T2, T3
 
         /// <summary>
-        /// Query a multiple resultset from the database based on the given 3 target types.
+        /// Query the data as multiple resultsets from the table based on the given 3 target types.
         /// </summary>
         /// <typeparam name="T1">The first target type.</typeparam>
         /// <typeparam name="T2">The second target type.</typeparam>
@@ -89,13 +82,13 @@ namespace RepoDb
         /// <param name="where2">The query expression to be used (at T2).</param>
         /// <param name="where3">The query expression to be used (at T3).</param>
         /// <param name="orderBy1">The order definition of the fields to be used (at T1).</param>
-        /// <param name="top1">The top number of data to be used (at T1).</param>
+        /// <param name="top1">The number of rows to be returned (at T1).</param>
         /// <param name="hints1">The table hints to be used (at T1).</param>
         /// <param name="orderBy2">The order definition of the fields to be used (at T2).</param>
-        /// <param name="top2">The top number of data to be used (at T2).</param>
+        /// <param name="top2">The number of rows to be returned (at T2).</param>
         /// <param name="hints2">The table hints to be used (at T2).</param>
         /// <param name="orderBy3">The order definition of the fields to be used (at T3).</param>
-        /// <param name="top3">The top number of data to be used (at T3).</param>
+        /// <param name="top3">The number of rows to be returned (at T3).</param>
         /// <param name="hints3">The table hints to be used (at T3).</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <returns>A tuple of 3 enumerable target data entity types.</returns>
@@ -139,11 +132,6 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
-            {
-                // Throw back the error
-                throw;
-            }
             finally
             {
                 // Dispose the connection
@@ -156,7 +144,7 @@ namespace RepoDb
         #region T1, T2, T3, T4
 
         /// <summary>
-        /// Query a multiple resultset from the database based on the given 4 target types.
+        /// Query the data as multiple resultsets from the table based on the given 4 target types.
         /// </summary>
         /// <typeparam name="T1">The first target type.</typeparam>
         /// <typeparam name="T2">The second target type.</typeparam>
@@ -167,16 +155,16 @@ namespace RepoDb
         /// <param name="where3">The query expression to be used (at T3).</param>
         /// <param name="where4">The query expression to be used (at T4).</param>
         /// <param name="orderBy1">The order definition of the fields to be used (at T1).</param>
-        /// <param name="top1">The top number of data to be used (at T1).</param>
+        /// <param name="top1">The number of rows to be returned (at T1).</param>
         /// <param name="hints1">The table hints to be used (at T1).</param>
         /// <param name="orderBy2">The order definition of the fields to be used (at T2).</param>
-        /// <param name="top2">The top number of data to be used (at T2).</param>
+        /// <param name="top2">The number of rows to be returned (at T2).</param>
         /// <param name="hints2">The table hints to be used (at T2).</param>
         /// <param name="orderBy3">The order definition of the fields to be used (at T3).</param>
-        /// <param name="top3">The top number of data to be used (at T3).</param>
+        /// <param name="top3">The number of rows to be returned (at T3).</param>
         /// <param name="hints3">The table hints to be used (at T3).</param>
         /// <param name="orderBy4">The order definition of the fields to be used (at T4).</param>
-        /// <param name="top4">The top number of data to be used (at T4).</param>
+        /// <param name="top4">The number of rows to be returned (at T4).</param>
         /// <param name="hints4">The table hints to be used (at T4).</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <returns>A tuple of 4 enumerable target data entity types.</returns>
@@ -230,11 +218,6 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
-            {
-                // Throw back the error
-                throw;
-            }
             finally
             {
                 // Dispose the connection
@@ -247,7 +230,7 @@ namespace RepoDb
         #region T1, T2, T3, T4, T5
 
         /// <summary>
-        /// Query a multiple resultset from the database based on the given 5 target types.
+        /// Query the data as multiple resultsets from the table based on the given 5 target types.
         /// </summary>
         /// <typeparam name="T1">The first target type.</typeparam>
         /// <typeparam name="T2">The second target type.</typeparam>
@@ -260,19 +243,19 @@ namespace RepoDb
         /// <param name="where4">The query expression to be used (at T4).</param>
         /// <param name="where5">The query expression to be used (at T5).</param>
         /// <param name="orderBy1">The order definition of the fields to be used (at T1).</param>
-        /// <param name="top1">The top number of data to be used (at T1).</param>
+        /// <param name="top1">The number of rows to be returned (at T1).</param>
         /// <param name="hints1">The table hints to be used (at T1).</param>
         /// <param name="orderBy2">The order definition of the fields to be used (at T2).</param>
-        /// <param name="top2">The top number of data to be used (at T2).</param>
+        /// <param name="top2">The number of rows to be returned (at T2).</param>
         /// <param name="hints2">The table hints to be used (at T2).</param>
         /// <param name="orderBy3">The order definition of the fields to be used (at T3).</param>
-        /// <param name="top3">The top number of data to be used (at T3).</param>
+        /// <param name="top3">The number of rows to be returned (at T3).</param>
         /// <param name="hints3">The table hints to be used (at T3).</param>
         /// <param name="orderBy4">The order definition of the fields to be used (at T4).</param>
-        /// <param name="top4">The top number of data to be used (at T4).</param>
+        /// <param name="top4">The number of rows to be returned (at T4).</param>
         /// <param name="hints4">The table hints to be used (at T4).</param>
         /// <param name="orderBy5">The order definition of the fields to be used (at T5).</param>
-        /// <param name="top5">The top number of data to be used (at T5).</param>
+        /// <param name="top5">The number of rows to be returned (at T5).</param>
         /// <param name="hints5">The table hints to be used (at T5).</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <returns>A tuple of 5 enumerable target data entity types.</returns>
@@ -335,11 +318,6 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
-            {
-                // Throw back the error
-                throw;
-            }
             finally
             {
                 // Dispose the connection
@@ -352,7 +330,7 @@ namespace RepoDb
         #region T1, T2, T3, T4, T5, T6
 
         /// <summary>
-        /// Query a multiple resultset from the database based on the given 6 target types.
+        /// Query the data as multiple resultsets from the table based on the given 6 target types.
         /// </summary>
         /// <typeparam name="T1">The first target type.</typeparam>
         /// <typeparam name="T2">The second target type.</typeparam>
@@ -367,22 +345,22 @@ namespace RepoDb
         /// <param name="where5">The query expression to be used (at T5).</param>
         /// <param name="where6">The query expression to be used (at T6).</param>
         /// <param name="orderBy1">The order definition of the fields to be used (at T1).</param>
-        /// <param name="top1">The top number of data to be used (at T1).</param>
+        /// <param name="top1">The number of rows to be returned (at T1).</param>
         /// <param name="hints1">The table hints to be used (at T1).</param>
         /// <param name="orderBy2">The order definition of the fields to be used (at T2).</param>
-        /// <param name="top2">The top number of data to be used (at T2).</param>
+        /// <param name="top2">The number of rows to be returned (at T2).</param>
         /// <param name="hints2">The table hints to be used (at T2).</param>
         /// <param name="orderBy3">The order definition of the fields to be used (at T3).</param>
-        /// <param name="top3">The top number of data to be used (at T3).</param>
+        /// <param name="top3">The number of rows to be returned (at T3).</param>
         /// <param name="hints3">The table hints to be used (at T3).</param>
         /// <param name="orderBy4">The order definition of the fields to be used (at T4).</param>
-        /// <param name="top4">The top number of data to be used (at T4).</param>
+        /// <param name="top4">The number of rows to be returned (at T4).</param>
         /// <param name="hints4">The table hints to be used (at T4).</param>
         /// <param name="orderBy5">The order definition of the fields to be used (at T5).</param>
-        /// <param name="top5">The top number of data to be used (at T5).</param>
+        /// <param name="top5">The number of rows to be returned (at T5).</param>
         /// <param name="hints5">The table hints to be used (at T5).</param>
         /// <param name="orderBy6">The order definition of the fields to be used (at T6).</param>
-        /// <param name="top6">The top number of data to be used (at T6).</param>
+        /// <param name="top6">The number of rows to be returned (at T6).</param>
         /// <param name="hints6">The table hints to be used (at T6).</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <returns>A tuple of 6 enumerable target data entity types.</returns>
@@ -454,11 +432,6 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
-            {
-                // Throw back the error
-                throw;
-            }
             finally
             {
                 // Dispose the connection
@@ -471,7 +444,7 @@ namespace RepoDb
         #region T1, T2, T3, T4, T5, T6, T7
 
         /// <summary>
-        /// Query a multiple resultset from the database based on the given 7 target types.
+        /// Query the data as multiple resultsets from the table based on the given 7 target types.
         /// </summary>
         /// <typeparam name="T1">The first target type.</typeparam>
         /// <typeparam name="T2">The second target type.</typeparam>
@@ -488,25 +461,25 @@ namespace RepoDb
         /// <param name="where6">The query expression to be used (at T6).</param>
         /// <param name="where7">The query expression to be used (at T7).</param>
         /// <param name="orderBy1">The order definition of the fields to be used (at T1).</param>
-        /// <param name="top1">The top number of data to be used (at T1).</param>
+        /// <param name="top1">The number of rows to be returned (at T1).</param>
         /// <param name="hints1">The table hints to be used (at T1).</param>
         /// <param name="orderBy2">The order definition of the fields to be used (at T2).</param>
-        /// <param name="top2">The top number of data to be used (at T2).</param>
+        /// <param name="top2">The number of rows to be returned (at T2).</param>
         /// <param name="hints2">The table hints to be used (at T2).</param>
         /// <param name="orderBy3">The order definition of the fields to be used (at T3).</param>
-        /// <param name="top3">The top number of data to be used (at T3).</param>
+        /// <param name="top3">The number of rows to be returned (at T3).</param>
         /// <param name="hints3">The table hints to be used (at T3).</param>
         /// <param name="orderBy4">The order definition of the fields to be used (at T4).</param>
-        /// <param name="top4">The top number of data to be used (at T4).</param>
+        /// <param name="top4">The number of rows to be returned (at T4).</param>
         /// <param name="hints4">The table hints to be used (at T4).</param>
         /// <param name="orderBy5">The order definition of the fields to be used (at T5).</param>
-        /// <param name="top5">The top number of data to be used (at T5).</param>
+        /// <param name="top5">The number of rows to be returned (at T5).</param>
         /// <param name="hints5">The table hints to be used (at T5).</param>
         /// <param name="orderBy6">The order definition of the fields to be used (at T6).</param>
-        /// <param name="top6">The top number of data to be used (at T6).</param>
+        /// <param name="top6">The number of rows to be returned (at T6).</param>
         /// <param name="hints6">The table hints to be used (at T6).</param>
         /// <param name="orderBy7">The order definition of the fields to be used (at T7).</param>
-        /// <param name="top7">The top number of data to be used (at T7).</param>
+        /// <param name="top7">The number of rows to be returned (at T7).</param>
         /// <param name="hints7">The table hints to be used (at T7).</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <returns>A tuple of 7 enumerable target data entity types.</returns>
@@ -587,11 +560,6 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
-            {
-                // Throw back the error
-                throw;
-            }
             finally
             {
                 // Dispose the connection
@@ -608,19 +576,20 @@ namespace RepoDb
         #region T1, T2
 
         /// <summary>
-        /// Query a multiple resultset from the database based on the given 2 target types in an asychronous way.
+        /// Query the data as multiple resultsets from the table based on the given 2 target types in an asynchronous way.
         /// </summary>
         /// <typeparam name="T1">The first target type.</typeparam>
         /// <typeparam name="T2">The second target type.</typeparam>
         /// <param name="where1">The query expression to be used (at T1).</param>
         /// <param name="where2">The query expression to be used (at T2).</param>
         /// <param name="orderBy1">The order definition of the fields to be used (at T1).</param>
-        /// <param name="top1">The top number of data to be used (at T1).</param>
+        /// <param name="top1">The number of rows to be returned (at T1).</param>
         /// <param name="hints1">The table hints to be used (at T1).</param>
         /// <param name="orderBy2">The order definition of the fields to be used (at T2).</param>
-        /// <param name="top2">The top number of data to be used (at T2).</param>
+        /// <param name="top2">The number of rows to be returned (at T2).</param>
         /// <param name="hints2">The table hints to be used (at T2).</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>A tuple of 2 enumerable target data entity types.</returns>
         public async Task<Tuple<IEnumerable<T1>, IEnumerable<T2>>> QueryMultipleAsync<T1, T2>(Expression<Func<T1, bool>> where1,
             Expression<Func<T2, bool>> where2,
@@ -630,7 +599,8 @@ namespace RepoDb
             int? top2 = 0,
             IEnumerable<OrderField> orderBy2 = null,
             string hints2 = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where T1 : class
             where T2 : class
         {
@@ -651,12 +621,8 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
-            }
-            catch
-            {
-                // Throw back the error
-                throw;
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {
@@ -670,7 +636,7 @@ namespace RepoDb
         #region T1, T2, T3
 
         /// <summary>
-        /// Query a multiple resultset from the database based on the given 3 target types in an asychronous way.
+        /// Query the data as multiple resultsets from the table based on the given 3 target types in an asynchronous way.
         /// </summary>
         /// <typeparam name="T1">The first target type.</typeparam>
         /// <typeparam name="T2">The second target type.</typeparam>
@@ -679,15 +645,16 @@ namespace RepoDb
         /// <param name="where2">The query expression to be used (at T2).</param>
         /// <param name="where3">The query expression to be used (at T3).</param>
         /// <param name="orderBy1">The order definition of the fields to be used (at T1).</param>
-        /// <param name="top1">The top number of data to be used (at T1).</param>
+        /// <param name="top1">The number of rows to be returned (at T1).</param>
         /// <param name="hints1">The table hints to be used (at T1).</param>
         /// <param name="orderBy2">The order definition of the fields to be used (at T2).</param>
-        /// <param name="top2">The top number of data to be used (at T2).</param>
+        /// <param name="top2">The number of rows to be returned (at T2).</param>
         /// <param name="hints2">The table hints to be used (at T2).</param>
         /// <param name="orderBy3">The order definition of the fields to be used (at T3).</param>
-        /// <param name="top3">The top number of data to be used (at T3).</param>
+        /// <param name="top3">The number of rows to be returned (at T3).</param>
         /// <param name="hints3">The table hints to be used (at T3).</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>A tuple of 3 enumerable target data entity types.</returns>
         public async Task<Tuple<IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>>> QueryMultipleAsync<T1, T2, T3>(Expression<Func<T1, bool>> where1,
             Expression<Func<T2, bool>> where2,
@@ -701,7 +668,8 @@ namespace RepoDb
             IEnumerable<OrderField> orderBy3 = null,
             int? top3 = 0,
             string hints3 = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where T1 : class
             where T2 : class
             where T3 : class
@@ -727,12 +695,8 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
-            }
-            catch
-            {
-                // Throw back the error
-                throw;
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {
@@ -746,7 +710,7 @@ namespace RepoDb
         #region T1, T2, T3, T4
 
         /// <summary>
-        /// Query a multiple resultset from the database based on the given 4 target types in an asychronous way.
+        /// Query the data as multiple resultsets from the table based on the given 4 target types in an asynchronous way.
         /// </summary>
         /// <typeparam name="T1">The first target type.</typeparam>
         /// <typeparam name="T2">The second target type.</typeparam>
@@ -757,18 +721,19 @@ namespace RepoDb
         /// <param name="where3">The query expression to be used (at T3).</param>
         /// <param name="where4">The query expression to be used (at T4).</param>
         /// <param name="orderBy1">The order definition of the fields to be used (at T1).</param>
-        /// <param name="top1">The top number of data to be used (at T1).</param>
+        /// <param name="top1">The number of rows to be returned (at T1).</param>
         /// <param name="hints1">The table hints to be used (at T1).</param>
         /// <param name="orderBy2">The order definition of the fields to be used (at T2).</param>
-        /// <param name="top2">The top number of data to be used (at T2).</param>
+        /// <param name="top2">The number of rows to be returned (at T2).</param>
         /// <param name="hints2">The table hints to be used (at T2).</param>
         /// <param name="orderBy3">The order definition of the fields to be used (at T3).</param>
-        /// <param name="top3">The top number of data to be used (at T3).</param>
+        /// <param name="top3">The number of rows to be returned (at T3).</param>
         /// <param name="hints3">The table hints to be used (at T3).</param>
         /// <param name="orderBy4">The order definition of the fields to be used (at T4).</param>
-        /// <param name="top4">The top number of data to be used (at T4).</param>
+        /// <param name="top4">The number of rows to be returned (at T4).</param>
         /// <param name="hints4">The table hints to be used (at T4).</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>A tuple of 4 enumerable target data entity types.</returns>
         public async Task<Tuple<IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>, IEnumerable<T4>>>
             QueryMultipleAsync<T1, T2, T3, T4>(Expression<Func<T1, bool>> where1,
@@ -787,7 +752,8 @@ namespace RepoDb
             IEnumerable<OrderField> orderBy4 = null,
             int? top4 = 0,
             string hints4 = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where T1 : class
             where T2 : class
             where T3 : class
@@ -818,12 +784,8 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
-            }
-            catch
-            {
-                // Throw back the error
-                throw;
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {
@@ -837,7 +799,7 @@ namespace RepoDb
         #region T1, T2, T3, T4, T5
 
         /// <summary>
-        /// Query a multiple resultset from the database based on the given 5 target types in an asychronous way.
+        /// Query the data as multiple resultsets from the table based on the given 5 target types in an asynchronous way.
         /// </summary>
         /// <typeparam name="T1">The first target type.</typeparam>
         /// <typeparam name="T2">The second target type.</typeparam>
@@ -850,21 +812,22 @@ namespace RepoDb
         /// <param name="where4">The query expression to be used (at T4).</param>
         /// <param name="where5">The query expression to be used (at T5).</param>
         /// <param name="orderBy1">The order definition of the fields to be used (at T1).</param>
-        /// <param name="top1">The top number of data to be used (at T1).</param>
+        /// <param name="top1">The number of rows to be returned (at T1).</param>
         /// <param name="hints1">The table hints to be used (at T1).</param>
         /// <param name="orderBy2">The order definition of the fields to be used (at T2).</param>
-        /// <param name="top2">The top number of data to be used (at T2).</param>
+        /// <param name="top2">The number of rows to be returned (at T2).</param>
         /// <param name="hints2">The table hints to be used (at T2).</param>
         /// <param name="orderBy3">The order definition of the fields to be used (at T3).</param>
-        /// <param name="top3">The top number of data to be used (at T3).</param>
+        /// <param name="top3">The number of rows to be returned (at T3).</param>
         /// <param name="hints3">The table hints to be used (at T3).</param>
         /// <param name="orderBy4">The order definition of the fields to be used (at T4).</param>
-        /// <param name="top4">The top number of data to be used (at T4).</param>
+        /// <param name="top4">The number of rows to be returned (at T4).</param>
         /// <param name="hints4">The table hints to be used (at T4).</param>
         /// <param name="orderBy5">The order definition of the fields to be used (at T5).</param>
-        /// <param name="top5">The top number of data to be used (at T5).</param>
+        /// <param name="top5">The number of rows to be returned (at T5).</param>
         /// <param name="hints5">The table hints to be used (at T5).</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>A tuple of 5 enumerable target data entity types.</returns>
         public async Task<Tuple<IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>, IEnumerable<T4>, IEnumerable<T5>>>
             QueryMultipleAsync<T1, T2, T3, T4, T5>(Expression<Func<T1, bool>> where1,
@@ -887,7 +850,8 @@ namespace RepoDb
             IEnumerable<OrderField> orderBy5 = null,
             int? top5 = 0,
             string hints5 = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where T1 : class
             where T2 : class
             where T3 : class
@@ -923,12 +887,8 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
-            }
-            catch
-            {
-                // Throw back the error
-                throw;
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {
@@ -942,7 +902,7 @@ namespace RepoDb
         #region T1, T2, T3, T4, T5, T6
 
         /// <summary>
-        /// Query a multiple resultset from the database based on the given 6 target types in an asychronous way.
+        /// Query the data as multiple resultsets from the table based on the given 6 target types in an asynchronous way.
         /// </summary>
         /// <typeparam name="T1">The first target type.</typeparam>
         /// <typeparam name="T2">The second target type.</typeparam>
@@ -957,24 +917,25 @@ namespace RepoDb
         /// <param name="where5">The query expression to be used (at T5).</param>
         /// <param name="where6">The query expression to be used (at T6).</param>
         /// <param name="orderBy1">The order definition of the fields to be used (at T1).</param>
-        /// <param name="top1">The top number of data to be used (at T1).</param>
+        /// <param name="top1">The number of rows to be returned (at T1).</param>
         /// <param name="hints1">The table hints to be used (at T1).</param>
         /// <param name="orderBy2">The order definition of the fields to be used (at T2).</param>
-        /// <param name="top2">The top number of data to be used (at T2).</param>
+        /// <param name="top2">The number of rows to be returned (at T2).</param>
         /// <param name="hints2">The table hints to be used (at T2).</param>
         /// <param name="orderBy3">The order definition of the fields to be used (at T3).</param>
-        /// <param name="top3">The top number of data to be used (at T3).</param>
+        /// <param name="top3">The number of rows to be returned (at T3).</param>
         /// <param name="hints3">The table hints to be used (at T3).</param>
         /// <param name="orderBy4">The order definition of the fields to be used (at T4).</param>
-        /// <param name="top4">The top number of data to be used (at T4).</param>
+        /// <param name="top4">The number of rows to be returned (at T4).</param>
         /// <param name="hints4">The table hints to be used (at T4).</param>
         /// <param name="orderBy5">The order definition of the fields to be used (at T5).</param>
-        /// <param name="top5">The top number of data to be used (at T5).</param>
+        /// <param name="top5">The number of rows to be returned (at T5).</param>
         /// <param name="hints5">The table hints to be used (at T5).</param>
         /// <param name="orderBy6">The order definition of the fields to be used (at T6).</param>
-        /// <param name="top6">The top number of data to be used (at T6).</param>
+        /// <param name="top6">The number of rows to be returned (at T6).</param>
         /// <param name="hints6">The table hints to be used (at T6).</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>A tuple of 6 enumerable target data entity types.</returns>
         public async Task<Tuple<IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>, IEnumerable<T4>, IEnumerable<T5>, IEnumerable<T6>>>
             QueryMultipleAsync<T1, T2, T3, T4, T5, T6>(Expression<Func<T1, bool>> where1,
@@ -1001,7 +962,8 @@ namespace RepoDb
             IEnumerable<OrderField> orderBy6 = null,
             int? top6 = 0,
             string hints6 = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where T1 : class
             where T2 : class
             where T3 : class
@@ -1042,12 +1004,8 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
-            }
-            catch
-            {
-                // Throw back the error
-                throw;
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {
@@ -1061,7 +1019,7 @@ namespace RepoDb
         #region T1, T2, T3, T4, T5, T6, T7
 
         /// <summary>
-        /// Query a multiple resultset from the database based on the given 7 target types in an asychronous way.
+        /// Query the data as multiple resultsets from the table based on the given 7 target types in an asynchronous way.
         /// </summary>
         /// <typeparam name="T1">The first target type.</typeparam>
         /// <typeparam name="T2">The second target type.</typeparam>
@@ -1078,27 +1036,28 @@ namespace RepoDb
         /// <param name="where6">The query expression to be used (at T6).</param>
         /// <param name="where7">The query expression to be used (at T7).</param>
         /// <param name="orderBy1">The order definition of the fields to be used (at T1).</param>
-        /// <param name="top1">The top number of data to be used (at T1).</param>
+        /// <param name="top1">The number of rows to be returned (at T1).</param>
         /// <param name="hints1">The table hints to be used (at T1).</param>
         /// <param name="orderBy2">The order definition of the fields to be used (at T2).</param>
-        /// <param name="top2">The top number of data to be used (at T2).</param>
+        /// <param name="top2">The number of rows to be returned (at T2).</param>
         /// <param name="hints2">The table hints to be used (at T2).</param>
         /// <param name="orderBy3">The order definition of the fields to be used (at T3).</param>
-        /// <param name="top3">The top number of data to be used (at T3).</param>
+        /// <param name="top3">The number of rows to be returned (at T3).</param>
         /// <param name="hints3">The table hints to be used (at T3).</param>
         /// <param name="orderBy4">The order definition of the fields to be used (at T4).</param>
-        /// <param name="top4">The top number of data to be used (at T4).</param>
+        /// <param name="top4">The number of rows to be returned (at T4).</param>
         /// <param name="hints4">The table hints to be used (at T4).</param>
         /// <param name="orderBy5">The order definition of the fields to be used (at T5).</param>
-        /// <param name="top5">The top number of data to be used (at T5).</param>
+        /// <param name="top5">The number of rows to be returned (at T5).</param>
         /// <param name="hints5">The table hints to be used (at T5).</param>
         /// <param name="orderBy6">The order definition of the fields to be used (at T6).</param>
-        /// <param name="top6">The top number of data to be used (at T6).</param>
+        /// <param name="top6">The number of rows to be returned (at T6).</param>
         /// <param name="hints6">The table hints to be used (at T6).</param>
         /// <param name="orderBy7">The order definition of the fields to be used (at T7).</param>
-        /// <param name="top7">The top number of data to be used (at T7).</param>
+        /// <param name="top7">The number of rows to be returned (at T7).</param>
         /// <param name="hints7">The table hints to be used (at T7).</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>A tuple of 7 enumerable target data entity types.</returns>
         public async Task<Tuple<IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>, IEnumerable<T4>, IEnumerable<T5>, IEnumerable<T6>, IEnumerable<T7>>>
             QueryMultipleAsync<T1, T2, T3, T4, T5, T6, T7>(Expression<Func<T1, bool>> where1,
@@ -1129,7 +1088,8 @@ namespace RepoDb
             IEnumerable<OrderField> orderBy7 = null,
             int? top7 = 0,
             string hints7 = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where T1 : class
             where T2 : class
             where T3 : class
@@ -1175,12 +1135,8 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
-            }
-            catch
-            {
-                // Throw back the error
-                throw;
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {

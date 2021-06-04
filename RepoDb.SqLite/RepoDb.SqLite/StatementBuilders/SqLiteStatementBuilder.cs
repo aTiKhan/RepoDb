@@ -4,7 +4,6 @@ using RepoDb.Interfaces;
 using RepoDb.Resolvers;
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
 using System.Linq;
 
 namespace RepoDb.StatementBuilders
@@ -14,15 +13,6 @@ namespace RepoDb.StatementBuilders
     /// </summary>
     public sealed class SqLiteStatementBuilder : BaseStatementBuilder
     {
-        /// <summary>
-        /// Creates a new instance of <see cref="SqLiteStatementBuilder"/> object.
-        /// </summary>
-        public SqLiteStatementBuilder()
-            : this(DbSettingMapper.Get(typeof(SQLiteConnection)),
-                  new SqLiteConvertFieldResolver(),
-                  new ClientTypeToAverageableClientTypeResolver())
-        { }
-
         /// <summary>
         /// Creates a new instance of <see cref="SqLiteStatementBuilder"/> class.
         /// </summary>
@@ -54,8 +44,8 @@ namespace RepoDb.StatementBuilders
         public override string CreateBatchQuery(QueryBuilder queryBuilder,
             string tableName,
             IEnumerable<Field> fields,
-            int? page,
-            int? rowsPerBatch,
+            int page,
+            int rowsPerBatch,
             IEnumerable<OrderField> orderBy = null,
             QueryGroup where = null,
             string hints = null)
@@ -73,21 +63,21 @@ namespace RepoDb.StatementBuilders
             }
 
             // Validate order by
-            if (orderBy == null || orderBy?.Any() != true)
+            if (orderBy == null || orderBy.Any() != true)
             {
                 throw new EmptyException("The argument 'orderBy' is required.");
             }
 
             // Validate the page
-            if (page == null || page < 0)
+            if (page < 0)
             {
-                throw new ArgumentOutOfRangeException("The page must be equals or greater than 0.");
+                throw new ArgumentOutOfRangeException(nameof(page), "The page must be equals or greater than 0.");
             }
 
             // Validate the page
-            if (rowsPerBatch == null || rowsPerBatch < 1)
+            if (rowsPerBatch < 1)
             {
-                throw new ArgumentOutOfRangeException($"The rows per batch must be equals or greater than 1.");
+                throw new ArgumentOutOfRangeException(nameof(rowsPerBatch), "The rows per batch must be equals or greater than 1.");
             }
 
             // Skipping variables
@@ -108,7 +98,7 @@ namespace RepoDb.StatementBuilders
                 .End();
 
             // Return the query
-            return queryBuilder.GetString();
+            return builder.GetString();
         }
 
         #endregion
@@ -199,7 +189,7 @@ namespace RepoDb.StatementBuilders
 
             // Set the return value
             var result = identityField != null ?
-                string.Concat($"CAST(last_insert_rowid() AS {databaseType})") :
+                $"CAST(last_insert_rowid() AS {databaseType})" :
                     primaryField != null ? primaryField.Name.AsParameter(DbSetting) : "NULL";
 
             builder
@@ -267,13 +257,13 @@ namespace RepoDb.StatementBuilders
                 var splitted = commandText.Split(";".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
 
                 // Iterate the indexes
-                for (var index = 0; index < splitted.Count(); index++)
+                for (var index = 0; index < splitted.Length; index++)
                 {
                     var line = splitted[index].Trim();
                     var returnValue = string.IsNullOrEmpty(databaseType) ?
                         "SELECT last_insert_rowid()" :
-                        $"SELECT CAST(last_insert_rowid() AS {databaseType})";
-                    commandTexts.Add(string.Concat(line, " ; ", returnValue, " ;"));
+                        $"SELECT CAST(last_insert_rowid() AS {databaseType}) AS [Id]";
+                    commandTexts.Add(string.Concat(line, " ; ", returnValue, $", {DbSetting.ParameterPrefix}__RepoDb_OrderColumn_{index} AS [OrderColumn] ;"));
                 }
 
                 // Set the command text
@@ -307,89 +297,90 @@ namespace RepoDb.StatementBuilders
             DbField identityField = null,
             string hints = null)
         {
-            // Ensure with guards
-            GuardTableName(tableName);
-            GuardHints(hints);
-            GuardPrimary(primaryField);
-            GuardIdentity(identityField);
+            throw new NotImplementedException("The merge statement is not supported in SQLite. SQLite is using the 'Upsert (Insert/Update)' operation.");
+            //// Ensure with guards
+            //GuardTableName(tableName);
+            //GuardHints(hints);
+            //GuardPrimary(primaryField);
+            //GuardIdentity(identityField);
 
-            // Verify the fields
-            if (fields?.Any() != true)
-            {
-                throw new NullReferenceException($"The list of fields cannot be null or empty.");
-            }
+            //// Verify the fields
+            //if (fields?.Any() != true)
+            //{
+            //    throw new NullReferenceException($"The list of fields cannot be null or empty.");
+            //}
 
-            // Check the primay field
-            if (primaryField == null)
-            {
-                throw new PrimaryFieldNotFoundException($"SqLite is using the primary key as qualifier for (INSERT or REPLACE) operation.");
-            }
+            //// Check the primary field
+            //if (primaryField == null)
+            //{
+            //    throw new PrimaryFieldNotFoundException($"SqLite is using the primary key as qualifier for (INSERT or REPLACE) operation.");
+            //}
 
-            // Check the qualifiers
-            if (qualifiers?.Any() == true)
-            {
-                var others = qualifiers.Where(f => !string.Equals(f.Name, primaryField?.Name, StringComparison.OrdinalIgnoreCase));
-                if (others?.Any() == true)
-                {
-                    throw new InvalidQualifiersException($"SqLite is using the primary key as qualifier for (INSERT or REPLACE) operation. " +
-                        $"Consider creating 'PrimaryKey' in the {tableName} and set the 'qualifiers' to NULL.");
-                }
-            }
+            //// Check the qualifiers
+            //if (qualifiers?.Any() == true)
+            //{
+            //    var others = qualifiers.Where(f => !string.Equals(f.Name, primaryField?.Name, StringComparison.OrdinalIgnoreCase));
+            //    if (others?.Any() == true)
+            //    {
+            //        throw new InvalidQualifiersException($"SqLite is using the primary key as qualifier for (INSERT or REPLACE) operation. " +
+            //            $"Consider creating 'PrimaryKey' in the {tableName} and set the 'qualifiers' to NULL.");
+            //    }
+            //}
 
-            // Initialize the builder
-            var builder = queryBuilder ?? new QueryBuilder();
+            //// Initialize the builder
+            //var builder = queryBuilder ?? new QueryBuilder();
 
-            // Variables needed
-            var databaseType = "BIGINT";
+            //// Variables needed
+            //var databaseType = "BIGINT";
 
-            // Set the return value
-            var result = (string)null;
+            //// Set the return value
+            //var result = (string)null;
 
-            // Check both primary and identity
-            if (identityField != null)
-            {
-                result = string.Concat($"CAST(COALESCE(last_insert_rowid(), {primaryField.Name.AsParameter(DbSetting)}) AS {databaseType})");
+            //// Check both primary and identity
+            //if (identityField != null)
+            //{
+            //    result = string.Concat($"CAST(COALESCE(last_insert_rowid(), {primaryField.Name.AsParameter(DbSetting)}) AS {databaseType})");
 
-                // Set the type
-                var dbType = new ClientTypeToDbTypeResolver().Resolve(identityField.Type);
-                if (dbType != null)
-                {
-                    databaseType = new DbTypeToSqLiteStringNameResolver().Resolve(dbType.Value);
-                }
-            }
-            else
-            {
-                result = string.Concat($"CAST({primaryField.Name.AsParameter(DbSetting)} AS {databaseType})");
-            }
+            //    // Set the type
+            //    var dbType = new ClientTypeToDbTypeResolver().Resolve(identityField.Type);
+            //    if (dbType != null)
+            //    {
+            //        databaseType = new DbTypeToSqLiteStringNameResolver().Resolve(dbType.Value);
+            //    }
+            //}
+            //else
+            //{
+            //    result = string.Concat($"CAST({primaryField.Name.AsParameter(DbSetting)} AS {databaseType})");
+            //}
 
-            // Build the query
-            builder.Clear()
-                .Insert()
-                .Or()
-                .Replace()
-                .Into()
-                .TableNameFrom(tableName, DbSetting)
-                .OpenParen()
-                .FieldsFrom(fields, DbSetting)
-                .CloseParen()
-                .Values()
-                .OpenParen()
-                .ParametersFrom(fields, 0, DbSetting)
-                .CloseParen()
-                .End();
+            //// Build the query
+            //builder.Clear()
+            //    .Insert()
+            //    .Or()
+            //    .Replace()
+            //    .Into()
+            //    .TableNameFrom(tableName, DbSetting)
+            //    .OpenParen()
+            //    .FieldsFrom(fields, DbSetting)
+            //    .CloseParen()
+            //    .Values()
+            //    .OpenParen()
+            //    .ParametersFrom(fields, 0, DbSetting)
+            //    .CloseParen()
+            //    .End();
 
-            if (!string.IsNullOrEmpty(result))
-            {
-                // Set the result
-                builder
-                    .Select()
-                    .WriteText(result)
-                    .As("Result".AsQuoted(DbSetting))
-                    .End();
-            }
+            //if (!string.IsNullOrEmpty(result))
+            //{
+            //    // Set the result
+            //    builder
+            //        .Select()
+            //        .WriteText(result)
+            //        .As("Result".AsQuoted(DbSetting))
+            //        .End();
+            //}
 
-            // Return the query
-            return builder.GetString();
+            //// Return the query
+            //return builder.GetString();
         }
 
         #endregion
@@ -417,99 +408,101 @@ namespace RepoDb.StatementBuilders
             DbField identityField = null,
             string hints = null)
         {
-            // Ensure with guards
-            GuardTableName(tableName);
-            GuardHints(hints);
-            GuardPrimary(primaryField);
-            GuardIdentity(identityField);
+            throw new NotImplementedException("The merge statement is not supported in SQLite. SQLite is using the 'Upsert (Insert/Update)' operation.");
 
-            // Verify the fields
-            if (fields?.Any() != true)
-            {
-                throw new NullReferenceException($"The list of fields cannot be null or empty.");
-            }
+            //// Ensure with guards
+            //GuardTableName(tableName);
+            //GuardHints(hints);
+            //GuardPrimary(primaryField);
+            //GuardIdentity(identityField);
 
-            // Check the primay field
-            if (primaryField == null)
-            {
-                throw new PrimaryFieldNotFoundException($"SqLite is using the primary key as qualifier for (INSERT or REPLACE) operation.");
-            }
+            //// Verify the fields
+            //if (fields?.Any() != true)
+            //{
+            //    throw new NullReferenceException($"The list of fields cannot be null or empty.");
+            //}
 
-            // Check the qualifiers
-            if (qualifiers?.Any() == true)
-            {
-                var others = qualifiers.Where(f => !string.Equals(f.Name, primaryField?.Name, StringComparison.OrdinalIgnoreCase));
-                if (others?.Any() == true)
-                {
-                    throw new InvalidQualifiersException($"SqLite is using the primary key as qualifier for (INSERT or REPLACE) operation. " +
-                        $"Consider creating 'PrimaryKey' in the {tableName} and set the 'qualifiers' to NULL.");
-                }
-            }
+            //// Check the primary field
+            //if (primaryField == null)
+            //{
+            //    throw new PrimaryFieldNotFoundException($"SqLite is using the primary key as qualifier for (INSERT or REPLACE) operation.");
+            //}
 
-            // Initialize the builder
-            var builder = queryBuilder ?? new QueryBuilder();
+            //// Check the qualifiers
+            //if (qualifiers?.Any() == true)
+            //{
+            //    var others = qualifiers.Where(f => !string.Equals(f.Name, primaryField?.Name, StringComparison.OrdinalIgnoreCase));
+            //    if (others?.Any() == true)
+            //    {
+            //        throw new InvalidQualifiersException($"SqLite is using the primary key as qualifier for (INSERT or REPLACE) operation. " +
+            //            $"Consider creating 'PrimaryKey' in the {tableName} and set the 'qualifiers' to NULL.");
+            //    }
+            //}
 
-            // Variables needed
-            var databaseType = "BIGINT";
+            //// Initialize the builder
+            //var builder = queryBuilder ?? new QueryBuilder();
 
-            // Set the return value
-            var result = (string)null;
+            //// Variables needed
+            //var databaseType = "BIGINT";
 
-            // Set the type
-            if (identityField != null)
-            {
-                var dbType = new ClientTypeToDbTypeResolver().Resolve(identityField.Type);
-                if (dbType != null)
-                {
-                    databaseType = new DbTypeToSqLiteStringNameResolver().Resolve(dbType.Value);
-                }
-            }
+            //// Set the return value
+            //var result = (string)null;
 
-            // Clear the builder
-            builder.Clear();
+            //// Set the type
+            //if (identityField != null)
+            //{
+            //    var dbType = new ClientTypeToDbTypeResolver().Resolve(identityField.Type);
+            //    if (dbType != null)
+            //    {
+            //        databaseType = new DbTypeToSqLiteStringNameResolver().Resolve(dbType.Value);
+            //    }
+            //}
 
-            // Iterate the indexes
-            for (var index = 0; index < batchSize; index++)
-            {
-                // Build the query
-                builder
-                    .Insert()
-                    .Or()
-                    .Replace()
-                    .Into()
-                    .TableNameFrom(tableName, DbSetting)
-                    .OpenParen()
-                    .FieldsFrom(fields, DbSetting)
-                    .CloseParen()
-                    .Values()
-                    .OpenParen()
-                    .ParametersFrom(fields, index, DbSetting)
-                    .CloseParen()
-                    .End();
+            //// Clear the builder
+            //builder.Clear();
 
-                // Check both primary and identity
-                if (identityField != null)
-                {
-                    result = string.Concat($"CAST(COALESCE(last_insert_rowid(), {primaryField.Name.AsParameter(index, DbSetting)}) AS {databaseType})");
-                }
-                else
-                {
-                    result = string.Concat($"CAST({primaryField.Name.AsParameter(index, DbSetting)} AS {databaseType})");
-                }
+            //// Iterate the indexes
+            //for (var index = 0; index < batchSize; index++)
+            //{
+            //    // Build the query
+            //    builder
+            //        .Insert()
+            //        .Or()
+            //        .Replace()
+            //        .Into()
+            //        .TableNameFrom(tableName, DbSetting)
+            //        .OpenParen()
+            //        .FieldsFrom(fields, DbSetting)
+            //        .CloseParen()
+            //        .Values()
+            //        .OpenParen()
+            //        .ParametersFrom(fields, index, DbSetting)
+            //        .CloseParen()
+            //        .End();
 
-                if (!string.IsNullOrEmpty(result))
-                {
-                    // Set the result
-                    builder
-                        .Select()
-                        .WriteText(result)
-                        .As("Result".AsQuoted(DbSetting))
-                        .End();
-                }
-            }
+            //    // Check both primary and identity
+            //    if (identityField != null)
+            //    {
+            //        result = string.Concat($"CAST(COALESCE(last_insert_rowid(), {primaryField.Name.AsParameter(index, DbSetting)}) AS {databaseType})");
+            //    }
+            //    else
+            //    {
+            //        result = string.Concat($"CAST({primaryField.Name.AsParameter(index, DbSetting)} AS {databaseType})");
+            //    }
 
-            // Return the query
-            return builder.GetString();
+            //    if (!string.IsNullOrEmpty(result))
+            //    {
+            //        // Set the result
+            //        builder
+            //            .Select()
+            //            .WriteText(result)
+            //            .As("Result".AsQuoted(DbSetting))
+            //            .End();
+            //    }
+            //}
+
+            //// Return the query
+            //return builder.GetString();
         }
 
         #endregion
@@ -551,12 +544,12 @@ namespace RepoDb.StatementBuilders
             if (orderBy != null)
             {
                 // Check if the order fields are present in the given fields
-                var unmatchesOrderFields = orderBy?.Where(orderField =>
-                    fields?.FirstOrDefault(f =>
+                var unmatchesOrderFields = orderBy.Where(orderField =>
+                    fields.FirstOrDefault(f =>
                         string.Equals(orderField.Name, f.Name, StringComparison.OrdinalIgnoreCase)) == null);
 
                 // Throw an error we found any unmatches
-                if (unmatchesOrderFields?.Any() == true)
+                if (unmatchesOrderFields.Any() == true)
                 {
                     throw new MissingFieldsException($"The order fields '{unmatchesOrderFields.Select(field => field.Name).Join(", ")}' are not " +
                         $"present at the given fields '{fields.Select(field => field.Name).Join(", ")}'.");

@@ -8,7 +8,7 @@ using RepoDb.Exceptions;
 namespace RepoDb.StatementBuilders
 {
     /// <summary>
-    /// A class used to be as base <see cref="IStatementBuilder"/> for the database.
+    /// A base class for all <see cref="IStatementBuilder"/>-based objects.
     /// </summary>
     public abstract class BaseStatementBuilder : IStatementBuilder
     {
@@ -22,11 +22,7 @@ namespace RepoDb.StatementBuilders
             IResolver<Field, IDbSetting, string> convertFieldResolver = null,
             IResolver<Type, Type> averageableClientTypeResolver = null)
         {
-            if (dbSetting == null)
-            {
-                throw new NullReferenceException("The database setting cannot be null.");
-            }
-            DbSetting = dbSetting;
+            DbSetting = dbSetting ?? throw new NullReferenceException("The database setting cannot be null.");
             ConvertFieldResolver = convertFieldResolver;
             AverageableClientTypeResolver = averageableClientTypeResolver;
         }
@@ -55,7 +51,7 @@ namespace RepoDb.StatementBuilders
         #region CreateAverage
 
         /// <summary>
-        /// Creates a SQL Statement for average operation.
+        /// Creates a SQL Statement for 'Average' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -108,7 +104,7 @@ namespace RepoDb.StatementBuilders
         #region CreateAverageAll
 
         /// <summary>
-        /// Creates a SQL Statement for average-all operation.
+        /// Creates a SQL Statement for 'AverageAll' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -158,7 +154,7 @@ namespace RepoDb.StatementBuilders
         #region CreateCount
 
         /// <summary>
-        /// Creates a SQL Statement for count operation.
+        /// Creates a SQL Statement for 'Count' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -199,7 +195,7 @@ namespace RepoDb.StatementBuilders
         #region CreateCountAll
 
         /// <summary>
-        /// Creates a SQL Statement for count-all operation.
+        /// Creates a SQL Statement for 'CountAll' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -237,7 +233,7 @@ namespace RepoDb.StatementBuilders
         #region CreateDelete
 
         /// <summary>
-        /// Creates a SQL Statement for delete operation.
+        /// Creates a SQL Statement for 'Delete' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -276,7 +272,7 @@ namespace RepoDb.StatementBuilders
         #region CreateDeleteAll
 
         /// <summary>
-        /// Creates a SQL Statement for delete-all operation.
+        /// Creates a SQL Statement for 'DeleteAll' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -312,7 +308,7 @@ namespace RepoDb.StatementBuilders
         #region CreateExists
 
         /// <summary>
-        /// Creates a SQL Statement for exists operation.
+        /// Creates a SQL Statement for 'Exists' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -353,7 +349,7 @@ namespace RepoDb.StatementBuilders
         #region CreateInsert
 
         /// <summary>
-        /// Creates a SQL Statement for insert operation.
+        /// Creates a SQL Statement for 'Insert' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -425,7 +421,7 @@ namespace RepoDb.StatementBuilders
         #region CreateInsertAll
 
         /// <summary>
-        /// Creates a SQL Statement for insert-all operation.
+        /// Creates a SQL Statement for 'InsertAll' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -484,7 +480,7 @@ namespace RepoDb.StatementBuilders
             // Iterate the indexes
             for (var index = 0; index < batchSize; index++)
             {
-                queryBuilder.Insert()
+                builder.Insert()
                     .Into()
                     .TableNameFrom(tableName, DbSetting)
                     .HintsFrom(hints)
@@ -507,7 +503,7 @@ namespace RepoDb.StatementBuilders
         #region CreateMax
 
         /// <summary>
-        /// Creates a SQL Statement for maximum operation.
+        /// Creates a SQL Statement for 'Max' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -556,7 +552,7 @@ namespace RepoDb.StatementBuilders
         #region CreateMaxAll
 
         /// <summary>
-        /// Creates a SQL Statement for maximum-all operation.
+        /// Creates a SQL Statement for 'MaxAll' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -602,7 +598,7 @@ namespace RepoDb.StatementBuilders
         #region CreateMin
 
         /// <summary>
-        /// Creates a SQL Statement for minimum operation.
+        /// Creates a SQL Statement for 'Min' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -651,7 +647,7 @@ namespace RepoDb.StatementBuilders
         #region CreateMinAll
 
         /// <summary>
-        /// Creates a SQL Statement for minimum-all operation.
+        /// Creates a SQL Statement for 'MinAll' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -697,7 +693,7 @@ namespace RepoDb.StatementBuilders
         #region CreateQuery
 
         /// <summary>
-        /// Creates a SQL Statement for query operation.
+        /// Creates a SQL Statement for 'Query' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -731,12 +727,12 @@ namespace RepoDb.StatementBuilders
             if (orderBy != null)
             {
                 // Check if the order fields are present in the given fields
-                var unmatchesOrderFields = orderBy?.Where(orderField =>
-                    fields?.FirstOrDefault(f =>
+                var unmatchesOrderFields = orderBy.Where(orderField =>
+                    fields.FirstOrDefault(f =>
                         string.Equals(orderField.Name, f.Name, StringComparison.OrdinalIgnoreCase)) == null);
 
                 // Throw an error we found any unmatches
-                if (unmatchesOrderFields?.Any() == true)
+                if (unmatchesOrderFields.Any() == true)
                 {
                     throw new MissingFieldsException($"The order fields '{unmatchesOrderFields.Select(field => field.Name).Join(", ")}' are not " +
                         $"present at the given fields '{fields.Select(field => field.Name).Join(", ")}'.");
@@ -767,7 +763,7 @@ namespace RepoDb.StatementBuilders
         #region CreateQueryAll
 
         /// <summary>
-        /// Creates a SQL Statement for query-all operation.
+        /// Creates a SQL Statement for 'QueryAll' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -798,11 +794,11 @@ namespace RepoDb.StatementBuilders
             {
                 // Check if the order fields are present in the given fields
                 var unmatchesOrderFields = orderBy?.Where(orderField =>
-                    fields?.FirstOrDefault(f =>
+                    fields.FirstOrDefault(f =>
                         string.Equals(orderField.Name, f.Name, StringComparison.OrdinalIgnoreCase)) == null);
 
                 // Throw an error we found any unmatches
-                if (unmatchesOrderFields?.Any() == true)
+                if (unmatchesOrderFields.Any() == true)
                 {
                     throw new MissingFieldsException($"The order fields '{unmatchesOrderFields.Select(field => field.AsField(DbSetting)).Join(", ")}' are not " +
                         $"present at the given fields '{fields.Select(field => field.Name).Join(", ")}'.");
@@ -831,7 +827,7 @@ namespace RepoDb.StatementBuilders
         #region CreateSum
 
         /// <summary>
-        /// Creates a SQL Statement for sum operation.
+        /// Creates a SQL Statement for 'Sum' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -880,7 +876,7 @@ namespace RepoDb.StatementBuilders
         #region CreateSumAll
 
         /// <summary>
-        /// Creates a SQL Statement for sum-all operation.
+        /// Creates a SQL Statement for 'SumAll' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -926,7 +922,7 @@ namespace RepoDb.StatementBuilders
         #region CreateTruncate
 
         /// <summary>
-        /// Creates a SQL Statement for truncate operation.
+        /// Creates a SQL Statement for 'Truncate' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -956,7 +952,7 @@ namespace RepoDb.StatementBuilders
         #region CreateUpdate
 
         /// <summary>
-        /// Creates a SQL Statement for update operation.
+        /// Creates a SQL Statement for 'Update' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -986,7 +982,7 @@ namespace RepoDb.StatementBuilders
                     !string.Equals(f.Name, identityField?.Name, StringComparison.OrdinalIgnoreCase));
 
             // Check if there are updatable fields
-            if (updatableFields?.Any() != true)
+            if (updatableFields.Any() != true)
             {
                 throw new EmptyException("The list of updatable fields cannot be null or empty.");
             }
@@ -1013,7 +1009,7 @@ namespace RepoDb.StatementBuilders
         #region CreateUpdateAll
 
         /// <summary>
-        /// Creates a SQL Statement for update-all operation.
+        /// Creates a SQL Statement for 'UpdateAll' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -1052,12 +1048,12 @@ namespace RepoDb.StatementBuilders
             if (qualifiers?.Any() == true)
             {
                 // Check if the qualifiers are present in the given fields
-                var unmatchesQualifiers = qualifiers?.Where(field =>
+                var unmatchesQualifiers = qualifiers.Where(field =>
                     fields?.FirstOrDefault(f =>
                         string.Equals(field.Name, f.Name, StringComparison.OrdinalIgnoreCase)) == null);
 
                 // Throw an error we found any unmatches
-                if (unmatchesQualifiers?.Any() == true)
+                if (unmatchesQualifiers.Any() == true)
                 {
                     throw new InvalidQualifiersException($"The qualifiers '{unmatchesQualifiers.Select(field => field.Name).Join(", ")}' are not " +
                         $"present at the given fields '{fields.Select(field => field.Name).Join(", ")}'.");
@@ -1068,7 +1064,7 @@ namespace RepoDb.StatementBuilders
                 if (primaryField != null)
                 {
                     // Make sure that primary is present in the list of fields before qualifying to become a qualifier
-                    var isPresent = fields?.FirstOrDefault(f =>
+                    var isPresent = fields.FirstOrDefault(f =>
                         string.Equals(f.Name, primaryField.Name, StringComparison.OrdinalIgnoreCase)) != null;
 
                     // Throw if not present
@@ -1095,7 +1091,7 @@ namespace RepoDb.StatementBuilders
                     qualifiers.FirstOrDefault(q => string.Equals(q.Name, f.Name, StringComparison.OrdinalIgnoreCase)) == null);
 
             // Check if there are updatable fields
-            if (fields?.Any() != true)
+            if (fields.Any() != true)
             {
                 throw new EmptyException("The list of updatable fields cannot be null or empty.");
             }
@@ -1109,7 +1105,7 @@ namespace RepoDb.StatementBuilders
             // Iterate the indexes
             for (var index = 0; index < batchSize; index++)
             {
-                queryBuilder
+                builder
                     .Update()
                     .TableNameFrom(tableName, DbSetting)
                     .HintsFrom(hints)
@@ -1132,11 +1128,11 @@ namespace RepoDb.StatementBuilders
         #region CreateBatchQuery
 
         /// <summary>
-        /// Creates a SQL Statement for batch query operation.
+        /// Creates a SQL Statement for 'BatchQuery' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
-        /// <param name="fields">The list of fields to be queried.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="page">The page of the batch.</param>
         /// <param name="rowsPerBatch">The number of rows per batch.</param>
         /// <param name="orderBy">The list of fields for ordering.</param>
@@ -1146,8 +1142,8 @@ namespace RepoDb.StatementBuilders
         public abstract string CreateBatchQuery(QueryBuilder queryBuilder,
             string tableName,
             IEnumerable<Field> fields,
-            int? page,
-            int? rowsPerBatch,
+            int page,
+            int rowsPerBatch,
             IEnumerable<OrderField> orderBy = null,
             QueryGroup where = null,
             string hints = null);
@@ -1157,7 +1153,7 @@ namespace RepoDb.StatementBuilders
         #region CreateMerge
 
         /// <summary>
-        /// Creates a SQL Statement for merge operation.
+        /// Creates a SQL Statement for 'Merge' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -1180,7 +1176,7 @@ namespace RepoDb.StatementBuilders
         #region CreateMergeAll
 
         /// <summary>
-        /// Creates a SQL Statement for merge-all operation.
+        /// Creates a SQL Statement for 'MergeAll' operation.
         /// </summary>
         /// <param name="queryBuilder">The query builder to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
@@ -1212,7 +1208,7 @@ namespace RepoDb.StatementBuilders
         /// <param name="tableName">The name of the table.</param>
         protected void GuardTableName(string tableName)
         {
-            if (string.IsNullOrEmpty(tableName?.Trim()))
+            if (string.IsNullOrWhiteSpace(tableName))
             {
                 throw new NullReferenceException("The name of the table could be null.");
             }
@@ -1248,7 +1244,7 @@ namespace RepoDb.StatementBuilders
         /// <param name="hints">The value to be evaluated.</param>
         protected void GuardHints(string hints = null)
         {
-            if (!string.IsNullOrEmpty(hints) && !DbSetting.AreTableHintsSupported)
+            if (!string.IsNullOrWhiteSpace(hints) && !DbSetting.AreTableHintsSupported)
             {
                 throw new NotSupportedException("The table hints are not supported on this database provider statement builder.");
             }
@@ -1263,7 +1259,7 @@ namespace RepoDb.StatementBuilders
         {
             if (DbSetting.IsMultiStatementExecutable == false && batchSize > 1)
             {
-                throw new NotSupportedException($"Multiple execution is not supported based on the current database setting '{DbSetting.GetType().FullName}'. Consider setting the batchsize to 1.");
+                throw new NotSupportedException($"Multiple execution is not supported based on the current database setting '{DbSetting.GetType().FullName}'. Consider setting the batchSize to 1.");
             }
         }
 

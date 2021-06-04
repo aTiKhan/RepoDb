@@ -5,13 +5,13 @@ using System.Data.Common;
 namespace RepoDb.DbSettings
 {
     /// <summary>
-    /// A base class to be used when implementing a <see cref="IDbSetting"/> object for a specific data provider.
+    /// A base class to be used when implementing an <see cref="IDbSetting"/>-based object to support a specific RDBMS data provider.
     /// </summary>
     public abstract class BaseDbSetting : IDbSetting
     {
         #region Privates
 
-        private int? m_hashCode = null;
+        private int? hashCode = null;
 
         #endregion
 
@@ -23,7 +23,7 @@ namespace RepoDb.DbSettings
         public BaseDbSetting()
         {
             AreTableHintsSupported = true;
-            AverageableType = typeof(double);
+            AverageableType = StaticType.Double;
             ClosingQuote = "]";
             DefaultSchema = "dbo";
             IsDirectionSupported = true;
@@ -33,7 +33,6 @@ namespace RepoDb.DbSettings
             IsUseUpsert = false;
             OpeningQuote = "[";
             ParameterPrefix = "@";
-            SchemaSeparator = ".";
         }
 
         #endregion
@@ -98,6 +97,7 @@ namespace RepoDb.DbSettings
         /// <summary>
         /// Gets the character (or string) used for separating the schema.
         /// </summary>
+        [Obsolete("This will be removed in the future releases. The schema separator will be defaulted to a 'period' character.")]
         public string SchemaSeparator { get; protected set; }
 
         #endregion
@@ -110,9 +110,9 @@ namespace RepoDb.DbSettings
         /// <returns>The hashcode value.</returns>
         public override int GetHashCode()
         {
-            if (m_hashCode != null)
+            if (this.hashCode != null)
             {
-                return m_hashCode.Value;
+                return this.hashCode.Value;
             }
 
             // Use the non nullable for perf purposes
@@ -122,7 +122,7 @@ namespace RepoDb.DbSettings
             hashCode += AreTableHintsSupported.GetHashCode();
 
             // ClosingQuote
-            if (!string.IsNullOrEmpty(ClosingQuote))
+            if (!string.IsNullOrWhiteSpace(ClosingQuote))
             {
                 hashCode += ClosingQuote.GetHashCode();
             }
@@ -134,7 +134,7 @@ namespace RepoDb.DbSettings
             }
 
             // DefaultSchema
-            if (!string.IsNullOrEmpty(DefaultSchema))
+            if (!string.IsNullOrWhiteSpace(DefaultSchema))
             {
                 hashCode += DefaultSchema.GetHashCode();
             }
@@ -155,25 +155,19 @@ namespace RepoDb.DbSettings
             hashCode += IsUseUpsert.GetHashCode();
 
             // OpeningQuote
-            if (!string.IsNullOrEmpty(OpeningQuote))
+            if (!string.IsNullOrWhiteSpace(OpeningQuote))
             {
                 hashCode += OpeningQuote.GetHashCode();
             }
 
             // ParameterPrefix
-            if (!string.IsNullOrEmpty(ParameterPrefix))
+            if (!string.IsNullOrWhiteSpace(ParameterPrefix))
             {
                 hashCode += ParameterPrefix.GetHashCode();
             }
 
-            // SchemaSeparator
-            if (!string.IsNullOrEmpty(SchemaSeparator))
-            {
-                hashCode += SchemaSeparator.GetHashCode();
-            }
-
             // Set and return the hashcode
-            return (m_hashCode = hashCode).Value;
+            return (this.hashCode = hashCode).Value;
         }
 
         /// <summary>
@@ -181,20 +175,16 @@ namespace RepoDb.DbSettings
         /// </summary>
         /// <param name="obj">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equals.</returns>
-        public override bool Equals(object obj)
-        {
-            return obj?.GetHashCode() == GetHashCode();
-        }
+        public override bool Equals(object obj) =>
+            obj?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the <see cref="BaseDbSetting"/> object equality against the given target object.
         /// </summary>
         /// <param name="other">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public bool Equals(BaseDbSetting other)
-        {
-            return other?.GetHashCode() == GetHashCode();
-        }
+        public bool Equals(BaseDbSetting other) =>
+            other?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the equality of the two <see cref="BaseDbSetting"/> objects.
@@ -202,11 +192,12 @@ namespace RepoDb.DbSettings
         /// <param name="objA">The first <see cref="BaseDbSetting"/> object.</param>
         /// <param name="objB">The second <see cref="BaseDbSetting"/> object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public static bool operator ==(BaseDbSetting objA, BaseDbSetting objB)
+        public static bool operator ==(BaseDbSetting objA,
+            BaseDbSetting objB)
         {
-            if (ReferenceEquals(null, objA))
+            if (objA is null)
             {
-                return ReferenceEquals(null, objB);
+                return objB is null;
             }
             return objB?.GetHashCode() == objA.GetHashCode();
         }
@@ -217,10 +208,9 @@ namespace RepoDb.DbSettings
         /// <param name="objA">The first <see cref="BaseDbSetting"/> object.</param>
         /// <param name="objB">The second <see cref="BaseDbSetting"/> object.</param>
         /// <returns>True if the instances are not equal.</returns>
-        public static bool operator !=(BaseDbSetting objA, BaseDbSetting objB)
-        {
-            return (objA == objB) == false;
-        }
+        public static bool operator !=(BaseDbSetting objA,
+            BaseDbSetting objB) =>
+            (objA == objB) == false;
 
         #endregion
     }

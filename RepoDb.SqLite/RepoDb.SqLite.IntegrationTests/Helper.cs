@@ -11,10 +11,14 @@ namespace RepoDb.SqLite.IntegrationTests
 {
     public static class Helper
     {
+        public const string DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
+
         static Helper()
         {
             EpocDate = new DateTime(1970, 1, 1, 0, 0, 0);
         }
+
+        #region Properties
 
         /// <summary>
         /// Gets the value of the Epoc date.
@@ -24,7 +28,11 @@ namespace RepoDb.SqLite.IntegrationTests
         /// <summary>
         /// Gets the current <see cref="Random"/> object in used.
         /// </summary>
-        public static Random Randomizer => new Random(1);
+        public static Random Randomizer => new(1);
+
+        #endregion
+
+        #region Methods
 
         /// <summary>
         /// Asserts the properties equality of 2 types.
@@ -50,10 +58,8 @@ namespace RepoDb.SqLite.IntegrationTests
                 }
                 var value1 = propertyOfType1.GetValue(t1);
                 var value2 = propertyOfType2.GetValue(t2);
-                if (value1 is byte[] && value2 is byte[])
+                if (value1 is byte[] b1 && value2 is byte[] b2)
                 {
-                    var b1 = (byte[])value1;
-                    var b2 = (byte[])value2;
                     for (var i = 0; i < Math.Min(b1.Length, b2.Length); i++)
                     {
                         var v1 = b1[i];
@@ -64,6 +70,18 @@ namespace RepoDb.SqLite.IntegrationTests
                 }
                 else
                 {
+                    if (value1.GetType() != value2.GetType())
+                    {
+                        var method = typeof(Convert).GetMethod($"To{value1.GetType().Name}", new[] { value2.GetType() });
+                        if (method != null)
+                        {
+                            value2 = method.Invoke(null, new[] { value2 });
+                        }
+                        else
+                        {
+                            value2 = Convert.ChangeType(value2, value1.GetType());
+                        }
+                    }
                     Assert.AreEqual(value1, value2,
                         $"Assert failed for '{propertyOfType1.Name}'. The values are '{value1} ({propertyOfType1.PropertyType.FullName})' and '{value2} ({propertyOfType2.PropertyType.FullName})'.");
                 }
@@ -117,10 +135,8 @@ namespace RepoDb.SqLite.IntegrationTests
                 {
                     var value1 = property.GetValue(obj);
                     var value2 = dictionary[property.Name];
-                    if (value1 is byte[] && value2 is byte[])
+                    if (value1 is byte[] b1 && value2 is byte[] b2)
                     {
-                        var b1 = (byte[])value1;
-                        var b2 = (byte[])value2;
                         for (var i = 0; i < Math.Min(b1.Length, b2.Length); i++)
                         {
                             var v1 = b1[i];
@@ -132,43 +148,62 @@ namespace RepoDb.SqLite.IntegrationTests
                     else
                     {
                         var propertyType = property.PropertyType.GetUnderlyingType();
-                        if (propertyType == typeof(TimeSpan) && value2 is DateTime)
+                        if (propertyType == typeof(TimeSpan) && value2 is DateTime dateTime)
                         {
-                            value2 = ((DateTime)value2).TimeOfDay;
+                            value2 = dateTime.TimeOfDay;
                         }
-                        Assert.AreEqual(Convert.ChangeType(value1, propertyType), Convert.ChangeType(value2, propertyType),
+                        else if (propertyType == typeof(string) && value2 is DateTime)
+                        {
+                            value1 = DateTime.Parse(value1?.ToString());
+                        }
+                        if (value1.GetType() != value2.GetType())
+                        {
+                            var method = typeof(Convert).GetMethod($"To{value1.GetType().Name}", new[] { value2.GetType() });
+                            if (method != null)
+                            {
+                                value2 = method.Invoke(null, new[] { value2 });
+                            }
+                            else
+                            {
+                                value2 = Convert.ChangeType(value2, value1.GetType());
+                            }
+                        }
+                        Assert.AreEqual(value1, value2,
                             $"Assert failed for '{property.Name}'. The values are '{value1}' and '{value2}'.");
                     }
                 }
             });
         }
 
-        #region CompleteTable
+        #endregion
+
+        #region SdsCompleteTable
 
         /// <summary>
-        /// Creates a list of <see cref="CompleteTable"/> objects.
+        /// 
         /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="CompleteTable"/> objects.</returns>
-        public static List<CompleteTable> CreateCompleteTables(int count)
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<SdsCompleteTable> CreateSdsCompleteTables(int count)
         {
-            var tables = new List<CompleteTable>();
+            var tables = new List<SdsCompleteTable>();
             for (var i = 0; i < count; i++)
             {
-                tables.Add(new CompleteTable
+                tables.Add(new SdsCompleteTable
                 {
+                    Id = (i + 1),
                     ColumnBigInt = i,
                     ColumnBlob = Encoding.Default.GetBytes($"ColumnBlob:{i}"),
                     ColumnBoolean = true,
                     ColumnChar = "C",
                     ColumnDate = EpocDate,
                     ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
-                    ColumnDecimal = Convert.ToDecimal(i),
+                    ColumnDecimal = Convert.ToInt64(i),
                     ColumnDouble = Convert.ToDouble(i),
                     ColumnInt = i,
                     ColumnInteger = i,
                     ColumnNone = "N",
-                    ColumnNumeric = Convert.ToDecimal(i),
+                    ColumnNumeric = Convert.ToInt64(i),
                     ColumnReal = (float)i,
                     ColumnString = $"ColumnString:{i}",
                     ColumnText = $"ColumnText:{i}",
@@ -180,10 +215,10 @@ namespace RepoDb.SqLite.IntegrationTests
         }
 
         /// <summary>
-        /// Update the properties of <see cref="CompleteTable"/> instance.
+        /// 
         /// </summary>
-        /// <param name="table">The instance to be updated.</param>
-        public static void UpdateCompleteTableProperties(CompleteTable table)
+        /// <param name="table"></param>
+        public static void UpdateSdsCompleteTableProperties(SdsCompleteTable table)
         {
             table.ColumnBigInt = long.MaxValue;
             table.ColumnBlob = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString());
@@ -191,24 +226,24 @@ namespace RepoDb.SqLite.IntegrationTests
             table.ColumnChar = char.Parse("C").ToString();
             table.ColumnDate = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date;
             table.ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-            table.ColumnDecimal = Convert.ToDecimal(Randomizer.Next(1000000));
+            table.ColumnDecimal = Randomizer.Next(1000000);
             table.ColumnDouble = Convert.ToDouble(Randomizer.Next(1000000));
             table.ColumnInt = Randomizer.Next(1000000);
             table.ColumnInteger = Convert.ToInt64(Randomizer.Next(1000000));
-            table.ColumnNumeric = Convert.ToDecimal(Randomizer.Next(1000000));
+            table.ColumnNumeric = Randomizer.Next(1000000);
             table.ColumnReal = Convert.ToSingle(Randomizer.Next(1000000));
-            table.ColumnString = $"{table.ColumnString} - Updated with {Guid.NewGuid().ToString()}";
-            table.ColumnText = $"{table.ColumnText} - Updated with {Guid.NewGuid().ToString()}";
+            table.ColumnString = $"{table.ColumnString} - Updated with {Guid.NewGuid()}";
+            table.ColumnText = $"{table.ColumnText} - Updated with {Guid.NewGuid()}";
             table.ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-            table.ColumnVarChar = $"{table.ColumnVarChar} - Updated with {Guid.NewGuid().ToString()}";
+            table.ColumnVarChar = $"{table.ColumnVarChar} - Updated with {Guid.NewGuid()}";
         }
 
         /// <summary>
-        /// Creates a list of <see cref="CompleteTable"/> objects represented as dynamics.
+        /// 
         /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="CompleteTable"/> objects represented as dynamics.</returns>
-        public static List<dynamic> CreateCompleteTablesAsDynamics(int count)
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<dynamic> CreateSdsCompleteTablesAsDynamics(int count)
         {
             var tables = new List<dynamic>();
             for (var i = 0; i < count; i++)
@@ -239,58 +274,125 @@ namespace RepoDb.SqLite.IntegrationTests
         }
 
         /// <summary>
-        /// Update the properties of <see cref="CompleteTable"/> instance represented asy dynamic.
+        /// 
         /// </summary>
-        /// <param name="table">The instance to be updated.</param>
-        public static void UpdateCompleteTableAsDynamicProperties(dynamic table)
+        /// <param name="table"></param>
+        /// <returns></returns>
+        public static dynamic UpdateSdsCompleteTableAsDynamicProperties(dynamic table)
         {
-            table.ColumnBigInt = long.MaxValue;
-            table.ColumnBlob = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString());
-            table.ColumnBoolean = true;
-            table.ColumnChar = char.Parse("C").ToString();
-            table.ColumnDate = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date;
-            table.ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-            table.ColumnDecimal = Convert.ToDecimal(Randomizer.Next(1000000));
-            table.ColumnDouble = Convert.ToDouble(Randomizer.Next(1000000));
-            table.ColumnInt = Randomizer.Next(1000000);
-            table.ColumnInteger = Convert.ToInt64(Randomizer.Next(1000000));
-            table.ColumnNumeric = Convert.ToDecimal(Randomizer.Next(1000000));
-            table.ColumnReal = Convert.ToSingle(Randomizer.Next(1000000));
-            table.ColumnString = $"{table.ColumnString} - Updated with {Guid.NewGuid().ToString()}";
-            table.ColumnText = $"{table.ColumnText} - Updated with {Guid.NewGuid().ToString()}";
-            table.ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-            table.ColumnVarChar = $"{table.ColumnVarChar} - Updated with {Guid.NewGuid().ToString()}";
+            return new
+            {
+                table.Id,
+                ColumnBigInt = long.MaxValue,
+                ColumnBlob = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString()),
+                ColumnBoolean = true,
+                ColumnChar = char.Parse("C").ToString(),
+                ColumnDate = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date,
+                ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                ColumnDecimal = Convert.ToDecimal(Randomizer.Next(1000000)),
+                ColumnDouble = Convert.ToDouble(Randomizer.Next(1000000)),
+                ColumnInt = Randomizer.Next(1000000),
+                ColumnInteger = Convert.ToInt64(Randomizer.Next(1000000)),
+                ColumnNumeric = Convert.ToDecimal(Randomizer.Next(1000000)),
+                ColumnReal = Convert.ToSingle(Randomizer.Next(1000000)),
+                ColumnString = $"{table.ColumnString} - Updated with {Guid.NewGuid()}",
+                ColumnText = $"{table.ColumnText} - Updated with {Guid.NewGuid()}",
+                ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                ColumnVarChar = $"{table.ColumnVarChar} - Updated with {Guid.NewGuid()}"
+            };
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<ExpandoObject> CreateSdsCompleteTablesAsExpandoObjects(int count)
+        {
+            var tables = new List<ExpandoObject>();
+            for (var i = 0; i < count; i++)
+            {
+                var item = new ExpandoObject() as IDictionary<string, object>;
+                item["Id"] = (long)(i + 1);
+                item["ColumnBigInt"] = (long)i;
+                item["ColumnBlob"] = Encoding.Default.GetBytes($"ColumnBlob:{i}");
+                item["ColumnBoolean"] = true;
+                item["ColumnChar"] = "C";
+                item["ColumnDate"] = EpocDate;
+                item["ColumnDateTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                item["ColumnDecimal"] = Convert.ToDecimal(i);
+                item["ColumnDouble"] = Convert.ToDouble(i);
+                item["ColumnInt"] = i;
+                item["ColumnInteger"] = (long)i;
+                item["ColumnNone"] = "N";
+                item["ColumnNumeric"] = Convert.ToDecimal(i);
+                item["ColumnReal"] = (float)i;
+                item["ColumnString"] = $"ColumnString:{i}";
+                item["ColumnText"] = $"ColumnText:{i}";
+                item["ColumnTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                item["ColumnVarChar"] = $"ColumnVarChar:{i}";
+                tables.Add((ExpandoObject)item);
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        /// <returns></returns>
+        public static ExpandoObject UpdateSdsCompleteTableAsExpandoObjectProperties(ExpandoObject table)
+        {
+            var item = table as IDictionary<string, object>;
+            item["ColumnBigInt"] = long.MaxValue;
+            item["ColumnBlob"] = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString());
+            item["ColumnBoolean"] = true;
+            item["ColumnChar"] = "C";
+            item["ColumnDate"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date;
+            item["ColumnDateTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            item["ColumnDecimal"] = Convert.ToDecimal(Randomizer.Next(1000000));
+            item["ColumnDouble"] = Convert.ToDouble(Randomizer.Next(1000000));
+            item["ColumnInt"] = Randomizer.Next(1000000);
+            item["ColumnInteger"] = Convert.ToInt64(Randomizer.Next(1000000));
+            item["ColumnNone"] = "N";
+            item["ColumnNumeric"] = Convert.ToDecimal(Randomizer.Next(1000000));
+            item["ColumnReal"] = Convert.ToSingle(Randomizer.Next(1000000));
+            item["ColumnString"] = $"ColumnString:{Guid.NewGuid()}:Updated";
+            item["ColumnText"] = $"ColumnText:{Guid.NewGuid()}:Updated";
+            item["ColumnTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            item["ColumnVarChar"] = $"ColumnVarChar:{Guid.NewGuid()}:Updated";
+            return (ExpandoObject)item;
         }
 
         #endregion
 
-        #region NonIdentityCompleteTable
+        #region SdsNonIdentityCompleteTable
 
         /// <summary>
-        /// Creates a list of <see cref="NonIdentityCompleteTable"/> objects.
+        /// 
         /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="NonIdentityCompleteTable"/> objects.</returns>
-        public static List<NonIdentityCompleteTable> CreateNonIdentityCompleteTables(int count)
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<SdsNonIdentityCompleteTable> CreateSdsNonIdentityCompleteTables(int count)
         {
-            var tables = new List<NonIdentityCompleteTable>();
+            var tables = new List<SdsNonIdentityCompleteTable>();
             for (var i = 0; i < count; i++)
             {
-                tables.Add(new NonIdentityCompleteTable
+                tables.Add(new SdsNonIdentityCompleteTable
                 {
-                    Id = (long)(i + 1),
+                    Id = Guid.NewGuid(),
                     ColumnBigInt = (long)i,
                     ColumnBlob = Encoding.Default.GetBytes($"ColumnBlob:{i}"),
                     ColumnBoolean = true,
                     ColumnChar = "C",
                     ColumnDate = EpocDate,
                     ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
-                    ColumnDecimal = Convert.ToDecimal(i),
+                    ColumnDecimal = i,
                     ColumnDouble = Convert.ToDouble(i),
                     ColumnInt = i,
                     ColumnInteger = (long)i,
                     ColumnNone = "N",
-                    ColumnNumeric = Convert.ToDecimal(i),
+                    ColumnNumeric = i,
                     ColumnReal = (float)i,
                     ColumnString = $"ColumnString:{i}",
                     ColumnText = $"ColumnText:{i}",
@@ -302,10 +404,10 @@ namespace RepoDb.SqLite.IntegrationTests
         }
 
         /// <summary>
-        /// Update the properties of <see cref="NonIdentityCompleteTable"/> instance.
+        /// 
         /// </summary>
-        /// <param name="table">The instance to be updated.</param>
-        public static void UpdateNonIdentityCompleteTableProperties(NonIdentityCompleteTable table)
+        /// <param name="table"></param>
+        public static void UpdateSdsNonIdentityCompleteTableProperties(SdsNonIdentityCompleteTable table)
         {
             table.ColumnBigInt = long.MaxValue;
             table.ColumnBlob = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString());
@@ -313,31 +415,31 @@ namespace RepoDb.SqLite.IntegrationTests
             table.ColumnChar = char.Parse("C").ToString();
             table.ColumnDate = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date;
             table.ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-            table.ColumnDecimal = Convert.ToDecimal(Randomizer.Next(1000000));
+            table.ColumnDecimal = Randomizer.Next(1000000);
             table.ColumnDouble = Convert.ToDouble(Randomizer.Next(1000000));
             table.ColumnInt = Randomizer.Next(1000000);
             table.ColumnInteger = Convert.ToInt64(Randomizer.Next(1000000));
-            table.ColumnNumeric = Convert.ToDecimal(Randomizer.Next(1000000));
+            table.ColumnNumeric = Randomizer.Next(1000000);
             table.ColumnReal = Convert.ToSingle(Randomizer.Next(1000000));
-            table.ColumnString = $"{table.ColumnString} - Updated with {Guid.NewGuid().ToString()}";
-            table.ColumnText = $"{table.ColumnText} - Updated with {Guid.NewGuid().ToString()}";
+            table.ColumnString = $"{table.ColumnString} - Updated with {Guid.NewGuid()}";
+            table.ColumnText = $"{table.ColumnText} - Updated with {Guid.NewGuid()}";
             table.ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-            table.ColumnVarChar = $"{table.ColumnVarChar} - Updated with {Guid.NewGuid().ToString()}";
+            table.ColumnVarChar = $"{table.ColumnVarChar} - Updated with {Guid.NewGuid()}";
         }
 
         /// <summary>
-        /// Creates a list of <see cref="NonIdentityCompleteTable"/> objects represented as dynamics.
+        /// 
         /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="NonIdentityCompleteTable"/> objects represented as dynamics.</returns>
-        public static List<dynamic> CreateNonIdentityCompleteTablesAsDynamics(int count)
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<dynamic> CreateSdsNonIdentityCompleteTablesAsDynamics(int count)
         {
             var tables = new List<dynamic>();
             for (var i = 0; i < count; i++)
             {
                 tables.Add(new
                 {
-                    Id = (long)(i + 1),
+                    Id = Guid.NewGuid(),
                     ColumnBigInt = i,
                     ColumnBlob = Encoding.Default.GetBytes($"ColumnBlob:{i}"),
                     ColumnBoolean = true,
@@ -361,27 +463,477 @@ namespace RepoDb.SqLite.IntegrationTests
         }
 
         /// <summary>
-        /// Update the properties of <see cref="NonIdentityCompleteTable"/> instance represented asy dynamic.
+        /// 
         /// </summary>
-        /// <param name="table">The instance to be updated.</param>
-        public static void UpdateNonIdentityCompleteTableAsDynamicProperties(dynamic table)
+        /// <param name="table"></param>
+        /// <returns></returns>
+        public static dynamic UpdateSdsNonIdentityCompleteTableAsDynamicProperties(dynamic table)
+        {
+            return new
+            {
+                table.Id,
+                ColumnBigInt = long.MaxValue,
+                ColumnBlob = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString()),
+                ColumnBoolean = true,
+                ColumnChar = char.Parse("C").ToString(),
+                ColumnDate = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date,
+                ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                ColumnDecimal = Convert.ToDecimal(Randomizer.Next(1000000)),
+                ColumnDouble = Convert.ToDouble(Randomizer.Next(1000000)),
+                ColumnInt = Randomizer.Next(1000000),
+                ColumnInteger = Convert.ToInt64(Randomizer.Next(1000000)),
+                ColumnNumeric = Convert.ToDecimal(Randomizer.Next(1000000)),
+                ColumnReal = Convert.ToSingle(Randomizer.Next(1000000)),
+                ColumnString = $"{table.ColumnString} - Updated with {Guid.NewGuid()}",
+                ColumnText = $"{table.ColumnText} - Updated with {Guid.NewGuid()}",
+                ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                ColumnVarChar = $"{table.ColumnVarChar} - Updated with {Guid.NewGuid()}"
+            };
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<ExpandoObject> CreateSdsNonIdentityCompleteTablesAsExpandoObjects(int count)
+        {
+            var tables = new List<ExpandoObject>();
+            for (var i = 0; i < count; i++)
+            {
+                var item = new ExpandoObject() as IDictionary<string, object>;
+                item["Id"] = Guid.NewGuid();
+                item["ColumnBigInt"] = (long)i;
+                item["ColumnBlob"] = Encoding.Default.GetBytes($"ColumnBlob:{i}");
+                item["ColumnBoolean"] = true;
+                item["ColumnChar"] = "C";
+                item["ColumnDate"] = EpocDate;
+                item["ColumnDateTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                item["ColumnDecimal"] = Convert.ToDecimal(i);
+                item["ColumnDouble"] = Convert.ToDouble(i);
+                item["ColumnInt"] = i;
+                item["ColumnInteger"] = (long)i;
+                item["ColumnNone"] = "N";
+                item["ColumnNumeric"] = Convert.ToDecimal(i);
+                item["ColumnReal"] = (float)i;
+                item["ColumnString"] = $"ColumnString:{i}";
+                item["ColumnText"] = $"ColumnText:{i}";
+                item["ColumnTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                item["ColumnVarChar"] = $"ColumnVarChar:{i}";
+                tables.Add((ExpandoObject)item);
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        /// <returns></returns>
+        public static ExpandoObject UpdateSdsNonIdentityCompleteTableAsExpandoObjectProperties(ExpandoObject table)
+        {
+            var item = table as IDictionary<string, object>;
+            item["ColumnBigInt"] = long.MaxValue;
+            item["ColumnBlob"] = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString());
+            item["ColumnBoolean"] = true;
+            item["ColumnChar"] = "C";
+            item["ColumnDate"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date;
+            item["ColumnDateTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            item["ColumnDecimal"] = Convert.ToDecimal(Randomizer.Next(1000000));
+            item["ColumnDouble"] = Convert.ToDouble(Randomizer.Next(1000000));
+            item["ColumnInt"] = Randomizer.Next(1000000);
+            item["ColumnInteger"] = Convert.ToInt64(Randomizer.Next(1000000));
+            item["ColumnNone"] = "N";
+            item["ColumnNumeric"] = Convert.ToDecimal(Randomizer.Next(1000000));
+            item["ColumnReal"] = Convert.ToSingle(Randomizer.Next(1000000));
+            item["ColumnString"] = $"ColumnString:{Guid.NewGuid()}:Updated";
+            item["ColumnText"] = $"ColumnText:{Guid.NewGuid()}:Updated";
+            item["ColumnTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            item["ColumnVarChar"] = $"ColumnVarChar:{Guid.NewGuid()}:Updated";
+            return (ExpandoObject)item;
+        }
+
+        #endregion
+
+        #region MdsCompleteTable
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<MdsCompleteTable> CreateMdsCompleteTables(int count)
+        {
+            var tables = new List<MdsCompleteTable>();
+            for (var i = 0; i < count; i++)
+            {
+                tables.Add(new MdsCompleteTable
+                {
+                    Id = (i + 1),
+                    ColumnBigInt = i,
+                    ColumnBlob = Encoding.Default.GetBytes($"ColumnBlob:{i}"),
+                    ColumnBoolean = "true",
+                    ColumnChar = "C",
+                    ColumnDate = EpocDate.ToString(DATE_FORMAT),
+                    ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).ToString(DATE_FORMAT),
+                    ColumnDecimal = Convert.ToInt64(i),
+                    ColumnDouble = Convert.ToDouble(i),
+                    ColumnInt = i,
+                    ColumnInteger = i,
+                    ColumnNone = "N",
+                    ColumnNumeric = Convert.ToInt64(i),
+                    ColumnReal = (float)i,
+                    ColumnString = $"ColumnString:{i}",
+                    ColumnText = $"ColumnText:{i}",
+                    ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).ToString(DATE_FORMAT),
+                    ColumnVarChar = $"ColumnVarChar:{i}"
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        public static void UpdateMdsCompleteTableProperties(MdsCompleteTable table)
         {
             table.ColumnBigInt = long.MaxValue;
             table.ColumnBlob = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString());
-            table.ColumnBoolean = true;
+            table.ColumnBoolean = "true";
             table.ColumnChar = char.Parse("C").ToString();
-            table.ColumnDate = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date;
-            table.ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-            table.ColumnDecimal = Convert.ToDecimal(Randomizer.Next(1000000));
+            table.ColumnDate = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date.ToString(DATE_FORMAT);
+            table.ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).ToString(DATE_FORMAT);
+            table.ColumnDecimal = Randomizer.Next(1000000);
             table.ColumnDouble = Convert.ToDouble(Randomizer.Next(1000000));
             table.ColumnInt = Randomizer.Next(1000000);
             table.ColumnInteger = Convert.ToInt64(Randomizer.Next(1000000));
-            table.ColumnNumeric = Convert.ToDecimal(Randomizer.Next(1000000));
+            table.ColumnNumeric = Randomizer.Next(1000000);
             table.ColumnReal = Convert.ToSingle(Randomizer.Next(1000000));
-            table.ColumnString = $"{table.ColumnString} - Updated with {Guid.NewGuid().ToString()}";
-            table.ColumnText = $"{table.ColumnText} - Updated with {Guid.NewGuid().ToString()}";
-            table.ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-            table.ColumnVarChar = $"{table.ColumnVarChar} - Updated with {Guid.NewGuid().ToString()}";
+            table.ColumnString = $"{table.ColumnString} - Updated with {Guid.NewGuid()}";
+            table.ColumnText = $"{table.ColumnText} - Updated with {Guid.NewGuid()}";
+            table.ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).ToString(DATE_FORMAT);
+            table.ColumnVarChar = $"{table.ColumnVarChar} - Updated with {Guid.NewGuid()}";
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<dynamic> CreateMdsCompleteTablesAsDynamics(int count)
+        {
+            var tables = new List<dynamic>();
+            for (var i = 0; i < count; i++)
+            {
+                tables.Add(new
+                {
+                    Id = (long)(i + 1),
+                    ColumnBigInt = (long)i,
+                    ColumnBlob = Encoding.Default.GetBytes($"ColumnBlob:{i}"),
+                    ColumnBoolean = "true",
+                    ColumnChar = "C",
+                    ColumnDate = EpocDate,
+                    ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                    ColumnDecimal = Convert.ToInt64(i),
+                    ColumnDouble = Convert.ToDouble(i),
+                    ColumnInt = i,
+                    ColumnInteger = (long)i,
+                    ColumnNone = "N",
+                    ColumnNumeric = Convert.ToDecimal(i),
+                    ColumnReal = (float)i,
+                    ColumnString = $"ColumnString:{i}",
+                    ColumnText = $"ColumnText:{i}",
+                    ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                    ColumnVarChar = $"ColumnVarChar:{i}"
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        /// <returns></returns>
+        public static dynamic UpdateMdsCompleteTableAsDynamicProperties(dynamic table)
+        {
+            return new
+            {
+                table.Id,
+                ColumnBigInt = long.MaxValue,
+                ColumnBlob = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString()),
+                ColumnBoolean = "true",
+                ColumnChar = char.Parse("C").ToString(),
+                ColumnDate = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date,
+                ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                ColumnDecimal = Convert.ToInt64(Randomizer.Next(1000000)),
+                ColumnDouble = Convert.ToDouble(Randomizer.Next(1000000)),
+                ColumnInt = Randomizer.Next(1000000),
+                ColumnInteger = Convert.ToInt64(Randomizer.Next(1000000)),
+                ColumnNumeric = Convert.ToDecimal(Randomizer.Next(1000000)),
+                ColumnReal = Convert.ToSingle(Randomizer.Next(1000000)),
+                ColumnString = $"{table.ColumnString} - Updated with {Guid.NewGuid()}",
+                ColumnText = $"{table.ColumnText} - Updated with {Guid.NewGuid()}",
+                ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                ColumnVarChar = $"{table.ColumnVarChar} - Updated with {Guid.NewGuid()}"
+            };
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<ExpandoObject> CreateMdsCompleteTablesAsExpandoObjects(int count)
+        {
+            var tables = new List<ExpandoObject>();
+            for (var i = 0; i < count; i++)
+            {
+                var item = new ExpandoObject() as IDictionary<string, object>;
+                item["Id"] = (long)(i + 1);
+                item["ColumnBigInt"] = (long)i;
+                item["ColumnBlob"] = Encoding.Default.GetBytes($"ColumnBlob:{i}");
+                item["ColumnBoolean"] = "true";
+                item["ColumnChar"] = "C";
+                item["ColumnDate"] = EpocDate;
+                item["ColumnDateTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                item["ColumnDecimal"] = Convert.ToInt64(i);
+                item["ColumnDouble"] = Convert.ToDouble(i);
+                item["ColumnInt"] = i;
+                item["ColumnInteger"] = (long)i;
+                item["ColumnNone"] = "N";
+                item["ColumnNumeric"] = Convert.ToDecimal(i);
+                item["ColumnReal"] = (float)i;
+                item["ColumnString"] = $"ColumnString:{i}";
+                item["ColumnText"] = $"ColumnText:{i}";
+                item["ColumnTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                item["ColumnVarChar"] = $"ColumnVarChar:{i}";
+                tables.Add((ExpandoObject)item);
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        /// <returns></returns>
+        public static ExpandoObject UpdateMdsCompleteTableAsExpandoObjectProperties(ExpandoObject table)
+        {
+            var item = table as IDictionary<string, object>;
+            item["ColumnBigInt"] = long.MaxValue;
+            item["ColumnBlob"] = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString());
+            item["ColumnBoolean"] = "true";
+            item["ColumnChar"] = "C";
+            item["ColumnDate"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date;
+            item["ColumnDateTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            item["ColumnDecimal"] = Convert.ToDecimal(Randomizer.Next(1000000));
+            item["ColumnDouble"] = Convert.ToDouble(Randomizer.Next(1000000));
+            item["ColumnInt"] = Randomizer.Next(1000000);
+            item["ColumnInteger"] = Convert.ToInt64(Randomizer.Next(1000000));
+            item["ColumnNone"] = "N";
+            item["ColumnNumeric"] = Convert.ToDecimal(Randomizer.Next(1000000));
+            item["ColumnReal"] = Convert.ToSingle(Randomizer.Next(1000000));
+            item["ColumnString"] = $"ColumnString:{Guid.NewGuid()}:Updated";
+            item["ColumnText"] = $"ColumnText:{Guid.NewGuid()}:Updated";
+            item["ColumnTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            item["ColumnVarChar"] = $"ColumnVarChar:{Guid.NewGuid()}:Updated";
+            return (ExpandoObject)item;
+        }
+
+        #endregion
+
+        #region MdsNonIdentityCompleteTable
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<MdsNonIdentityCompleteTable> CreateMdsNonIdentityCompleteTables(int count)
+        {
+            var tables = new List<MdsNonIdentityCompleteTable>();
+            for (var i = 0; i < count; i++)
+            {
+                tables.Add(new MdsNonIdentityCompleteTable
+                {
+                    Id = Guid.NewGuid(),
+                    ColumnBigInt = (long)i,
+                    ColumnBlob = Encoding.Default.GetBytes($"ColumnBlob:{i}"),
+                    ColumnBoolean = "true",
+                    ColumnChar = "C",
+                    ColumnDate = EpocDate.ToString(DATE_FORMAT),
+                    ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).ToString(DATE_FORMAT),
+                    ColumnDecimal = i,
+                    ColumnDouble = Convert.ToDouble(i),
+                    ColumnInt = i,
+                    ColumnInteger = (long)i,
+                    ColumnNone = "N",
+                    ColumnNumeric = i,
+                    ColumnReal = (float)i,
+                    ColumnString = $"ColumnString:{i}",
+                    ColumnText = $"ColumnText:{i}",
+                    ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).ToString(DATE_FORMAT),
+                    ColumnVarChar = $"ColumnVarChar:{i}"
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        /// <returns></returns>
+        public static dynamic UpdateMdsNonIdentityCompleteTableProperties(MdsNonIdentityCompleteTable table)
+        {
+            return new
+            {
+                table.Id,
+                ColumnBigInt = long.MaxValue,
+                ColumnBlob = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString()),
+                ColumnBoolean = true,
+                ColumnChar = char.Parse("C").ToString(),
+                ColumnDate = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date,
+                ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                ColumnDecimal = Convert.ToDecimal(Randomizer.Next(1000000)),
+                ColumnDouble = Convert.ToDouble(Randomizer.Next(1000000)),
+                ColumnInt = Randomizer.Next(1000000),
+                ColumnInteger = Convert.ToInt64(Randomizer.Next(1000000)),
+                ColumnNumeric = Convert.ToDecimal(Randomizer.Next(1000000)),
+                ColumnReal = Convert.ToSingle(Randomizer.Next(1000000)),
+                ColumnString = $"{table.ColumnString} - Updated with {Guid.NewGuid()}",
+                ColumnText = $"{table.ColumnText} - Updated with {Guid.NewGuid()}",
+                ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                ColumnVarChar = $"{table.ColumnVarChar} - Updated with {Guid.NewGuid()}"
+            };
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<dynamic> CreateMdsNonIdentityCompleteTablesAsDynamics(int count)
+        {
+            var tables = new List<dynamic>();
+            for (var i = 0; i < count; i++)
+            {
+                tables.Add(new
+                {
+                    Id = Guid.NewGuid(),
+                    ColumnBigInt = i,
+                    ColumnBlob = Encoding.Default.GetBytes($"ColumnBlob:{i}"),
+                    ColumnBoolean = "true",
+                    ColumnChar = "C",
+                    ColumnDate = EpocDate,
+                    ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                    ColumnDecimal = Convert.ToInt64(i),
+                    ColumnDouble = Convert.ToDouble(i),
+                    ColumnInt = i,
+                    ColumnInteger = i,
+                    ColumnNone = "N",
+                    ColumnNumeric = Convert.ToDecimal(i),
+                    ColumnReal = (float)i,
+                    ColumnString = $"ColumnString:{i}",
+                    ColumnText = $"ColumnText:{i}",
+                    ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                    ColumnVarChar = $"ColumnVarChar:{i}"
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        /// <returns></returns>
+        public static dynamic UpdateMdsNonIdentityCompleteTableAsDynamicProperties(dynamic table)
+        {
+            return new
+            {
+                table.Id,
+                ColumnBigInt = long.MaxValue,
+                ColumnBlob = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString()),
+                ColumnBoolean = "true",
+                ColumnChar = char.Parse("C").ToString(),
+                ColumnDate = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date,
+                ColumnDateTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                ColumnDecimal = Convert.ToInt64(Randomizer.Next(1000000)),
+                ColumnDouble = Convert.ToDouble(Randomizer.Next(1000000)),
+                ColumnInt = Randomizer.Next(1000000),
+                ColumnInteger = Convert.ToInt64(Randomizer.Next(1000000)),
+                ColumnNumeric = Convert.ToDecimal(Randomizer.Next(1000000)),
+                ColumnReal = Convert.ToSingle(Randomizer.Next(1000000)),
+                ColumnString = $"{table.ColumnString} - Updated with {Guid.NewGuid()}",
+                ColumnText = $"{table.ColumnText} - Updated with {Guid.NewGuid()}",
+                ColumnTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
+                ColumnVarChar = $"{table.ColumnVarChar} - Updated with {Guid.NewGuid()}"
+            };
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<ExpandoObject> CreateMdsNonIdentityCompleteTablesAsExpandoObjects(int count)
+        {
+            var tables = new List<ExpandoObject>();
+            for (var i = 0; i < count; i++)
+            {
+                var item = new ExpandoObject() as IDictionary<string, object>;
+                item["Id"] = Guid.NewGuid();
+                item["ColumnBigInt"] = (long)i;
+                item["ColumnBlob"] = Encoding.Default.GetBytes($"ColumnBlob:{i}");
+                item["ColumnBoolean"] = "true";
+                item["ColumnChar"] = "C";
+                item["ColumnDate"] = EpocDate;
+                item["ColumnDateTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                item["ColumnDecimal"] = Convert.ToInt64(i);
+                item["ColumnDouble"] = Convert.ToDouble(i);
+                item["ColumnInt"] = i;
+                item["ColumnInteger"] = (long)i;
+                item["ColumnNone"] = "N";
+                item["ColumnNumeric"] = Convert.ToDecimal(i);
+                item["ColumnReal"] = (float)i;
+                item["ColumnString"] = $"ColumnString:{i}";
+                item["ColumnText"] = $"ColumnText:{i}";
+                item["ColumnTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                item["ColumnVarChar"] = $"ColumnVarChar:{i}";
+                tables.Add((ExpandoObject)item);
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        /// <returns></returns>
+        public static ExpandoObject UpdateMdsNonIdentityCompleteTableAsExpandoObjectProperties(ExpandoObject table)
+        {
+            var item = table as IDictionary<string, object>;
+            item["ColumnBigInt"] = long.MaxValue;
+            item["ColumnBlob"] = Encoding.UTF32.GetBytes(Guid.NewGuid().ToString());
+            item["ColumnBoolean"] = "true";
+            item["ColumnChar"] = "C";
+            item["ColumnDate"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified).Date;
+            item["ColumnDateTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            item["ColumnDecimal"] = Convert.ToDecimal(Randomizer.Next(1000000));
+            item["ColumnDouble"] = Convert.ToDouble(Randomizer.Next(1000000));
+            item["ColumnInt"] = Randomizer.Next(1000000);
+            item["ColumnInteger"] = Convert.ToInt64(Randomizer.Next(1000000));
+            item["ColumnNone"] = "N";
+            item["ColumnNumeric"] = Convert.ToDecimal(Randomizer.Next(1000000));
+            item["ColumnReal"] = Convert.ToSingle(Randomizer.Next(1000000));
+            item["ColumnString"] = $"ColumnString:{Guid.NewGuid()}:Updated";
+            item["ColumnText"] = $"ColumnText:{Guid.NewGuid()}:Updated";
+            item["ColumnTime"] = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+            item["ColumnVarChar"] = $"ColumnVarChar:{Guid.NewGuid()}:Updated";
+            return (ExpandoObject)item;
         }
 
         #endregion

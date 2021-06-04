@@ -1,5 +1,6 @@
 ﻿using RepoDb.Enumerations;
 using System;
+using System.Data;
 using System.Data.Common;
 
 namespace RepoDb
@@ -17,6 +18,12 @@ namespace RepoDb
         /// </summary>
         public static ConversionType ConversionType { get; set; } = ConversionType.Default;
 
+        /// <summary>
+        /// Gets or sets the default equivalent database type (of type <see cref="DbType"/>) of an enumeration if it is being used as a parameter to the 
+        /// execution of any non-entity-based operations.
+        /// </summary>
+        public static DbType EnumDefaultDatabaseType { get; set; } = DbType.String;
+
         #endregion
 
         #region Methods
@@ -26,10 +33,8 @@ namespace RepoDb
         /// </summary>
         /// <param name="value">The value to be checked for <see cref="DBNull.Value"/>.</param>
         /// <returns>The converted value.</returns>
-        public static object DbNullToNull(object value)
-        {
-            return ReferenceEquals(DBNull.Value, value) ? null : value;
-        }
+        public static object DbNullToNull(object value) =>
+            ReferenceEquals(DBNull.Value, value) ? null : value;
 
         /// <summary>
         /// Converts a value to a target type if the value is equals to null or <see cref="DBNull.Value"/>.
@@ -39,11 +44,11 @@ namespace RepoDb
         /// <returns>The converted value.</returns>
         public static T ToType<T>(object value)
         {
-            if (value is T)
+            if (value is T t)
             {
-                return (T)value;
+                return t;
             }
-            return DbNullToNull(value) == null ? default(T) :
+            return value == null || DbNullToNull(value) == null ? default :
                 (T)Convert.ChangeType(value, typeof(T));
         }
 

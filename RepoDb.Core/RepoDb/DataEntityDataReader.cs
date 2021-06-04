@@ -5,12 +5,11 @@ using System.Data.Common;
 using System.Linq;
 using System.Collections;
 using RepoDb.Extensions;
-using RepoDb.Interfaces;
 
 namespace RepoDb
 {
     /// <summary>
-    /// A data reader object used to manipulate the enumerable list of data entity objects.
+    /// A data reader object that is used to manipulate the enumerable list of data entity objects.
     /// </summary>
     /// <typeparam name="TEntity">The type of the data entity</typeparam>
     public class DataEntityDataReader<TEntity> : DbDataReader
@@ -18,10 +17,13 @@ namespace RepoDb
     {
         #region Fields
 
-        private bool m_isClosed = false;
-        private bool m_isDisposed = false;
-        private int m_position = -1;
-        private int m_recordsAffected = -1;
+        private string tableName = null;
+        private int fieldCount = 0;
+        private bool isClosed = false;
+        private bool isDisposed = false;
+        private int position = -1;
+        private int recordsAffected = -1;
+        private bool isDictionaryStringObject = false;
 
         #endregion
 
@@ -30,9 +32,7 @@ namespace RepoDb
         /// </summary>
         /// <param name="entities">The list of the data entity object to be used for manipulation.</param>
         public DataEntityDataReader(IEnumerable<TEntity> entities)
-            : this(entities,
-                null,
-                null)
+            : this(entities, null, null)
         { }
 
         /// <summary>
@@ -42,9 +42,7 @@ namespace RepoDb
         /// <param name="connection">The actual <see cref="IDbConnection"/> object used.</param>
         public DataEntityDataReader(IEnumerable<TEntity> entities,
             IDbConnection connection)
-            : this(entities,
-                  connection,
-                  null)
+            : this(entities, connection, null)
         { }
 
         /// <summary>
@@ -56,6 +54,36 @@ namespace RepoDb
         public DataEntityDataReader(IEnumerable<TEntity> entities,
             IDbConnection connection,
             IDbTransaction transaction)
+            : this(null, entities, connection, transaction)
+        { }
+
+        /// <summary>
+        /// Creates a new instance of <see cref="DataEntityDataReader{TEntity}"/> object.
+        /// </summary>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="entities">The list of the data entity object to be used for manipulation.</param>
+        /// <param name="connection">The actual <see cref="IDbConnection"/> object used.</param>
+        /// <param name="transaction">The transaction object that is currently in used.</param>
+        public DataEntityDataReader(string tableName,
+            IEnumerable<TEntity> entities,
+            IDbConnection connection,
+            IDbTransaction transaction)
+            : this(tableName, entities, connection, transaction, false)
+        { }
+
+        /// <summary>
+        /// Creates a new instance of <see cref="DataEntityDataReader{TEntity}"/> object.
+        /// </summary>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="entities">The list of the data entity object to be used for manipulation.</param>
+        /// <param name="transaction">The transaction object that is currently in used.</param>
+        /// <param name="connection">The actual <see cref="IDbConnection"/> object used.</param>
+        /// <param name="hasOrderingColumn">The value that signifies whether the ordering column will be defined.</param>
+        public DataEntityDataReader(string tableName,
+            IEnumerable<TEntity> entities,
+            IDbConnection connection,
+            IDbTransaction transaction,
+            bool hasOrderingColumn)
         {
             if (entities == null)
             {
@@ -63,50 +91,54 @@ namespace RepoDb
             }
 
             // Fields
-            m_isClosed = false;
-            m_isDisposed = false;
-            m_position = -1;
-            m_recordsAffected = -1;
+            this.tableName = tableName ?? ClassMappedNameCache.Get<TEntity>();
+            isClosed = false;
+            isDisposed = false;
+            position = -1;
+            recordsAffected = -1;
 
-            // DbSetting
-            DbSetting = connection?.GetDbSetting();
+            // Type
+            var entityType = typeof(TEntity);
+            EntityType = entityType == StaticType.Object ?
+                (entities.FirstOrDefault()?.GetType() ?? entityType) :
+                entityType;
+            isDictionaryStringObject = EntityType.IsDictionaryStringObject();
 
             // Properties
-            if (connection != null)
-            {
-                var fields = DbFieldCache.Get(connection, ClassMappedNameCache.Get<TEntity>(), transaction);
-                if (fields?.Any() == true)
-                {
-                    Properties = PropertyCache.Get<TEntity>()
-                        .Where(p => fields.FirstOrDefault(f => string.Equals(f.Name.AsQuoted(DbSetting), p.GetMappedName().AsQuoted(DbSetting), StringComparison.OrdinalIgnoreCase)) != null)
-                        .AsList();
-                }
-            }
-            if (Properties?.Any() != true)
-            {
-                Properties = PropertyCache.Get<TEntity>().AsList();
-            }
+            Connection = connection;
+            Transaction = transaction;
+            HasOrderingColumn = hasOrderingColumn;
             Enumerator = entities.GetEnumerator();
             Entities = entities;
-            FieldCount = Properties.Count;
+            Properties = GetClassProperties().AsList();
+            Fields = GetFields(Entities?.FirstOrDefault() as IDictionary<string, object>).AsList();
+            fieldCount = isDictionaryStringObject ? Fields.Count : Properties.Count;
         }
 
         /// <summary>
         /// Returns an enumerator that iterates through a collection of data entity objects.
         /// </summary>
         /// <returns>The enumerator object of the current collection.</returns>
-        public override IEnumerator GetEnumerator()
-        {
-            return Entities?.GetEnumerator();
-        }
+        public override IEnumerator GetEnumerator() =>
+            Entities?.GetEnumerator();
 
         /// <summary>
-        /// Returns the database setting that is currently in used.
+        /// Gets the instance of <see cref="IDbConnection"/> in used.
         /// </summary>
-        private IDbSetting DbSetting { get; }
+        public IDbConnection Connection { get; }
 
         /// <summary>
-        /// Returns an enumerator that iterates through a collection of data entity objects.
+        /// Gets the instance of <see cref="IDbTransaction"/> in used.
+        /// </summary>
+        public IDbTransaction Transaction { get; }
+
+        /// <summary>
+        /// Gets a value that indicates whether the current instance of <see cref="DataEntityDataReader{TEntity}"/> object has already been initialized.
+        /// </summary>
+        public bool IsInitialized { get; private set; }
+
+        /// <summary>
+        /// Gets the instance of enumerator that iterates through a collection of data entity objects.
         /// </summary>
         public IEnumerator<TEntity> Enumerator { get; private set; }
 
@@ -116,14 +148,30 @@ namespace RepoDb
         public IEnumerable<TEntity> Entities { get; private set; }
 
         /// <summary>
-        /// Gets the properties of data entity object.
-        /// </summary>
-        public IList<ClassProperty> Properties { get; private set; }
-
-        /// <summary>
         /// Gets the current position of the enumerator.
         /// </summary>
-        public int Position { get { return m_position; } }
+        public int Position =>
+            position;
+
+        /// <summary>
+        /// Gets the type of the entities.
+        /// </summary>
+        private Type EntityType { get; set; }
+
+        /// <summary>
+        /// Gets the properties of data entity object.
+        /// </summary>
+        private IList<ClassProperty> Properties { get; set; }
+
+        /// <summary>
+        /// Gets the fields of the dictionary.
+        /// </summary>
+        private IList<Field> Fields { get; set; }
+
+        /// <summary>
+        /// Gets a value that indicates whether the ordering column is defined.
+        /// </summary>
+        private bool HasOrderingColumn { get; }
 
         /// <summary>
         /// Gets the current value from the index.
@@ -147,34 +195,39 @@ namespace RepoDb
         /// <summary>
         /// Gets the value that indicates whether the current reader is closed.
         /// </summary>
-        public override bool IsClosed { get { return m_isClosed; } }
+        public override bool IsClosed =>
+            isClosed;
 
         /// <summary>
         /// Gets the value that indicates whether the current reader is already disposed.
         /// </summary>
-        public bool IsDisposed { get { return m_isDisposed; } }
+        public bool IsDisposed =>
+            isDisposed;
 
         /// <summary>
         /// Gets the number of rows affected by the iteration.
         /// </summary>
-        public override int RecordsAffected { get { return m_recordsAffected; } }
+        public override int RecordsAffected =>
+            recordsAffected;
 
         /// <summary>
         /// Gets the number of properties the data entity object has.
         /// </summary>
-        public override int FieldCount { get; }
+        public override int FieldCount =>
+            fieldCount;
 
         /// <summary>
         /// Gets a value that signify whether the current data reader has data entities.
         /// </summary>
-        public override bool HasRows => Entities?.Count() > 0;
+        public override bool HasRows =>
+            Entities?.Any() == true;
 
         /// <summary>
         /// Closes the current data reader.
         /// </summary>
         public override void Close()
         {
-            m_isClosed = true;
+            isClosed = true;
         }
 
         /// <summary>
@@ -187,7 +240,7 @@ namespace RepoDb
             Properties = null;
             Enumerator = null;
             Close();
-            m_isDisposed = true;
+            isDisposed = true;
         }
 
         /// <summary>
@@ -197,8 +250,8 @@ namespace RepoDb
         {
             ThrowExceptionIfNotAvailable();
             Enumerator = Entities.GetEnumerator();
-            m_position = -1;
-            m_recordsAffected = -1;
+            position = -1;
+            recordsAffected = -1;
         }
 
         /// <summary>
@@ -390,10 +443,37 @@ namespace RepoDb
         /// </summary>
         /// <param name="i">The index of the property.</param>
         /// <returns>The name from the property index.</returns>
-        public override string GetName(int i)
+        public override string GetName(int i) =>
+            isDictionaryStringObject ? GetNameForDictionaryStringObject(i) : GetNameForEntities(i);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="i"></param>
+        /// <returns></returns>
+        private string GetNameForEntities(int i)
         {
             ThrowExceptionIfNotAvailable();
+            if (i == Properties.Count)
+            {
+                return "__RepoDb_OrderColumn";
+            }
             return Properties[i].GetMappedName();
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="i"></param>
+        /// <returns></returns>
+        private string GetNameForDictionaryStringObject(int i)
+        {
+            ThrowExceptionIfNotAvailable();
+            if (i == Fields.Count)
+            {
+                return "__RepoDb_OrderColumn";
+            }
+            return Fields[i].Name;
         }
 
         /// <summary>
@@ -401,10 +481,46 @@ namespace RepoDb
         /// </summary>
         /// <param name="name">The index of the property.</param>
         /// <returns>The index of the property from property name.</returns>
-        public override int GetOrdinal(string name)
+        public override int GetOrdinal(string name) =>
+            isDictionaryStringObject ? GetOrdinalForDictionaryStringObject(name) : GetOrdinalForEntities(name);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        private int GetOrdinalForEntities(string name)
         {
             ThrowExceptionIfNotAvailable();
-            return Properties.IndexOf(Properties.FirstOrDefault(p => p.GetMappedName() == name));
+            if (HasOrderingColumn && string.Equals(name, "__RepoDb_OrderColumn", StringComparison.OrdinalIgnoreCase))
+            {
+                return Properties.Count;
+            }
+            else
+            {
+                var property = Properties.FirstOrDefault(p => string.Equals(p.GetMappedName(), name, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(p.PropertyInfo.Name, name, StringComparison.OrdinalIgnoreCase));
+                return Properties.IndexOf(property);
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        private int GetOrdinalForDictionaryStringObject(string name)
+        {
+            ThrowExceptionIfNotAvailable();
+            if (HasOrderingColumn && string.Equals(name, "__RepoDb_OrderColumn", StringComparison.OrdinalIgnoreCase))
+            {
+                return Fields.Count;
+            }
+            else
+            {
+                return Fields.IndexOf(Fields.FirstOrDefault(f =>
+                    string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase)));
+            }
         }
 
         /// <summary>
@@ -433,10 +549,44 @@ namespace RepoDb
         /// </summary>
         /// <param name="i">The index of the property.</param>
         /// <returns>The value from the property index.</returns>
-        public override object GetValue(int i)
+        public override object GetValue(int i) =>
+            isDictionaryStringObject ? GetValueForDictionaryStringObject(i) : GetValueForEntities(i);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="i"></param>
+        /// <returns></returns>
+        public object GetValueForEntities(int i)
         {
             ThrowExceptionIfNotAvailable();
-            return Properties[i].PropertyInfo.GetValue(Enumerator.Current);
+            if (i == Properties.Count)
+            {
+                return position;
+            }
+            else
+            {
+                return Properties[i].PropertyInfo.GetValue(Enumerator.Current);
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="i"></param>
+        /// <returns></returns>
+        public object GetValueForDictionaryStringObject(int i)
+        {
+            ThrowExceptionIfNotAvailable();
+            if (i == Fields.Count)
+            {
+                return position;
+            }
+            else
+            {
+                var dictionary = Enumerator.Current as IDictionary<string, object>;
+                return dictionary?[Fields[i].Name];
+            }
         }
 
         /// <summary>
@@ -491,13 +641,13 @@ namespace RepoDb
         public override bool Read()
         {
             ThrowExceptionIfNotAvailable();
-            m_position++;
-            m_recordsAffected++;
+            position++;
+            recordsAffected++;
             return Enumerator.MoveNext();
         }
 
         /// <summary>
-        /// Throws an exception if the current data reader is not available.
+        /// 
         /// </summary>
         private void ThrowExceptionIfNotAvailable()
         {
@@ -508,6 +658,35 @@ namespace RepoDb
             if (IsClosed)
             {
                 throw new InvalidOperationException("The reader is already closed.");
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        private IEnumerable<ClassProperty> GetClassProperties()
+        {
+            if (isDictionaryStringObject)
+            {
+                return Enumerable.Empty<ClassProperty>();
+            }
+            return PropertyCache.Get(EntityType)?.AsList();
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="dictionary"></param>
+        /// <returns></returns>
+        private IEnumerable<Field> GetFields(IDictionary<string, object> dictionary)
+        {
+            if (dictionary != null)
+            {
+                foreach (var kvp in dictionary)
+                {
+                    yield return new Field(kvp.Key, kvp.Value?.GetType());
+                }
             }
         }
     }

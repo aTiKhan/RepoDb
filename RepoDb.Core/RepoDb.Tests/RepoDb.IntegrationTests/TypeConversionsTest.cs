@@ -28,6 +28,398 @@ namespace RepoDb.IntegrationTests
             Converter.ConversionType = ConversionType.Default;
         }
 
+        #region TypedResult
+
+        #region StringToType
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromStringToString()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<string>("SELECT 'ABC' AS Value;").First();
+
+                // Assert
+                Assert.AreEqual("ABC", data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromStringToBigint()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<long>("SELECT '100' AS Value;").First();
+
+                // Assert
+                Assert.AreEqual(100, data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromStringToInt()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<int>("SELECT '100' AS Value;").First();
+
+                // Assert
+                Assert.AreEqual(100, data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromStringToDouble()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<double>("SELECT '100' AS Value;").First();
+
+                // Assert
+                Assert.AreEqual(100, data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromStringToGuid()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<Guid>("SELECT 'DE415ED3-24CB-4090-985B-0C76809578C8' AS Value;").First();
+
+                // Assert
+                Assert.AreEqual(Guid.Parse("DE415ED3-24CB-4090-985B-0C76809578C8"), data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromStringToDateTime()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<DateTime>("SELECT '1970-01-01' AS Value;").First();
+
+                // Assert
+                Assert.AreEqual(DateTime.Parse("1970-01-01"), data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromStringToBit()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<bool>("SELECT 'true' AS Value;").First();
+
+                // Assert
+                Assert.AreEqual(true, data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromStringToDecimal()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<decimal>("SELECT '100.05' AS Value;").First();
+
+                // Assert
+                Assert.AreEqual((decimal)100.05, data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromStringToFloat()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<float>("SELECT '100.05' AS Value;").First();
+
+                // Assert
+                Assert.AreEqual((float)100.05, data);
+            }
+        }
+
+        #endregion
+
+        #region IntToType
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromIntToInt()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<int>("SELECT CONVERT(INT, 10) AS Value;").First();
+
+                // Assert
+                Assert.AreEqual(10, data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromIntToString()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<string>("SELECT CONVERT(INT, 10) AS Value;").First();
+
+                // Assert
+                Assert.AreEqual("10", data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromIntToLong()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<long>("SELECT CONVERT(INT, 10) AS Value;").First();
+
+                // Assert
+                Assert.AreEqual(10, data);
+            }
+        }
+
+        #endregion
+
+        #region BigIntToType
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromBigIntToLong()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<long>("SELECT CONVERT(BIGINT, 10) AS Value;").First();
+
+                // Assert
+                Assert.AreEqual((long)10, data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromBigIntToString()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<string>("SELECT CONVERT(BIGINT, 10) AS Value;").First();
+
+                // Assert
+                Assert.AreEqual("10", data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromBigIntToInt()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<int>("SELECT CONVERT(BIGINT, 10) AS Value;").First();
+
+                // Assert
+                Assert.AreEqual(10, data);
+            }
+        }
+
+        #endregion
+
+        #region DecimalToType
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromDecimalToDecimal()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<decimal>("SELECT CONVERT(DECIMAL(18,2), 100.05) AS Value;").First();
+
+                // Assert
+                Assert.AreEqual((decimal)100.05, data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromDecimalToString()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<string>("SELECT CONVERT(DECIMAL(18,2), 100.05) AS Value;").First();
+
+                // Assert
+                Assert.AreEqual("100.05", data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromDecimalToFloat()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<float>("SELECT CONVERT(DECIMAL(18,2), 100.05) AS Value;").First();
+
+                // Assert
+                Assert.AreEqual((float)100.05, data);
+            }
+        }
+
+        #endregion
+
+        #region RealToType
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromRealToFloat()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<float>("SELECT CONVERT(REAL, 100.05) AS Value;").First();
+
+                // Assert
+                Assert.AreEqual((float)100.05, data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromRealToString()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<string>("SELECT CONVERT(REAL, 100.05) AS Value;").First();
+
+                // Assert
+                Assert.AreEqual("100.05", data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromRealToDecimal()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<decimal>("SELECT CONVERT(REAL, 100.05) AS Value;").First();
+
+                // Assert
+                Assert.AreEqual((decimal)100.05, data);
+            }
+        }
+
+        #endregion
+
+        #region DateTimeToType
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromDateTimeToDateTime()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<DateTime>("SELECT CONVERT(DATETIME2(5), '1970-01-01') AS Value;").First();
+
+                // Assert
+                Assert.AreEqual(DateTime.Parse("1970-01-01"), data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromDateTimeToString()
+        {
+            using (var cultureScope = new CultureScope("en-US"))
+            {
+                using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+                {
+                    // Act Query
+                    var data = connection.ExecuteQuery<string>("SELECT CONVERT(DATETIME2(5), '1970-01-01') AS Value;").First();
+
+                    // Assert
+                    Assert.AreEqual("1/1/1970 12:00:00 AM", data);
+                }
+            }
+        }
+
+        #endregion
+
+        #region UniqueIdentifierToType
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromUniqueIdentifierToGuid()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<Guid>("SELECT CONVERT(UNIQUEIDENTIFIER, 'DE415ED3-24CB-4090-985B-0C76809578C8') AS Value;").First();
+
+                // Assert
+                Assert.AreEqual(Guid.Parse("DE415ED3-24CB-4090-985B-0C76809578C8"), data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromUniqueIdentifierToString()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<string>("SELECT CONVERT(UNIQUEIDENTIFIER, 'DE415ED3-24CB-4090-985B-0C76809578C8') AS Value;").First();
+
+                // Assert
+                Assert.IsTrue(string.Equals("DE415ED3-24CB-4090-985B-0C76809578C8", data, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        #endregion
+
+        #region BitToType
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromBitToBoolean()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<bool>("SELECT CONVERT(BIT, 1) AS Value;").First();
+
+                // Assert
+                Assert.IsTrue(data);
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionExecuteQueryConversionFromBitToString()
+        {
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Query
+                var data = connection.ExecuteQuery<string>("SELECT CONVERT(BIT, 1) AS Value;").First();
+
+                // Assert
+                Assert.IsTrue(string.Equals("true", data, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        #endregion
+
+        #endregion
+
+        #region Query
+
         #region StringToBigIntClass
 
         [Map("CompleteTable")]
@@ -39,7 +431,7 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToBigInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToBigInt()
         {
             // Setup
             var entity = new StringToBigIntClass
@@ -84,7 +476,7 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToBit()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToBit()
         {
             // Setup
             var entity = new StringToBitClass
@@ -119,7 +511,7 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToDecimal()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToDecimal()
         {
             // Setup
             var entity = new StringToDecimalClass
@@ -154,7 +546,7 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToFloat()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToFloat()
         {
             // Setup
             var entity = new StringToFloatClass
@@ -189,7 +581,7 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToInt()
         {
             // Setup
             var entity = new StringToIntClass
@@ -224,7 +616,7 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToMoney()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToMoney()
         {
             // Setup
             var entity = new StringToMoneyClass
@@ -259,7 +651,7 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToNumeric()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToNumeric()
         {
             // Setup
             var entity = new StringToNumericClass
@@ -294,7 +686,7 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToReal()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToReal()
         {
             // Setup
             var entity = new StringToRealClass
@@ -329,7 +721,7 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToSmallInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToSmallInt()
         {
             // Setup
             var entity = new StringToSmallIntClass
@@ -364,7 +756,7 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToSmallMoney()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToSmallMoney()
         {
             // Setup
             var entity = new StringToSmallMoneyClass
@@ -399,25 +791,28 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToDate()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToDate()
         {
-            // Setup
-            var entity = new StringToDateClass
+            using (var cultureScope = new CultureScope("en-US"))
             {
-                SessionId = Guid.NewGuid(),
-                ColumnDate = "1970-01-01"
-            };
+                // Setup
+                var entity = new StringToDateClass
+                {
+                    SessionId = Guid.NewGuid(),
+                    ColumnDate = "1970-01-01"
+                };
 
-            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
-            {
-                // Act Insert
-                var id = connection.Insert(entity);
+                using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+                {
+                    // Act Insert
+                    var id = connection.Insert(entity);
 
-                // Act Query
-                var data = connection.Query<StringToDateClass>(e => e.SessionId == (Guid)id).FirstOrDefault();
+                    // Act Query
+                    var data = connection.Query<StringToDateClass>(e => e.SessionId == (Guid)id).FirstOrDefault();
 
-                // Assert
-                Assert.AreEqual("1/1/1970 12:00:00 AM", data.ColumnDate);
+                    // Assert
+                    Assert.AreEqual("1/1/1970 12:00:00 AM", data.ColumnDate);
+                }
             }
         }
 
@@ -434,25 +829,28 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToDateTime()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToDateTime()
         {
-            // Setup
-            var entity = new StringToDateTimeClass
+            using (var cultureScope = new CultureScope("en-US"))
             {
-                SessionId = Guid.NewGuid(),
-                ColumnDateTime = "1970-01-01 11:30 AM"
-            };
+                // Setup
+                var entity = new StringToDateTimeClass
+                {
+                    SessionId = Guid.NewGuid(),
+                    ColumnDateTime = "1970-01-01 11:30 AM"
+                };
 
-            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
-            {
-                // Act Insert
-                var id = connection.Insert(entity);
+                using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+                {
+                    // Act Insert
+                    var id = connection.Insert(entity);
 
-                // Act Query
-                var data = connection.Query<StringToDateTimeClass>(e => e.SessionId == (Guid)id).FirstOrDefault();
+                    // Act Query
+                    var data = connection.Query<StringToDateTimeClass>(e => e.SessionId == (Guid)id).FirstOrDefault();
 
-                // Assert
-                Assert.AreEqual("1/1/1970 11:30:00 AM", data.ColumnDateTime);
+                    // Assert
+                    Assert.AreEqual("1/1/1970 11:30:00 AM", data.ColumnDateTime);
+                }
             }
         }
 
@@ -469,25 +867,28 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToDateTime2()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToDateTime2()
         {
-            // Setup
-            var entity = new StringToDateTime2Class
+            using (var cultureScope = new CultureScope("en-US"))
             {
-                SessionId = Guid.NewGuid(),
-                ColumnDateTime2 = "2019-03-03 15:22:10.0500000"
-            };
+                // Setup
+                var entity = new StringToDateTime2Class
+                {
+                    SessionId = Guid.NewGuid(),
+                    ColumnDateTime2 = "2019-03-03 15:22:10.0500000"
+                };
 
-            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
-            {
-                // Act Insert
-                var id = connection.Insert(entity);
+                using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+                {
+                    // Act Insert
+                    var id = connection.Insert(entity);
 
-                // Act Query
-                var data = connection.Query<StringToDateTime2Class>(e => e.SessionId == (Guid)id).FirstOrDefault();
+                    // Act Query
+                    var data = connection.Query<StringToDateTime2Class>(e => e.SessionId == (Guid)id).FirstOrDefault();
 
-                // Assert
-                Assert.AreEqual("3/3/2019 3:22:10 PM", data.ColumnDateTime2);
+                    // Assert
+                    Assert.AreEqual("3/3/2019 3:22:10 PM", data.ColumnDateTime2);
+                }
             }
         }
 
@@ -504,7 +905,7 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromStringToUniqueIdentifier()
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToUniqueIdentifier()
         {
             // Setup
             var entity = new StringToUniqueIdentifierClass
@@ -535,11 +936,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public Guid ColumnNVarChar { get; set; }
+            public Guid? ColumnNVarChar { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromUniqueIdentifierToString()
+        public void TestSqlConnectionInsertAndQueryConversionFromUniqueIdentifierToString()
         {
             // Setup
             var entity = new UniqueIdentifierToStringClass
@@ -563,6 +964,41 @@ namespace RepoDb.IntegrationTests
 
         #endregion
 
+        #region BitToStringClass
+
+        [Map("CompleteTable")]
+        private class BitToStringClass
+        {
+            [Primary]
+            public Guid SessionId { get; set; }
+            public bool ColumnNVarChar { get; set; }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionInsertAndQueryConversionFromStringToString()
+        {
+            // Setup
+            var entity = new BitToStringClass
+            {
+                SessionId = Guid.NewGuid(),
+                ColumnNVarChar = true
+            };
+
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb).EnsureOpen())
+            {
+                // Act Insert
+                var id = connection.Insert(entity);
+
+                // Act Query
+                var data = connection.Query<BitToStringClass>(e => e.SessionId == (Guid)id).FirstOrDefault();
+
+                // Assert
+                Assert.AreEqual(entity.ColumnNVarChar, data.ColumnNVarChar);
+            }
+        }
+
+        #endregion
+
         #region DateTimeToStringClass (Date, DateTime, DateTime2)
 
         [Map("CompleteTable")]
@@ -570,11 +1006,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public DateTime ColumnNVarChar { get; set; }
+            public DateTime? ColumnNVarChar { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDateTimeToString()
+        public void TestSqlConnectionInsertAndQueryConversionFromDateTimeToString()
         {
             // Setup
             var entity = new DateTimeToStringClass
@@ -605,11 +1041,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public int ColumnNVarChar { get; set; }
+            public int? ColumnNVarChar { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromIntToString()
+        public void TestSqlConnectionInsertAndQueryConversionFromIntToString()
         {
             // Setup
             var entity = new IntToStringClass
@@ -640,11 +1076,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public int ColumnBigInt { get; set; }
+            public int? ColumnBigInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromIntToBigInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromIntToBigInt()
         {
             // Setup
             var entity = new IntToBigIntClass
@@ -675,11 +1111,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public int ColumnSmallInt { get; set; }
+            public int? ColumnSmallInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromIntToSmallInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromIntToSmallInt()
         {
             // Setup
             var entity = new IntToSmallIntClass
@@ -710,11 +1146,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public int ColumnDecimal { get; set; }
+            public int? ColumnDecimal { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromIntToDecimal()
+        public void TestSqlConnectionInsertAndQueryConversionFromIntToDecimal()
         {
             // Setup
             var entity = new IntToDecimalClass
@@ -745,11 +1181,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public int ColumnFloat { get; set; }
+            public int? ColumnFloat { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromIntToFloat()
+        public void TestSqlConnectionInsertAndQueryConversionFromIntToFloat()
         {
             // Setup
             var entity = new IntToFloatClass
@@ -780,11 +1216,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public int ColumnReal { get; set; }
+            public int? ColumnReal { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromIntToReal()
+        public void TestSqlConnectionInsertAndQueryConversionFromIntToReal()
         {
             // Setup
             var entity = new IntToRealClass
@@ -815,11 +1251,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public int ColumnBit { get; set; }
+            public int? ColumnBit { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromIntToBit()
+        public void TestSqlConnectionInsertAndQueryConversionFromIntToBit()
         {
             // Setup
             var entity = new IntToBitClass
@@ -850,11 +1286,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public long ColumnNVarChar { get; set; }
+            public long? ColumnNVarChar { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromBigIntToString()
+        public void TestSqlConnectionInsertAndQueryConversionFromBigIntToString()
         {
             // Setup
             var entity = new BigIntToStringClass
@@ -885,11 +1321,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public long ColumnInt { get; set; }
+            public long? ColumnInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromBigIntToInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromBigIntToInt()
         {
             // Setup
             var entity = new BigIntToIntClass
@@ -920,11 +1356,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public long ColumnSmallInt { get; set; }
+            public long? ColumnSmallInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromBigIntToSmallInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromBigIntToSmallInt()
         {
             // Setup
             var entity = new BigIntToSmallIntClass
@@ -955,11 +1391,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public long ColumnDecimal { get; set; }
+            public long? ColumnDecimal { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromBigIntToDecimal()
+        public void TestSqlConnectionInsertAndQueryConversionFromBigIntToDecimal()
         {
             // Setup
             var entity = new BigIntToDecimalClass
@@ -990,11 +1426,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public long ColumnFloat { get; set; }
+            public long? ColumnFloat { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromBigIntToFloat()
+        public void TestSqlConnectionInsertAndQueryConversionFromBigIntToFloat()
         {
             // Setup
             var entity = new BigIntToFloatClass
@@ -1025,11 +1461,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public long ColumnReal { get; set; }
+            public long? ColumnReal { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromBigIntToReal()
+        public void TestSqlConnectionInsertAndQueryConversionFromBigIntToReal()
         {
             // Setup
             var entity = new BigIntToRealClass
@@ -1060,11 +1496,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public long ColumnBit { get; set; }
+            public long? ColumnBit { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromBigIntToBit()
+        public void TestSqlConnectionInsertAndQueryConversionFromBigIntToBit()
         {
             // Setup
             var entity = new BigIntToBitClass
@@ -1095,11 +1531,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public short ColumnNVarChar { get; set; }
+            public short? ColumnNVarChar { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromSmallIntToString()
+        public void TestSqlConnectionInsertAndQueryConversionFromSmallIntToString()
         {
             // Setup
             var entity = new SmallIntToStringClass
@@ -1130,11 +1566,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public short ColumnInt { get; set; }
+            public short? ColumnInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromSmallIntToInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromSmallIntToInt()
         {
             // Setup
             var entity = new SmallIntToIntClass
@@ -1165,11 +1601,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public short ColumnBigInt { get; set; }
+            public short? ColumnBigInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromSmallIntToBigInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromSmallIntToBigInt()
         {
             // Setup
             var entity = new SmallIntToBigIntClass
@@ -1200,11 +1636,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public short ColumnDecimal { get; set; }
+            public short? ColumnDecimal { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromSmallIntToDecimal()
+        public void TestSqlConnectionInsertAndQueryConversionFromSmallIntToDecimal()
         {
             // Setup
             var entity = new SmallIntToDecimalClass
@@ -1235,11 +1671,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public short ColumnFloat { get; set; }
+            public short? ColumnFloat { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromSmallIntToFloat()
+        public void TestSqlConnectionInsertAndQueryConversionFromSmallIntToFloat()
         {
             // Setup
             var entity = new SmallIntToFloatClass
@@ -1270,11 +1706,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public short ColumnReal { get; set; }
+            public short? ColumnReal { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromSmallIntToReal()
+        public void TestSqlConnectionInsertAndQueryConversionFromSmallIntToReal()
         {
             // Setup
             var entity = new SmallIntToRealClass
@@ -1305,11 +1741,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public short ColumnBit { get; set; }
+            public short? ColumnBit { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromSmallIntToBit()
+        public void TestSqlConnectionInsertAndQueryConversionFromSmallIntToBit()
         {
             // Setup
             var entity = new SmallIntToBitClass
@@ -1327,7 +1763,7 @@ namespace RepoDb.IntegrationTests
                 var data = connection.Query<SmallIntToBitClass>(e => e.SessionId == (Guid)id).FirstOrDefault();
 
                 // Assert
-                Assert.AreEqual(1, data.ColumnBit);
+                Assert.AreEqual((short)1, data.ColumnBit);
             }
         }
 
@@ -1340,11 +1776,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public decimal ColumnNVarChar { get; set; }
+            public decimal? ColumnNVarChar { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDecimalToString()
+        public void TestSqlConnectionInsertAndQueryConversionFromDecimalToString()
         {
             // Setup
             var entity = new DecimalToStringClass
@@ -1375,11 +1811,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public decimal ColumnInt { get; set; }
+            public decimal? ColumnInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDecimalToInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromDecimalToInt()
         {
             // Setup
             var entity = new DecimalToIntClass
@@ -1410,11 +1846,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public decimal ColumnBigInt { get; set; }
+            public decimal? ColumnBigInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDecimalToBigInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromDecimalToBigInt()
         {
             // Setup
             var entity = new DecimalToBigIntClass
@@ -1445,11 +1881,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public decimal ColumnSmallInt { get; set; }
+            public decimal? ColumnSmallInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDecimalToSmallInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromDecimalToSmallInt()
         {
             // Setup
             var entity = new DecimalToSmallIntClass
@@ -1480,11 +1916,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public decimal ColumnFloat { get; set; }
+            public decimal? ColumnFloat { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDecimalToFloat()
+        public void TestSqlConnectionInsertAndQueryConversionFromDecimalToFloat()
         {
             // Setup
             var entity = new DecimalToFloatClass
@@ -1515,11 +1951,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public decimal ColumnReal { get; set; }
+            public decimal? ColumnReal { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDecimalToReal()
+        public void TestSqlConnectionInsertAndQueryConversionFromDecimalToReal()
         {
             // Setup
             var entity = new DecimalToRealClass
@@ -1550,11 +1986,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public decimal ColumnBit { get; set; }
+            public decimal? ColumnBit { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDecimalToBit()
+        public void TestSqlConnectionInsertAndQueryConversionFromDecimalToBit()
         {
             // Setup
             var entity = new DecimalToBitClass
@@ -1585,11 +2021,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnNVarChar { get; set; }
+            public double? ColumnNVarChar { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDoubleToString()
+        public void TestSqlConnectionInsertAndQueryConversionFromDoubleToString()
         {
             // Setup
             var entity = new DoubleToStringClass
@@ -1620,11 +2056,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnDecimal { get; set; }
+            public double? ColumnDecimal { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDoubleToDecimal()
+        public void TestSqlConnectionInsertAndQueryConversionFromDoubleToDecimal()
         {
             // Setup
             var entity = new DoubleToDecimalClass
@@ -1655,11 +2091,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnBigInt { get; set; }
+            public double? ColumnBigInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDoubleToBigInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromDoubleToBigInt()
         {
             // Setup
             var entity = new DoubleToBigIntClass
@@ -1690,11 +2126,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnInt { get; set; }
+            public double? ColumnInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDoubleToInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromDoubleToInt()
         {
             // Setup
             var entity = new DoubleToIntClass
@@ -1725,11 +2161,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnInt { get; set; }
+            public double? ColumnInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDoubleToSmallInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromDoubleToSmallInt()
         {
             // Setup
             var entity = new DoubleToSmallIntClass
@@ -1760,11 +2196,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnFloat { get; set; }
+            public double? ColumnFloat { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDoubleToFloat()
+        public void TestSqlConnectionInsertAndQueryConversionFromDoubleToFloat()
         {
             // Setup
             var entity = new DoubleToFloatClass
@@ -1795,11 +2231,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnReal { get; set; }
+            public double? ColumnReal { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDoubleToReal()
+        public void TestSqlConnectionInsertAndQueryConversionFromDoubleToReal()
         {
             // Setup
             var entity = new DoubleToRealClass
@@ -1817,7 +2253,7 @@ namespace RepoDb.IntegrationTests
                 var data = connection.Query<DoubleToRealClass>(e => e.SessionId == (Guid)id).FirstOrDefault();
 
                 // Assert
-                Assert.AreEqual(entity.ColumnReal, Math.Round(data.ColumnReal, 2));
+                Assert.AreEqual(entity.ColumnReal, Math.Round(data.ColumnReal.Value, 2));
             }
         }
 
@@ -1830,11 +2266,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnBit { get; set; }
+            public double? ColumnBit { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromDoubleToBit()
+        public void TestSqlConnectionInsertAndQueryConversionFromDoubleToBit()
         {
             // Setup
             var entity = new DoubleToBitClass
@@ -1865,11 +2301,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public float ColumnNVarChar { get; set; }
+            public float? ColumnNVarChar { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromFloatToString()
+        public void TestSqlConnectionInsertAndQueryConversionFromFloatToString()
         {
             // Setup
             var entity = new FloatToStringClass
@@ -1900,11 +2336,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnDecimal { get; set; }
+            public double? ColumnDecimal { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromFloatToDecimal()
+        public void TestSqlConnectionInsertAndQueryConversionFromFloatToDecimal()
         {
             // Setup
             var entity = new FloatToDecimalClass
@@ -1935,11 +2371,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnBigInt { get; set; }
+            public double? ColumnBigInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromFloatToBigInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromFloatToBigInt()
         {
             // Setup
             var entity = new FloatToBigIntClass
@@ -1970,11 +2406,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnInt { get; set; }
+            public double? ColumnInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromFloatToInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromFloatToInt()
         {
             // Setup
             var entity = new FloatToIntClass
@@ -2005,11 +2441,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnInt { get; set; }
+            public double? ColumnInt { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromFloatToSmallInt()
+        public void TestSqlConnectionInsertAndQueryConversionFromFloatToSmallInt()
         {
             // Setup
             var entity = new FloatToSmallIntClass
@@ -2040,11 +2476,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnFloat { get; set; }
+            public double? ColumnFloat { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromFloatToFloat()
+        public void TestSqlConnectionInsertAndQueryConversionFromFloatToFloat()
         {
             // Setup
             var entity = new FloatToFloatClass
@@ -2075,11 +2511,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnReal { get; set; }
+            public double? ColumnReal { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromFloatToReal()
+        public void TestSqlConnectionInsertAndQueryConversionFromFloatToReal()
         {
             // Setup
             var entity = new FloatToRealClass
@@ -2097,7 +2533,7 @@ namespace RepoDb.IntegrationTests
                 var data = connection.Query<FloatToRealClass>(e => e.SessionId == (Guid)id).FirstOrDefault();
 
                 // Assert
-                Assert.AreEqual(entity.ColumnReal, Math.Round(data.ColumnReal, 2));
+                Assert.AreEqual(entity.ColumnReal, Math.Round(data.ColumnReal.Value, 2));
             }
         }
 
@@ -2110,11 +2546,11 @@ namespace RepoDb.IntegrationTests
         {
             [Primary]
             public Guid SessionId { get; set; }
-            public double ColumnBit { get; set; }
+            public double? ColumnBit { get; set; }
         }
 
         [TestMethod]
-        public void TestSqlConnectionCrudConvertionFromFloatToBit()
+        public void TestSqlConnectionInsertAndQueryConversionFromFloatToBit()
         {
             // Setup
             var entity = new FloatToBitClass
@@ -2135,6 +2571,8 @@ namespace RepoDb.IntegrationTests
                 Assert.AreEqual(1, data.ColumnBit);
             }
         }
+
+        #endregion
 
         #endregion
     }

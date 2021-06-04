@@ -2,25 +2,24 @@
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RepoDb
 {
-    /// <summary>
-    /// A base object for all shared-based repositories.
-    /// </summary>
-    public partial class DbRepository<TDbConnection> : IDisposable where TDbConnection : DbConnection
+    public partial class DbRepository<TDbConnection> : IDisposable
+        where TDbConnection : DbConnection
     {
         #region MaxAll<TEntity>
 
         /// <summary>
-        /// Maximizes the target field from all data of the database table.
+        /// Computes the max value of the target field.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The field to be maximized.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The maximum value.</returns>
+        /// <returns>The max value of the target field.</returns>
         public object MaxAll<TEntity>(Field field,
             string hints = null,
             IDbTransaction transaction = null)
@@ -39,11 +38,6 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
-            {
-                // Throw back the error
-                throw;
-            }
             finally
             {
                 // Dispose the connection
@@ -52,13 +46,13 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Maximizes the target field from all data of the database table.
+        /// Computes the max value of the target field.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The field to be maximized.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The maximum value.</returns>
+        /// <returns>The max value of the target field.</returns>
         public object MaxAll<TEntity>(Expression<Func<TEntity, object>> field,
             string hints = null,
             IDbTransaction transaction = null)
@@ -77,10 +71,73 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the max value of the target field.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="field">The field to be maximized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The max value of the target field.</returns>
+        public TResult MaxAll<TEntity, TResult>(Field field,
+            string hints = null,
+            IDbTransaction transaction = null)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return connection.MaxAll<TEntity, TResult>(field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder);
+            }
+            finally
+            {
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the max value of the target field.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="field">The field to be maximized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The max value of the target field.</returns>
+        public TResult MaxAll<TEntity, TResult>(Expression<Func<TEntity, TResult>> field,
+            string hints = null,
+            IDbTransaction transaction = null)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return connection.MaxAll<TEntity, TResult>(field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder);
             }
             finally
             {
@@ -94,16 +151,18 @@ namespace RepoDb
         #region MaxAllAsync<TEntity>
 
         /// <summary>
-        /// Maximizes the target field from all data of the database table in an asynchronous way.
+        /// Computes the max value of the target field in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The field to be maximized.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The maximum value.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The max value of the target field.</returns>
         public async Task<object> MaxAllAsync<TEntity>(Field field,
             string hints = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Create a connection
@@ -117,12 +176,8 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
-            }
-            catch
-            {
-                // Throw back the error
-                throw;
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {
@@ -132,16 +187,18 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Maximizes the target field from all data of the database table in an asynchronous way.
+        /// Computes the max value of the target field in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The field to be maximized.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The maximum value.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The max value of the target field.</returns>
         public async Task<object> MaxAllAsync<TEntity>(Expression<Func<TEntity, object>> field,
             string hints = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Create a connection
@@ -155,12 +212,82 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the max value of the target field in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="field">The field to be maximized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The max value of the target field.</returns>
+        public async Task<TResult> MaxAllAsync<TEntity, TResult>(Field field,
+            string hints = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return await connection.MaxAllAsync<TEntity, TResult>(field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the max value of the target field in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="field">The field to be maximized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The max value of the target field.</returns>
+        public async Task<TResult> MaxAllAsync<TEntity, TResult>(Expression<Func<TEntity, TResult>> field,
+            string hints = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return await connection.MaxAllAsync<TEntity, TResult>(field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {
@@ -174,13 +301,13 @@ namespace RepoDb
         #region MaxAll(TableName)
 
         /// <summary>
-        /// Maximizes the target field from all data of the database table.
+        /// Computes the max value of the target field.
         /// </summary>
-        /// <param name="transaction">The transaction to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
         /// <param name="field">The field to be maximized.</param>
         /// <param name="hints">The table hints to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The max value of the target field.</returns>
         public object MaxAll(string tableName,
             Field field,
             string hints = null,
@@ -200,10 +327,40 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the max value of the target field.
+        /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="field">The field to be maximized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The max value of the target field.</returns>
+        public TResult MaxAll<TResult>(string tableName,
+            Field field,
+            string hints = null,
+            IDbTransaction transaction = null)
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return connection.MaxAll<TResult>(tableName: tableName,
+                    field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder);
             }
             finally
             {
@@ -217,17 +374,19 @@ namespace RepoDb
         #region MaxAllAsync(TableName)
 
         /// <summary>
-        /// Maximizes the target field from all data of the database table in an asynchronous way.
+        /// Computes the max value of the target field in an asynchronous way.
         /// </summary>
-        /// <param name="transaction">The transaction to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
         /// <param name="field">The field to be maximized.</param>
         /// <param name="hints">The table hints to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The max value of the target field.</returns>
         public async Task<object> MaxAllAsync(string tableName,
             Field field,
             string hints = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
             // Create a connection
             var connection = (transaction?.Connection ?? CreateConnection());
@@ -241,12 +400,46 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the max value of the target field in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="field">The field to be maximized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The max value of the target field.</returns>
+        public async Task<TResult> MaxAllAsync<TResult>(string tableName,
+            Field field,
+            string hints = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return await connection.MaxAllAsync<TResult>(tableName: tableName,
+                    field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {

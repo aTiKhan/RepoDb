@@ -49,8 +49,8 @@ namespace RepoDb.PostgreSql.IntegrationTests.Setup
         {
             using (var connection = new NpgsqlConnection(ConnectionString))
             {
-                connection.DeleteAll<CompleteTable>();
-                connection.DeleteAll<NonIdentityCompleteTable>();
+                connection.Truncate<CompleteTable>();
+                connection.Truncate<NonIdentityCompleteTable>();
             }
         }
 
@@ -208,7 +208,7 @@ namespace RepoDb.PostgreSql.IntegrationTests.Setup
                         ""ColumnTimeWithTimeZone"" time with time zone,
                         ""ColumnTimeWithoutTimeZone"" time without time zone,
                         ""ColumnTimeWithoutTimeZoneAsArray"" time without time zone[],
-                        ""ColumnTimestampWithTimeZone"" timestamp without time zone[],
+                        ""ColumnTimestampWithTimeZone"" timestamp with time zone,
                         ""ColumnTimestampWithTimeZoneAsArray"" timestamp with time zone[],
                         ""ColumnTimestampWithoutTimeZone"" timestamp without time zone,
                         ""ColumnTimestampWithoutTimeZoneAsArray"" timestamp without time zone[],
@@ -363,7 +363,7 @@ namespace RepoDb.PostgreSql.IntegrationTests.Setup
                         ""ColumnTimeWithTimeZone"" time with time zone,
                         ""ColumnTimeWithoutTimeZone"" time without time zone,
                         ""ColumnTimeWithoutTimeZoneAsArray"" time without time zone[],
-                        ""ColumnTimestampWithTimeZone"" timestamp without time zone[],
+                        ""ColumnTimestampWithTimeZone"" timestamp with time zone,
                         ""ColumnTimestampWithTimeZoneAsArray"" timestamp with time zone[],
                         ""ColumnTimestampWithoutTimeZone"" timestamp without time zone,
                         ""ColumnTimestampWithoutTimeZoneAsArray"" timestamp without time zone[],

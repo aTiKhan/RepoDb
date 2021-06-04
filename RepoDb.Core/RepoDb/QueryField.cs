@@ -1,24 +1,21 @@
-﻿using RepoDb.Attributes;
-using RepoDb.Enumerations;
-using RepoDb.Exceptions;
+﻿using RepoDb.Enumerations;
 using RepoDb.Extensions;
 using System;
+using System.Collections;
+using System.Data;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
 
 namespace RepoDb
 {
     /// <summary>
-    /// A class used to define the a expression for all operations. It holds the instances of field <see cref="RepoDb.Field"/>,
-    /// parameter <see cref="RepoDb.Parameter"/> and the target operation <see cref="RepoDb.Enumerations.Operation"/> of the query expression.
+    /// A class that is being used to define a field expression for the query operation. It holds the instances of the <see cref="RepoDb.Field"/>,
+    /// <see cref="RepoDb.Parameter"/> and the <see cref="Enumerations.Operation"/> objects of the query expression.
     /// </summary>
-    public class QueryField : IEquatable<QueryField>
+    public partial class QueryField : IEquatable<QueryField>
     {
         private const int HASHCODE_ISNULL = 128;
         private const int HASHCODE_ISNOTNULL = 256;
-        private int? m_hashCode = null;
-        private TextAttribute m_operationTextAttribute = null;
+        private int? hashCode = null;
 
         #region Constructors
 
@@ -32,8 +29,7 @@ namespace RepoDb
             : this(fieldName,
                   Operation.Equal,
                   value)
-        {
-        }
+        { }
 
         /// <summary>
         /// Creates a new instance of <see cref="QueryField"/> object.
@@ -48,8 +44,7 @@ namespace RepoDb
                   operation,
                   value,
                   false)
-        {
-        }
+        { }
 
         /// <summary>
         /// Creates a new instance of <see cref="QueryField"/> object.
@@ -62,8 +57,7 @@ namespace RepoDb
                   Operation.Equal,
                   value,
                   false)
-        {
-        }
+        { }
 
         /// <summary>
         /// Creates a new instance of <see cref="QueryField"/> object.
@@ -78,8 +72,7 @@ namespace RepoDb
                   operation,
                   value,
                   false)
-        {
-        }
+        { }
 
         /// <summary>
         /// Creates a new instance of <see cref="QueryField"/> object.
@@ -95,9 +88,8 @@ namespace RepoDb
             : this(new Field(fieldName),
                   operation,
                   value,
-                  false)
-        {
-        }
+                  appendUnderscore)
+        { }
 
         /// <summary>
         /// Creates a new instance of <see cref="QueryField"/> object.
@@ -135,6 +127,11 @@ namespace RepoDb
         /// </summary>
         public Parameter Parameter { get; }
 
+        /// <summary>
+        /// Gets the in-used instance of database parameter object.
+        /// </summary>
+        public IDbDataParameter DbParameter { get; set; }
+
         #endregion
 
         #region Methods
@@ -146,6 +143,31 @@ namespace RepoDb
         {
             Parameter?.PrependAnUnderscore();
         }
+
+        /// <summary>
+        /// Returns the name of the <see cref="Field"/> object current in used.
+        /// </summary>
+        public string GetName() =>
+            Field?.Name;
+
+        /// <summary>
+        /// Returns the value of the <see cref="Parameter"/> object currently in used. However, if this instance of object has already been used as a database parameter 
+        /// with <see cref="DbParameter.Direction"/> equals to <see cref="System.Data.ParameterDirection.Output"/> via <see cref="DirectionalQueryField"/> 
+        /// object, then the value of the in-used <see cref="IDbDataParameter"/> object will be returned.
+        /// </summary>
+        /// <returns>The value of the <see cref="Parameter"/> object.</returns>
+        public object GetValue() =>
+            GetValue<object>();
+
+        /// <summary>
+        /// Returns the value of the <see cref="Parameter"/> object currently in used. However, if this instance of object has already been used as a database parameter 
+        /// with <see cref="DbParameter.Direction"/> equals to <see cref="System.Data.ParameterDirection.Output"/> via <see cref="DirectionalQueryField"/> 
+        /// object, then the value of the in-used <see cref="IDbDataParameter"/> object will be returned.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns>The value of the converted <see cref="Parameter"/> object.</returns>
+        public T GetValue<T>() =>
+            Converter.ToType<T>(DbParameter?.Value ?? Parameter?.Value);
 
         /// <summary>
         /// Make the current instance of <see cref="QueryField"/> object to become an expression for 'Update' operations.
@@ -160,25 +182,9 @@ namespace RepoDb
         /// </summary>
         public void Reset()
         {
-            Parameter?.SetName(Field.Name);
-            m_operationTextAttribute = null;
-            m_hashCode = null;
-        }
-
-        /// <summary>
-        /// Gets the text value of <see cref="TextAttribute"/> implemented at the <see cref="Operation"/> property value of this instance.
-        /// </summary>
-        /// <returns>A string instance containing the value of the <see cref="TextAttribute"/> text property.</returns>
-        public string GetOperationText()
-        {
-            if (m_operationTextAttribute == null)
-            {
-                m_operationTextAttribute = typeof(Operation)
-                    .GetMembers()
-                    .First(member => string.Equals(member.Name, Operation.ToString(), StringComparison.OrdinalIgnoreCase))
-                    .GetCustomAttribute<TextAttribute>();
-            }
-            return m_operationTextAttribute.Text;
+            Parameter?.Reset();
+            DbParameter = null;
+            hashCode = null;
         }
 
         /// <summary>
@@ -192,82 +198,6 @@ namespace RepoDb
 
         #endregion
 
-        #region Static Methods
-
-        /// <summary>
-        /// Parse an instance of <see cref="BinaryExpression"/> object.
-        /// </summary>
-        /// <typeparam name="TEntity">The target entity type</typeparam>
-        /// <param name="expression">The instance of <see cref="BinaryExpression"/> to be parsed.</param>
-        /// <returns>An instance of <see cref="QueryField"/> object.</returns>
-        internal static QueryField Parse<TEntity>(BinaryExpression expression) where TEntity : class
-        {
-            // Only support the following expression type
-            if (expression.IsExtractable() == false)
-            {
-                throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
-            }
-
-            // Name
-            var field = expression.GetField();
-            var properties = PropertyCache.Get<TEntity>();
-
-            // Failing at some point - for base interfaces
-            var property = properties
-                .FirstOrDefault(p =>
-                    string.Equals(PropertyMappedNameCache.Get(p.PropertyInfo), field.Name, StringComparison.OrdinalIgnoreCase));
-
-            // Matches to the actual class properties
-            if (property == null)
-            {
-                property = properties
-                    .FirstOrDefault(p =>
-                        string.Equals(p.PropertyInfo.Name, field.Name, StringComparison.OrdinalIgnoreCase));
-
-                // Reset the field
-                field = property?.AsField();
-            }
-
-            // Check the existence
-            if (property == null)
-            {
-                throw new InvalidExpressionException($"Invalid expression '{expression.ToString()}'. The property {field.Name} is not defined on a target type '{typeof(TEntity).FullName}'.");
-            }
-
-            // Value
-            var value = expression.GetValue();
-
-            // Operation
-            var operation = GetOperation(expression.NodeType);
-
-            // Return the value
-            return new QueryField(field, operation, value);
-        }
-
-        // GetOperation
-        internal static Operation GetOperation(ExpressionType expressionType)
-        {
-            switch (expressionType)
-            {
-                case ExpressionType.Equal:
-                    return Operation.Equal;
-                case ExpressionType.NotEqual:
-                    return Operation.NotEqual;
-                case ExpressionType.GreaterThan:
-                    return Operation.GreaterThan;
-                case ExpressionType.GreaterThanOrEqual:
-                    return Operation.GreaterThanOrEqual;
-                case ExpressionType.LessThan:
-                    return Operation.LessThan;
-                case ExpressionType.LessThanOrEqual:
-                    return Operation.LessThanOrEqual;
-                default:
-                    throw new NotSupportedException($"Operation: Expression '{expressionType.ToString()}' is currently not supported.");
-            }
-        }
-
-        #endregion
-
         #region Equality and comparers
 
         /// <summary>
@@ -276,9 +206,9 @@ namespace RepoDb
         /// <returns>The hashcode value.</returns>
         public override int GetHashCode()
         {
-            if (m_hashCode != null)
+            if (this.hashCode != null)
             {
-                return m_hashCode.Value;
+                return this.hashCode.Value;
             }
 
             var hashCode = 0;
@@ -298,17 +228,21 @@ namespace RepoDb
             }
             // The parameter's length affects the uniqueness of the object
             else if ((Operation == Operation.In || Operation == Operation.NotIn) &&
-                Parameter.Value != null && Parameter.Value is System.Collections.IEnumerable)
+                Parameter.Value != null && Parameter.Value is IEnumerable enumerable)
             {
-                var items = ((System.Collections.IEnumerable)Parameter.Value);
+                var items = enumerable;
                 hashCode += items
-                    .OfType<object>()
+                    .WithType<object>()
                     .Count()
                     .GetHashCode();
             }
+            // The string representation affects the collision
+            // var objA = QueryGroup.Parse<EntityClass>(c => c.Id == 1 && c.Value != 1);
+            // var objB = QueryGroup.Parse<EntityClass>(c => c.Id != 1 && c.Value == 1);
+            hashCode += HashCode.Combine(Field.Name, Operation.GetText());
 
             // Set and return the hashcode
-            return (m_hashCode = hashCode).Value;
+            return (this.hashCode = hashCode).Value;
         }
 
         /// <summary>
@@ -316,20 +250,16 @@ namespace RepoDb
         /// </summary>
         /// <param name="obj">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equals.</returns>
-        public override bool Equals(object obj)
-        {
-            return obj?.GetHashCode() == GetHashCode();
-        }
+        public override bool Equals(object obj) =>
+            obj?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the <see cref="QueryField"/> object equality against the given target object.
         /// </summary>
         /// <param name="other">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public bool Equals(QueryField other)
-        {
-            return other?.GetHashCode() == GetHashCode();
-        }
+        public bool Equals(QueryField other) =>
+            other?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the equality of the two <see cref="QueryField"/> objects.
@@ -337,11 +267,12 @@ namespace RepoDb
         /// <param name="objA">The first <see cref="QueryField"/> object.</param>
         /// <param name="objB">The second <see cref="QueryField"/> object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public static bool operator ==(QueryField objA, QueryField objB)
+        public static bool operator ==(QueryField objA,
+            QueryField objB)
         {
-            if (ReferenceEquals(null, objA))
+            if (objA is null)
             {
-                return ReferenceEquals(null, objB);
+                return objB is null;
             }
             return objB?.GetHashCode() == objA.GetHashCode();
         }
@@ -352,10 +283,9 @@ namespace RepoDb
         /// <param name="objA">The first <see cref="QueryField"/> object.</param>
         /// <param name="objB">The second <see cref="QueryField"/> object.</param>
         /// <returns>True if the instances are not equal.</returns>
-        public static bool operator !=(QueryField objA, QueryField objB)
-        {
-            return (objA == objB) == false;
-        }
+        public static bool operator !=(QueryField objA,
+            QueryField objB) =>
+            (objA == objB) == false;
 
         #endregion
     }

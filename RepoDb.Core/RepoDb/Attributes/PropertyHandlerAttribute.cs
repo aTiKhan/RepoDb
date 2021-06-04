@@ -1,13 +1,11 @@
 ﻿using RepoDb.Exceptions;
 using RepoDb.Extensions;
-using RepoDb.Interfaces;
-using RepoDb.StatementBuilders;
 using System;
 
 namespace RepoDb.Attributes
 {
     /// <summary>
-    /// An attribute used to define a handler for the property transformation.
+    /// An attribute that is used to define a handler for the property transformation.
     /// </summary>
     public class PropertyHandlerAttribute : Attribute
     {
@@ -32,12 +30,15 @@ namespace RepoDb.Attributes
 
         #region Methods
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="handlerType"></param>
         private void Validate(Type handlerType)
         {
-            var isInterfacedTo = handlerType.IsInterfacedTo(typeof(IPropertyHandler<,>));
-            if (isInterfacedTo == false)
+            if (handlerType?.IsInterfacedTo(StaticType.IPropertyHandler) != true)
             {
-                throw new InvalidTypeException($"Type '{handlerType.FullName}' must implement the '{typeof(IPropertyHandler<,>).FullName}' interface.");
+                throw new InvalidTypeException($"Type '{handlerType.FullName}' must implement the '{StaticType.IPropertyHandler}' interface.");
             }
         }
 

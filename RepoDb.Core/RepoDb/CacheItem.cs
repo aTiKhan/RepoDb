@@ -4,7 +4,7 @@ using System;
 namespace RepoDb
 {
     /// <summary>
-    /// An item used when caching an object in the repository object. This is the default class used by the <see cref="MemoryCache"/> object.
+    /// A class that is being used to cache the resultsets of the query operations. This is the default class used by the <see cref="MemoryCache"/> object.
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     public class CacheItem<T> : IExpirable
@@ -29,17 +29,17 @@ namespace RepoDb
         /// <param name="cacheItemExpiration">The expiration in minutes of the cache item.</param>
         public CacheItem(string key,
             T value,
-            int cacheItemExpiration = Constant.DefaultCacheItemExpirationInMinutes)
+            int? cacheItemExpiration = Constant.DefaultCacheItemExpirationInMinutes)
         {
             if (cacheItemExpiration < 0)
             {
-                throw new ArgumentOutOfRangeException("Expiration in minutes must not be negative values.");
+                throw new ArgumentOutOfRangeException(nameof(cacheItemExpiration), "Expiration in minutes must not be negative values.");
             }
             Key = key;
             Value = value;
             CacheItemExpiration = cacheItemExpiration;
             CreatedDate = DateTime.UtcNow;
-            Expiration = CreatedDate.AddMinutes(cacheItemExpiration);
+            Expiration = CreatedDate.AddMinutes(cacheItemExpiration.GetValueOrDefault());
         }
 
         #region Methods
@@ -79,7 +79,7 @@ namespace RepoDb
         /// <summary>
         /// Gets the expiration in minutes of the cache item.
         /// </summary>
-        public int CacheItemExpiration { get; }
+        public int? CacheItemExpiration { get; }
 
         #endregion
 

@@ -1,5 +1,4 @@
-﻿using RepoDb.Interfaces;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Dynamic;
@@ -18,6 +17,7 @@ namespace RepoDb.Extensions
         /// <typeparam name="TEntity">The target type of the data entity.</typeparam>
         /// <param name="reader">The data reader object to be converted.</param>
         /// <returns>An enumerable list of data entity objects.</returns>
+        [Obsolete("This extended method will be removed soon.")]
         public static IEnumerable<TEntity> AsEnumerable<TEntity>(this IDataReader reader)
             where TEntity : class
         {
@@ -49,6 +49,7 @@ namespace RepoDb.Extensions
         /// </summary>
         /// <param name="reader">The data reader object to be converted.</param>
         /// <returns>An enumerable list of dynamic objects containing the schema of the reader.</returns>
+        [Obsolete("This extended method will be removed soon.")]
         public static IEnumerable<object> AsEnumerable(this IDataReader reader)
         {
             while (reader.Read())

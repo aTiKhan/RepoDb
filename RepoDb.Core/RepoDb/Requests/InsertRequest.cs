@@ -7,11 +7,11 @@ using System.Data;
 namespace RepoDb.Requests
 {
     /// <summary>
-    /// A class that holds the value of the insert operation arguments.
+    /// A class that holds the value of the 'Insert' operation arguments.
     /// </summary>
     internal class InsertRequest : BaseRequest, IEquatable<InsertRequest>
     {
-        private int? m_hashCode = null;
+        private int? hashCode = null;
 
         /// <summary>
         /// Creates a new instance of <see cref="InsertRequest"/> object.
@@ -81,13 +81,13 @@ namespace RepoDb.Requests
         public override int GetHashCode()
         {
             // Make sure to return if it is already provided
-            if (m_hashCode != null)
+            if (this.hashCode != null)
             {
-                return m_hashCode.Value;
+                return this.hashCode.Value;
             }
 
             // Get first the entity hash code
-            var hashCode = string.Concat(Name, ".Insert").GetHashCode();
+            var hashCode = HashCode.Combine(Name, ".Insert");
 
             // Get the qualifier <see cref="Field"/> objects
             if (Fields != null)
@@ -99,13 +99,13 @@ namespace RepoDb.Requests
             }
 
             // Add the hints
-            if (!string.IsNullOrEmpty(Hints))
+            if (!string.IsNullOrWhiteSpace(Hints))
             {
                 hashCode += Hints.GetHashCode();
             }
 
             // Set and return the hashcode
-            return (m_hashCode = hashCode).Value;
+            return (this.hashCode = hashCode).Value;
         }
 
         /// <summary>
@@ -113,20 +113,16 @@ namespace RepoDb.Requests
         /// </summary>
         /// <param name="obj">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equals.</returns>
-        public override bool Equals(object obj)
-        {
-            return obj?.GetHashCode() == GetHashCode();
-        }
+        public override bool Equals(object obj) =>
+            obj?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the <see cref="InsertRequest"/> object equality against the given target object.
         /// </summary>
         /// <param name="other">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public bool Equals(InsertRequest other)
-        {
-            return other?.GetHashCode() == GetHashCode();
-        }
+        public bool Equals(InsertRequest other) =>
+            other?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the equality of the two <see cref="InsertRequest"/> objects.
@@ -134,11 +130,12 @@ namespace RepoDb.Requests
         /// <param name="objA">The first <see cref="InsertRequest"/> object.</param>
         /// <param name="objB">The second <see cref="InsertRequest"/> object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public static bool operator ==(InsertRequest objA, InsertRequest objB)
+        public static bool operator ==(InsertRequest objA,
+            InsertRequest objB)
         {
-            if (ReferenceEquals(null, objA))
+            if (objA is null)
             {
-                return ReferenceEquals(null, objB);
+                return objB is null;
             }
             return objB?.GetHashCode() == objA.GetHashCode();
         }
@@ -149,10 +146,9 @@ namespace RepoDb.Requests
         /// <param name="objA">The first <see cref="InsertRequest"/> object.</param>
         /// <param name="objB">The second <see cref="InsertRequest"/> object.</param>
         /// <returns>True if the instances are not equal.</returns>
-        public static bool operator !=(InsertRequest objA, InsertRequest objB)
-        {
-            return (objA == objB) == false;
-        }
+        public static bool operator !=(InsertRequest objA,
+            InsertRequest objB) =>
+            (objA == objB) == false;
 
         #endregion
     }

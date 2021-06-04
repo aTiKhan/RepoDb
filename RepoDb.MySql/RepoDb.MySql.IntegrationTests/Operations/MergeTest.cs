@@ -3,6 +3,7 @@ using MySql.Data.MySqlClient;
 using RepoDb.MySql.IntegrationTests.Models;
 using RepoDb.MySql.IntegrationTests.Setup;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace RepoDb.MySql.IntegrationTests.Operations
@@ -37,10 +38,10 @@ namespace RepoDb.MySql.IntegrationTests.Operations
             {
                 // Act
                 var result = connection.Merge<CompleteTable>(table);
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
@@ -60,13 +61,13 @@ namespace RepoDb.MySql.IntegrationTests.Operations
                 var result = connection.Merge<CompleteTable>(table);
 
                 // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Assert.AreEqual(table.Id, Convert.ToInt64(result));
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
                 Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
@@ -90,16 +91,16 @@ namespace RepoDb.MySql.IntegrationTests.Operations
 
                 // Act
                 var result = connection.Merge<CompleteTable>(table,
-                    qualifiers);
+                    qualifiers: qualifiers);
 
                 // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Assert.AreEqual(table.Id, Convert.ToInt64(result));
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
                 Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
@@ -118,10 +119,10 @@ namespace RepoDb.MySql.IntegrationTests.Operations
             {
                 // Act
                 var result = connection.MergeAsync<CompleteTable>(table).Result;
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
@@ -141,13 +142,13 @@ namespace RepoDb.MySql.IntegrationTests.Operations
                 var result = connection.MergeAsync<CompleteTable>(table).Result;
 
                 // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Assert.AreEqual(table.Id, Convert.ToInt64(result));
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
                 Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
@@ -171,16 +172,16 @@ namespace RepoDb.MySql.IntegrationTests.Operations
 
                 // Act
                 var result = connection.MergeAsync<CompleteTable>(table,
-                    qualifiers).Result;
+                    qualifiers: qualifiers).Result;
 
                 // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Assert.AreEqual(table.Id, Convert.ToInt64(result));
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
                 Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
@@ -204,11 +205,31 @@ namespace RepoDb.MySql.IntegrationTests.Operations
                 // Act
                 var result = connection.Merge(ClassMappedNameCache.Get<CompleteTable>(),
                     table);
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
-                Helper.AssertMembersEquality(table, queryResult.First());
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
+                Helper.AssertPropertiesEquality(table, queryResult.First());
+            }
+        }
+
+        [TestMethod]
+        public void TestMySqlConnectionMergeAsExpandoObjectViaTableNameForIdentityForEmptyTable()
+        {
+            // Setup
+            var table = Helper.CreateCompleteTablesAsExpandoObjects(1).First();
+
+            using (var connection = new MySqlConnection(Database.ConnectionString))
+            {
+                // Act
+                var result = connection.Merge(ClassMappedNameCache.Get<CompleteTable>(),
+                    table);
+                var queryResult = connection.Query<CompleteTable>(result);
+
+                // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
+                Assert.IsTrue(((dynamic)table).Id == Convert.ToInt64(result));
+                Helper.AssertMembersEquality(queryResult.First(), table);
             }
         }
 
@@ -228,14 +249,43 @@ namespace RepoDb.MySql.IntegrationTests.Operations
                     table);
 
                 // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Assert.AreEqual(table.Id, Convert.ToInt64(result));
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
-                Helper.AssertMembersEquality(table, queryResult.First());
+                Helper.AssertPropertiesEquality(table, queryResult.First());
+            }
+        }
+
+        [TestMethod]
+        public void TestMySqlConnectionMergeAsExpandoObjectViaTableNameForIdentityForNonEmptyTable()
+        {
+            // Setup
+            var table = Database.CreateCompleteTables(1).First();
+
+            using (var connection = new MySqlConnection(Database.ConnectionString))
+            {
+                // Setup
+                var entity = Helper.CreateCompleteTablesAsExpandoObjects(1).First();
+                ((IDictionary<string, object>)entity)["Id"] = table.Id;
+
+                // Act
+                var result = connection.Merge<long>(ClassMappedNameCache.Get<CompleteTable>(),
+                    entity);
+
+                // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
+                Assert.AreEqual(table.Id, result);
+                Assert.AreEqual(((dynamic)table).Id, result);
+
+                // Act
+                var queryResult = connection.Query<CompleteTable>(result);
+
+                // Assert
+                Helper.AssertMembersEquality(queryResult.First(), entity);
             }
         }
 
@@ -259,17 +309,17 @@ namespace RepoDb.MySql.IntegrationTests.Operations
                 // Act
                 var result = connection.Merge(ClassMappedNameCache.Get<CompleteTable>(),
                     table,
-                    qualifiers);
+                    qualifiers: qualifiers);
 
                 // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Assert.AreEqual(table.Id, Convert.ToInt64(result));
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
-                Helper.AssertMembersEquality(table, queryResult.First());
+                Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
 
@@ -286,14 +336,14 @@ namespace RepoDb.MySql.IntegrationTests.Operations
                     (object)table);
 
                 // Assert
-                Assert.AreEqual(table.Id, Convert.ToInt64(result));
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
+                Assert.IsTrue(Convert.ToInt64(result) > 0);
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
-                Helper.AssertMembersEquality(table, queryResult.First());
+                Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
 
@@ -302,27 +352,25 @@ namespace RepoDb.MySql.IntegrationTests.Operations
         {
             // Setup
             var table = Database.CreateCompleteTables(1).First();
-            var obj = new
-            {
-                table.Id,
-                ColumnInt = int.MaxValue
-            };
 
             using (var connection = new MySqlConnection(Database.ConnectionString))
             {
+                // Setup
+                Helper.UpdateCompleteTableProperties(table);
+
                 // Act
                 var result = connection.Merge(ClassMappedNameCache.Get<CompleteTable>(),
-                    (object)obj);
+                    table);
 
                 // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Assert.AreEqual(table.Id, Convert.ToInt64(result));
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.IsTrue(queryResult.Count() > 0);
-                Assert.AreEqual(obj.ColumnInt, queryResult.First().ColumnInt);
+                Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
 
@@ -331,11 +379,6 @@ namespace RepoDb.MySql.IntegrationTests.Operations
         {
             // Setup
             var table = Database.CreateCompleteTables(1).First();
-            var obj = new
-            {
-                table.Id,
-                ColumnInt = int.MaxValue
-            };
             var qualifiers = new[]
             {
                 new Field("Id", typeof(long))
@@ -343,20 +386,23 @@ namespace RepoDb.MySql.IntegrationTests.Operations
 
             using (var connection = new MySqlConnection(Database.ConnectionString))
             {
+                // Setup
+                Helper.UpdateCompleteTableProperties(table);
+
                 // Act
                 var result = connection.Merge(ClassMappedNameCache.Get<CompleteTable>(),
-                    (object)obj,
-                    qualifiers);
+                    table,
+                    qualifiers: qualifiers);
 
                 // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Assert.AreEqual(table.Id, Convert.ToInt64(result));
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.IsTrue(queryResult.Count() > 0);
-                Assert.AreEqual(obj.ColumnInt, queryResult.First().ColumnInt);
+                Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
 
@@ -375,11 +421,31 @@ namespace RepoDb.MySql.IntegrationTests.Operations
                 // Act
                 var result = connection.MergeAsync(ClassMappedNameCache.Get<CompleteTable>(),
                     table).Result;
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
-                Helper.AssertMembersEquality(table, queryResult.First());
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
+                Helper.AssertPropertiesEquality(table, queryResult.First());
+            }
+        }
+
+        [TestMethod]
+        public void TestMySqlConnectionMergeAsyncAsExpandoObjectViaTableNameForIdentityForEmptyTable()
+        {
+            // Setup
+            var table = Helper.CreateCompleteTablesAsExpandoObjects(1).First();
+
+            using (var connection = new MySqlConnection(Database.ConnectionString))
+            {
+                // Act
+                var result = connection.MergeAsync(ClassMappedNameCache.Get<CompleteTable>(),
+                    table).Result;
+                var queryResult = connection.Query<CompleteTable>(result);
+
+                // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
+                Assert.IsTrue(((dynamic)table).Id == Convert.ToInt64(result));
+                Helper.AssertMembersEquality(queryResult.First(), table);
             }
         }
 
@@ -399,14 +465,43 @@ namespace RepoDb.MySql.IntegrationTests.Operations
                     table).Result;
 
                 // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Assert.AreEqual(table.Id, Convert.ToInt64(result));
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
-                Helper.AssertMembersEquality(table, queryResult.First());
+                Helper.AssertPropertiesEquality(table, queryResult.First());
+            }
+        }
+
+        [TestMethod]
+        public void TestMySqlConnectionMergeAsyncAsExpandoObjectViaTableNameForIdentityForNonEmptyTable()
+        {
+            // Setup
+            var table = Database.CreateCompleteTables(1).First();
+
+            using (var connection = new MySqlConnection(Database.ConnectionString))
+            {
+                // Setup
+                var entity = Helper.CreateCompleteTablesAsExpandoObjects(1).First();
+                ((IDictionary<string, object>)entity)["Id"] = table.Id;
+
+                // Act
+                var result = connection.MergeAsync<long>(ClassMappedNameCache.Get<CompleteTable>(),
+                    entity).Result;
+
+                // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
+                Assert.AreEqual(table.Id, result);
+                Assert.AreEqual(((dynamic)table).Id, result);
+
+                // Act
+                var queryResult = connection.Query<CompleteTable>(result);
+
+                // Assert
+                Helper.AssertMembersEquality(queryResult.First(), entity);
             }
         }
 
@@ -428,17 +523,17 @@ namespace RepoDb.MySql.IntegrationTests.Operations
                 // Act
                 var result = connection.MergeAsync(ClassMappedNameCache.Get<CompleteTable>(),
                     table,
-                    qualifiers).Result;
+                    qualifiers: qualifiers).Result;
 
                 // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Assert.AreEqual(table.Id, Convert.ToInt64(result));
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
-                Helper.AssertMembersEquality(table, queryResult.First());
+                Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
 
@@ -455,14 +550,14 @@ namespace RepoDb.MySql.IntegrationTests.Operations
                     (object)table).Result;
 
                 // Assert
-                Assert.AreEqual(table.Id, Convert.ToInt64(result));
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
+                Assert.IsTrue(Convert.ToInt64(result) > 0);
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.AreEqual(1, queryResult?.Count());
-                Helper.AssertMembersEquality(table, queryResult.First());
+                Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
 
@@ -471,27 +566,25 @@ namespace RepoDb.MySql.IntegrationTests.Operations
         {
             // Setup
             var table = Database.CreateCompleteTables(1).First();
-            var obj = new
-            {
-                table.Id,
-                ColumnInt = int.MaxValue
-            };
 
             using (var connection = new MySqlConnection(Database.ConnectionString))
             {
+                // Setup
+                Helper.UpdateCompleteTableProperties(table);
+
                 // Act
                 var result = connection.MergeAsync(ClassMappedNameCache.Get<CompleteTable>(),
-                    (object)obj).Result;
+                    table).Result;
 
                 // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Assert.AreEqual(table.Id, Convert.ToInt64(result));
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.IsTrue(queryResult.Count() > 0);
-                Assert.AreEqual(obj.ColumnInt, queryResult.First().ColumnInt);
+                Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
 
@@ -500,11 +593,6 @@ namespace RepoDb.MySql.IntegrationTests.Operations
         {
             // Setup
             var table = Database.CreateCompleteTables(1).First();
-            var obj = new
-            {
-                table.Id,
-                ColumnInt = int.MaxValue
-            };
             var qualifiers = new[]
             {
                 new Field("Id", typeof(long))
@@ -512,20 +600,23 @@ namespace RepoDb.MySql.IntegrationTests.Operations
 
             using (var connection = new MySqlConnection(Database.ConnectionString))
             {
+                // Setup
+                Helper.UpdateCompleteTableProperties(table);
+
                 // Act
                 var result = connection.MergeAsync(ClassMappedNameCache.Get<CompleteTable>(),
-                    (object)obj,
-                    qualifiers).Result;
+                    table,
+                    qualifiers: qualifiers).Result;
 
                 // Assert
+                Assert.AreEqual(1, connection.CountAll<CompleteTable>());
                 Assert.AreEqual(table.Id, Convert.ToInt64(result));
 
                 // Act
-                var queryResult = connection.Query<CompleteTable>(Convert.ToInt64(result));
+                var queryResult = connection.Query<CompleteTable>(result);
 
                 // Assert
-                Assert.IsTrue(queryResult.Count() > 0);
-                Assert.AreEqual(obj.ColumnInt, queryResult.First().ColumnInt);
+                Helper.AssertPropertiesEquality(table, queryResult.First());
             }
         }
 

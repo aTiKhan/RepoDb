@@ -1,9 +1,7 @@
-﻿using System.Data.SQLite;
-
-namespace RepoDb.DbSettings
+﻿namespace RepoDb.DbSettings
 {
     /// <summary>
-    /// A setting class used for <see cref="SQLiteConnection"/> data provider.
+    /// A setting class used for SQLite data provider.
     /// </summary>
     public sealed class SqLiteDbSetting : BaseDbSetting
     {
@@ -11,20 +9,25 @@ namespace RepoDb.DbSettings
         /// Creates a new instance of <see cref="SqLiteDbSetting"/> class.
         /// </summary>
         public SqLiteDbSetting()
-            : base()
+            : this(true)
+        { }
+
+        /// <summary>
+        /// Creates a new instance of <see cref="SqLiteDbSetting"/> class.
+        /// </summary>
+        public SqLiteDbSetting(bool isExecuteReaderDisposable)
         {
             AreTableHintsSupported = false;
             AverageableType = typeof(double);
             ClosingQuote = "]";
             DefaultSchema = null;
             IsDirectionSupported = false;
-            IsExecuteReaderDisposable = true;
+            IsExecuteReaderDisposable = isExecuteReaderDisposable;
             IsMultiStatementExecutable = true;
             IsPreparable = true;
-            IsUseUpsert = false;
+            IsUseUpsert = true;
             OpeningQuote = "[";
             ParameterPrefix = "@";
-            SchemaSeparator = ".";
         }
     }
 }

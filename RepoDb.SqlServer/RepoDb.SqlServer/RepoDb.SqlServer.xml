@@ -69,40 +69,24 @@
         </member>
         <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.GetCommandText">
             <summary>
-            Returns the command text that is being used to extract schema definitions.
+            
             </summary>
-            <returns>The command text.</returns>
+            <returns></returns>
         </member>
-        <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.ReaderToDbField(System.Data.IDataReader)">
+        <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.ReaderToDbField(System.Data.Common.DbDataReader)">
             <summary>
-            Converts the <see cref="T:System.Data.IDataReader"/> object into <see cref="T:RepoDb.DbField"/> object.
+            
             </summary>
-            <param name="reader">The instance of <see cref="T:System.Data.IDataReader"/> object.</param>
-            <returns>The instance of converted <see cref="T:RepoDb.DbField"/> object.</returns>
+            <param name="reader"></param>
+            <returns></returns>
         </member>
-        <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.GetConvertedSize(System.String,System.Int32)">
+        <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.ReaderToDbFieldAsync(System.Data.Common.DbDataReader,System.Threading.CancellationToken)">
             <summary>
-            Gets the converted size of the column specially for the 'N' types.
+            
             </summary>
-            <param name="type">The type of the column.</param>
-            <param name="size">The current size.</param>
-            <returns>The converted size of the column.</returns>
-        </member>
-        <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.GetSchema(System.String,RepoDb.Interfaces.IDbSetting)">
-            <summary>
-            Gets the actual schema of the table from the database.
-            </summary>
-            <param name="tableName">The passed table name.</param>
-            <param name="dbSetting">The currently in used <see cref="T:RepoDb.Interfaces.IDbSetting"/> object.</param>
-            <returns>The actual table schema.</returns>
-        </member>
-        <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.GetTableName(System.String,RepoDb.Interfaces.IDbSetting)">
-            <summary>
-            Gets the actual name of the table from the database.
-            </summary>
-            <param name="tableName">The passed table name.</param>
-            <param name="dbSetting">The currently in used <see cref="T:RepoDb.Interfaces.IDbSetting"/> object.</param>
-            <returns>The actual table name.</returns>
+            <param name="reader"></param>
+            <param name="cancellationToken"></param>
+            <returns></returns>
         </member>
         <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.GetFields(System.Data.IDbConnection,System.String,System.Data.IDbTransaction)">
             <summary>
@@ -113,13 +97,14 @@
             <param name="transaction">The transaction object that is currently in used.</param>
             <returns>A list of <see cref="T:RepoDb.DbField"/> of the target table.</returns>
         </member>
-        <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.GetFieldsAsync(System.Data.IDbConnection,System.String,System.Data.IDbTransaction)">
+        <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.GetFieldsAsync(System.Data.IDbConnection,System.String,System.Data.IDbTransaction,System.Threading.CancellationToken)">
             <summary>
-            Gets the list of <see cref="T:RepoDb.DbField"/> of the table in an asychronous way.
+            Gets the list of <see cref="T:RepoDb.DbField"/> of the table in an asynchronous way.
             </summary>
             <param name="connection">The instance of the connection object.</param>
             <param name="tableName">The name of the target table.</param>
             <param name="transaction">The transaction object that is currently in used.</param>
+            <param name="cancellationToken">The <see cref="T:System.Threading.CancellationToken"/> object to be used during the asynchronous operation.</param>
             <returns>A list of <see cref="T:RepoDb.DbField"/> of the target table.</returns>
         </member>
         <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.GetScopeIdentity(System.Data.IDbConnection,System.Data.IDbTransaction)">
@@ -130,12 +115,13 @@
             <param name="transaction">The transaction object that is currently in used.</param>
             <returns>The newly generated identity from the database.</returns>
         </member>
-        <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.GetScopeIdentityAsync(System.Data.IDbConnection,System.Data.IDbTransaction)">
+        <member name="M:RepoDb.DbHelpers.SqlServerDbHelper.GetScopeIdentityAsync(System.Data.IDbConnection,System.Data.IDbTransaction,System.Threading.CancellationToken)">
             <summary>
-            Gets the newly generated identity from the database in an asychronous way.
+            Gets the newly generated identity from the database in an asynchronous way.
             </summary>
             <param name="connection">The instance of the connection object.</param>
             <param name="transaction">The transaction object that is currently in used.</param>
+            <param name="cancellationToken">The <see cref="T:System.Threading.CancellationToken"/> object to be used during the asynchronous operation.</param>
             <returns>The newly generated identity from the database.</returns>
         </member>
         <member name="T:RepoDb.DbSettings.SqlServerDbSetting">

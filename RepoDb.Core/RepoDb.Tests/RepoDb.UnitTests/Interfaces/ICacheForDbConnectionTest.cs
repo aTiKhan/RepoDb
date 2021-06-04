@@ -4,7 +4,6 @@ using RepoDb.Interfaces;
 using RepoDb.UnitTests.CustomObjects;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq.Expressions;
 
 namespace RepoDb.UnitTests.Interfaces
@@ -16,6 +15,7 @@ namespace RepoDb.UnitTests.Interfaces
         public void Initialize()
         {
             DbSettingMapper.Add(typeof(CacheDbConnection), new CustomDbSetting(), true);
+            DbHelperMapper.Add(typeof(CacheDbConnection), new CustomDbHelper(), true);
             StatementBuilderMapper.Add(typeof(CacheDbConnection), new CustomStatementBuilder(), true);
         }
 
@@ -43,6 +43,7 @@ namespace RepoDb.UnitTests.Interfaces
 
             // Act
             new CacheDbConnection().Query<CacheEntity>(where: (QueryGroup)null,
+                fields: null,
                 orderBy: null,
                 top: 0,
                 hints: null,
@@ -71,16 +72,17 @@ namespace RepoDb.UnitTests.Interfaces
             var cacheItemExpiration = 60;
 
             // Act
-            new CacheDbConnection().Query<CacheEntity>((object)null, /* whereOrPrimaryKey */
-                (IEnumerable<OrderField>)null, /* orderBy */
-                (int?)null, /* top */
-                (string)null, /* hints */
-                cacheKey, /* cacheKey */
-                cacheItemExpiration, /* cacheItemExpiration */
-                (int?)null, /* commandTimeout */
-                (IDbTransaction)null, /* transaction */
-                cache.Object, /* cache */
-                (ITrace)null /* trace */);
+            new CacheDbConnection().Query<CacheEntity>(what: null,
+                fields: null,
+                orderBy: null,
+                top: null,
+                hints: null,
+                cacheKey: cacheKey,
+                cacheItemExpiration,
+                commandTimeout: null,
+                transaction: null,
+                cache: cache.Object,
+                trace: null);
 
             // Assert
             cache.Verify(c => c.Get<IEnumerable<CacheEntity>>(It.Is<string>(s => s == cacheKey),
@@ -101,6 +103,7 @@ namespace RepoDb.UnitTests.Interfaces
 
             // Act
             new CacheDbConnection().Query<CacheEntity>(where: (QueryField)null,
+                fields: null,
                 orderBy: null,
                 top: 0,
                 hints: null,
@@ -130,6 +133,7 @@ namespace RepoDb.UnitTests.Interfaces
 
             // Act
             new CacheDbConnection().Query<CacheEntity>(where: (IEnumerable<QueryField>)null,
+                fields: null,
                 orderBy: null,
                 top: 0,
                 hints: null,
@@ -159,6 +163,7 @@ namespace RepoDb.UnitTests.Interfaces
 
             // Act
             new CacheDbConnection().Query<CacheEntity>(where: (Expression<Func<CacheEntity, bool>>)null,
+                fields: null,
                 orderBy: null,
                 top: 0,
                 hints: null,
@@ -188,6 +193,7 @@ namespace RepoDb.UnitTests.Interfaces
 
             // Act
             new CacheDbConnection().Query<CacheEntity>(where: (QueryGroup)null,
+                fields: null,
                 orderBy: null,
                 top: 0,
                 hints: null,
@@ -221,6 +227,7 @@ namespace RepoDb.UnitTests.Interfaces
 
             // Act
             var result = new CacheDbConnection().QueryAsync<CacheEntity>(where: (QueryGroup)null,
+                fields: null,
                 orderBy: null,
                 top: 0,
                 hints: null,
@@ -249,16 +256,17 @@ namespace RepoDb.UnitTests.Interfaces
             var cacheItemExpiration = 60;
 
             // Act
-            var result = new CacheDbConnection().QueryAsync<CacheEntity>((object)null, /* whereOrPrimaryKey */
-                (IEnumerable<OrderField>)null, /* orderBy */
-                (int?)null, /* top */
-                (string)null, /* hints */
-                cacheKey, /* cacheKey */
-                cacheItemExpiration, /* cacheItemExpiration */
-                (int?)null, /* commandTimeout */
-                (IDbTransaction)null, /* transaction */
-                cache.Object, /* cache */
-                (ITrace)null /* trace */).Result;
+            new CacheDbConnection().QueryAsync<CacheEntity>(what: null,
+                fields: null,
+                orderBy: null,
+                top: null,
+                hints: null,
+                cacheKey: cacheKey,
+                cacheItemExpiration,
+                commandTimeout: null,
+                transaction: null,
+                cache: cache.Object,
+                trace: null).Wait();
 
             // Assert
             cache.Verify(c => c.Get<IEnumerable<CacheEntity>>(It.Is<string>(s => s == cacheKey),
@@ -279,6 +287,7 @@ namespace RepoDb.UnitTests.Interfaces
 
             // Act
             var result = new CacheDbConnection().QueryAsync<CacheEntity>(where: (QueryField)null,
+                fields: null,
                 orderBy: null,
                 top: 0,
                 hints: null,
@@ -308,6 +317,7 @@ namespace RepoDb.UnitTests.Interfaces
 
             // Act
             var result = new CacheDbConnection().QueryAsync<CacheEntity>(where: (IEnumerable<QueryField>)null,
+                fields: null,
                 orderBy: null,
                 top: 0,
                 hints: null,
@@ -337,6 +347,7 @@ namespace RepoDb.UnitTests.Interfaces
 
             // Act
             var result = new CacheDbConnection().QueryAsync<CacheEntity>(where: (Expression<Func<CacheEntity, bool>>)null,
+                fields: null,
                 orderBy: null,
                 top: 0,
                 hints: null,
@@ -366,6 +377,7 @@ namespace RepoDb.UnitTests.Interfaces
 
             // Act
             var result = new CacheDbConnection().QueryAsync<CacheEntity>(where: (QueryGroup)null,
+                fields: null,
                 orderBy: null,
                 top: 0,
                 hints: null,

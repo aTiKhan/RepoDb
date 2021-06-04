@@ -2,25 +2,24 @@
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RepoDb
 {
-    /// <summary>
-    /// A base object for all shared-based repositories.
-    /// </summary>
-    public partial class DbRepository<TDbConnection> : IDisposable where TDbConnection : DbConnection
+    public partial class DbRepository<TDbConnection> : IDisposable
+        where TDbConnection : DbConnection
     {
         #region MinAll<TEntity>
 
         /// <summary>
-        /// Minimizes the target field from all data of the database table.
+        /// Computes the min value of the target field.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The field to be minimized.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The minimum value.</returns>
+        /// <returns>The min value of the target field.</returns>
         public object MinAll<TEntity>(Field field,
             string hints = null,
             IDbTransaction transaction = null)
@@ -39,11 +38,6 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
-            {
-                // Throw back the error
-                throw;
-            }
             finally
             {
                 // Dispose the connection
@@ -52,13 +46,13 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Minimizes the target field from all data of the database table.
+        /// Computes the min value of the target field.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The field to be minimized.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The minimum value.</returns>
+        /// <returns>The min value of the target field.</returns>
         public object MinAll<TEntity>(Expression<Func<TEntity, object>> field,
             string hints = null,
             IDbTransaction transaction = null)
@@ -77,10 +71,73 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the min value of the target field.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="field">The field to be minimized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The min value of the target field.</returns>
+        public TResult MinAll<TEntity, TResult>(Field field,
+            string hints = null,
+            IDbTransaction transaction = null)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return connection.MinAll<TEntity, TResult>(field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder);
+            }
+            finally
+            {
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the min value of the target field.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="field">The field to be minimized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The min value of the target field.</returns>
+        public TResult MinAll<TEntity, TResult>(Expression<Func<TEntity, TResult>> field,
+            string hints = null,
+            IDbTransaction transaction = null)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return connection.MinAll<TEntity, TResult>(field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder);
             }
             finally
             {
@@ -94,16 +151,18 @@ namespace RepoDb
         #region MinAllAsync<TEntity>
 
         /// <summary>
-        /// Minimizes the target field from all data of the database table in an asynchronous way.
+        /// Computes the min value of the target field in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The field to be minimized.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The minimum value.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The min value of the target field.</returns>
         public async Task<object> MinAllAsync<TEntity>(Field field,
             string hints = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Create a connection
@@ -117,12 +176,8 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
-            }
-            catch
-            {
-                // Throw back the error
-                throw;
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {
@@ -132,16 +187,18 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Minimizes the target field from all data of the database table in an asynchronous way.
+        /// Computes the min value of the target field in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The field to be minimized.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The minimum value.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The min value of the target field.</returns>
         public async Task<object> MinAllAsync<TEntity>(Expression<Func<TEntity, object>> field,
             string hints = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Create a connection
@@ -155,12 +212,82 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the min value of the target field in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="field">The field to be minimized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The min value of the target field.</returns>
+        public async Task<TResult> MinAllAsync<TEntity, TResult>(Field field,
+            string hints = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return await connection.MinAllAsync<TEntity, TResult>(field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the min value of the target field in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="field">The field to be minimized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The min value of the target field.</returns>
+        public async Task<TResult> MinAllAsync<TEntity, TResult>(Expression<Func<TEntity, TResult>> field,
+            string hints = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return await connection.MinAllAsync<TEntity, TResult>(field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {
@@ -174,13 +301,13 @@ namespace RepoDb
         #region MinAll(TableName)
 
         /// <summary>
-        /// Minimizes the target field from all data of the database table.
+        /// Computes the min value of the target field.
         /// </summary>
-        /// <param name="transaction">The transaction to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
         /// <param name="field">The field to be minimized.</param>
         /// <param name="hints">The table hints to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The min value of the target field.</returns>
         public object MinAll(string tableName,
             Field field,
             string hints = null,
@@ -200,10 +327,40 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the min value of the target field.
+        /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="field">The field to be minimized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The min value of the target field.</returns>
+        public TResult MinAll<TResult>(string tableName,
+            Field field,
+            string hints = null,
+            IDbTransaction transaction = null)
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return connection.MinAll<TResult>(tableName: tableName,
+                    field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder);
             }
             finally
             {
@@ -217,17 +374,19 @@ namespace RepoDb
         #region MinAllAsync(TableName)
 
         /// <summary>
-        /// Minimizes the target field from all data of the database table in an asynchronous way.
+        /// Computes the min value of the target field in an asynchronous way.
         /// </summary>
-        /// <param name="transaction">The transaction to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
         /// <param name="field">The field to be minimized.</param>
         /// <param name="hints">The table hints to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The min value of the target field.</returns>
         public async Task<object> MinAllAsync(string tableName,
             Field field,
             string hints = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
             // Create a connection
             var connection = (transaction?.Connection ?? CreateConnection());
@@ -241,12 +400,46 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the min value of the target field in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="field">The field to be minimized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The min value of the target field.</returns>
+        public async Task<TResult> MinAllAsync<TResult>(string tableName,
+            Field field,
+            string hints = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return await connection.MinAllAsync<TResult>(tableName: tableName,
+                    field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {

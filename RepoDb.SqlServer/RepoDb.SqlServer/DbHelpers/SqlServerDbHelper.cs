@@ -4,6 +4,8 @@ using RepoDb.Resolvers;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RepoDb.DbHelpers
@@ -41,9 +43,9 @@ namespace RepoDb.DbHelpers
         #region Helpers
 
         /// <summary>
-        /// Returns the command text that is being used to extract schema definitions.
+        ///
         /// </summary>
-        /// <returns>The command text.</returns>
+        /// <returns></returns>
         private string GetCommandText()
         {
             return @"
@@ -52,7 +54,11 @@ namespace RepoDb.DbHelpers
 	                , CONVERT(BIT, COALESCE(TMP.is_identity, 1)) AS IsIdentity
 	                , CONVERT(BIT, COALESCE(TMP.is_nullable, 1)) AS IsNullable
 	                , C.DATA_TYPE AS DataType
-	                , CONVERT(INT, COALESCE(TMP.max_length, 1)) AS Size
+	                , CASE WHEN TMP.max_length > COALESCE(C.CHARACTER_MAXIMUM_LENGTH, TMP.max_length) THEN
+		                TMP.max_length
+	                  ELSE
+		                COALESCE(C.CHARACTER_MAXIMUM_LENGTH, TMP.max_length)
+	                  END AS Size
 	                , CONVERT(TINYINT, COALESCE(TMP.precision, 1)) AS Precision
 	                , CONVERT(TINYINT, COALESCE(TMP.scale, 1)) AS Scale
                 FROM INFORMATION_SCHEMA.COLUMNS C
@@ -79,8 +85,10 @@ namespace RepoDb.DbHelpers
 		                , SC.precision
 	                FROM [sys].[columns] SC
 	                INNER JOIN [sys].[tables] ST ON ST.object_id = SC.object_id
+	                INNER JOIN [sys].[schemas] S ON S.schema_id = ST.schema_id
 	                WHERE SC.name = C.COLUMN_NAME
 		                AND ST.name = C.TABLE_NAME
+		                AND S.name = C.TABLE_SCHEMA
                 ) TMP
                 WHERE
 	                C.TABLE_SCHEMA = @Schema
@@ -88,16 +96,16 @@ namespace RepoDb.DbHelpers
         }
 
         /// <summary>
-        /// Converts the <see cref="IDataReader"/> object into <see cref="DbField"/> object.
+        ///
         /// </summary>
-        /// <param name="reader">The instance of <see cref="IDataReader"/> object.</param>
-        /// <returns>The instance of converted <see cref="DbField"/> object.</returns>
-        private DbField ReaderToDbField(IDataReader reader)
+        /// <param name="reader"></param>
+        /// <returns></returns>
+        private DbField ReaderToDbField(DbDataReader reader)
         {
             return new DbField(reader.GetString(0),
-                reader.IsDBNull(1) ? false : reader.GetBoolean(1),
-                reader.IsDBNull(2) ? false : reader.GetBoolean(2),
-                reader.IsDBNull(3) ? false : reader.GetBoolean(3),
+                !reader.IsDBNull(1) && reader.GetBoolean(1),
+                !reader.IsDBNull(2) && reader.GetBoolean(2),
+                !reader.IsDBNull(3) && reader.GetBoolean(3),
                 reader.IsDBNull(4) ? DbTypeResolver.Resolve("text") : DbTypeResolver.Resolve(reader.GetString(4)),
                 reader.IsDBNull(5) ? 0 : reader.GetInt32(5),
                 reader.IsDBNull(6) ? (byte?)0 : reader.GetByte(6),
@@ -106,43 +114,23 @@ namespace RepoDb.DbHelpers
         }
 
         /// <summary>
-        /// Gets the actual schema of the table from the database.
+        ///
         /// </summary>
-        /// <param name="tableName">The passed table name.</param>
-        /// <param name="dbSetting">The currently in used <see cref="IDbSetting"/> object.</param>
-        /// <returns>The actual table schema.</returns>
-        private string GetSchema(string tableName,
-            IDbSetting dbSetting)
+        /// <param name="reader"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        private async Task<DbField> ReaderToDbFieldAsync(DbDataReader reader,
+            CancellationToken cancellationToken = default)
         {
-            // Get the schema and table name
-            if (tableName.IndexOf(dbSetting.SchemaSeparator) > 0)
-            {
-                var splitted = tableName.Split(dbSetting.SchemaSeparator.ToCharArray());
-                return splitted[0].AsUnquoted(true, dbSetting);
-            }
-
-            // Return the unquoted
-            return dbSetting.DefaultSchema;
-        }
-
-        /// <summary>
-        /// Gets the actual name of the table from the database.
-        /// </summary>
-        /// <param name="tableName">The passed table name.</param>
-        /// <param name="dbSetting">The currently in used <see cref="IDbSetting"/> object.</param>
-        /// <returns>The actual table name.</returns>
-        private string GetTableName(string tableName,
-            IDbSetting dbSetting)
-        {
-            // Get the schema and table name
-            if (tableName.IndexOf(dbSetting.SchemaSeparator) > 0)
-            {
-                var splitted = tableName.Split(dbSetting.SchemaSeparator.ToCharArray());
-                return splitted[1].AsUnquoted(true, dbSetting);
-            }
-
-            // Return the unquoted
-            return tableName.AsUnquoted(true, dbSetting);
+            return new DbField(await reader.GetFieldValueAsync<string>(0, cancellationToken),
+                !await reader.IsDBNullAsync(1, cancellationToken) && await reader.GetFieldValueAsync<bool>(1, cancellationToken),
+                !await reader.IsDBNullAsync(2, cancellationToken) && await reader.GetFieldValueAsync<bool>(2, cancellationToken),
+                !await reader.IsDBNullAsync(3, cancellationToken) && await reader.GetFieldValueAsync<bool>(3, cancellationToken),
+                await reader.IsDBNullAsync(4, cancellationToken) ? DbTypeResolver.Resolve("text") : DbTypeResolver.Resolve(await reader.GetFieldValueAsync<string>(4, cancellationToken)),
+                await reader.IsDBNullAsync(5, cancellationToken) ? 0 : await reader.GetFieldValueAsync<int>(5, cancellationToken),
+                await reader.IsDBNullAsync(6, cancellationToken) ? (byte?)0 : await reader.GetFieldValueAsync<byte>(6, cancellationToken),
+                await reader.IsDBNullAsync(7, cancellationToken) ? (byte?)0 : await reader.GetFieldValueAsync<byte>(7, cancellationToken),
+                await reader.IsDBNullAsync(7, cancellationToken) ? "text" : await reader.GetFieldValueAsync<string>(4, cancellationToken));
         }
 
         #endregion
@@ -167,60 +155,61 @@ namespace RepoDb.DbHelpers
             var setting = connection.GetDbSetting();
             var param = new
             {
-                Schema = GetSchema(tableName, setting),
-                TableName = GetTableName(tableName, setting)
+                Schema = DataEntityExtension.GetSchema(tableName, setting),
+                TableName = DataEntityExtension.GetTableName(tableName, setting)
             };
 
             // Iterate and extract
-            using (var reader = connection.ExecuteReader(commandText, param, transaction: transaction))
+            using var reader = (DbDataReader)connection.ExecuteReader(commandText, param, transaction: transaction);
+
+            var dbFields = new List<DbField>();
+
+            // Iterate the list of the fields
+            while (reader.Read())
             {
-                var dbFields = new List<DbField>();
-
-                // Iterate the list of the fields
-                while (reader.Read())
-                {
-                    dbFields.Add(ReaderToDbField(reader));
-                }
-
-                // Return the list of fields
-                return dbFields;
+                dbFields.Add(ReaderToDbField(reader));
             }
+
+            // Return the list of fields
+            return dbFields;
         }
 
         /// <summary>
-        /// Gets the list of <see cref="DbField"/> of the table in an asychronous way.
+        /// Gets the list of <see cref="DbField"/> of the table in an asynchronous way.
         /// </summary>
         /// <param name="connection">The instance of the connection object.</param>
         /// <param name="tableName">The name of the target table.</param>
         /// <param name="transaction">The transaction object that is currently in used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>A list of <see cref="DbField"/> of the target table.</returns>
         public async Task<IEnumerable<DbField>> GetFieldsAsync(IDbConnection connection,
             string tableName,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
             // Variables
             var commandText = GetCommandText();
             var setting = connection.GetDbSetting();
             var param = new
             {
-                Schema = GetSchema(tableName, setting),
-                TableName = GetTableName(tableName, setting)
+                Schema = DataEntityExtension.GetSchema(tableName, setting),
+                TableName = DataEntityExtension.GetTableName(tableName, setting)
             };
 
             // Iterate and extract
-            using (var reader = await connection.ExecuteReaderAsync(commandText, param, transaction: transaction))
+            using var reader = (DbDataReader)await connection.ExecuteReaderAsync(commandText, param,
+                transaction: transaction, cancellationToken: cancellationToken);
+
+            var dbFields = new List<DbField>();
+
+            // Iterate the list of the fields
+            while (await reader.ReadAsync(cancellationToken))
             {
-                var dbFields = new List<DbField>();
-
-                // Iterate the list of the fields
-                while (reader.Read())
-                {
-                    dbFields.Add(ReaderToDbField(reader));
-                }
-
-                // Return the list of fields
-                return dbFields;
+                dbFields.Add(await ReaderToDbFieldAsync(reader, cancellationToken));
             }
+
+            // Return the list of fields
+            return dbFields;
         }
 
         #endregion
@@ -236,19 +225,24 @@ namespace RepoDb.DbHelpers
         public object GetScopeIdentity(IDbConnection connection,
             IDbTransaction transaction = null)
         {
-            return connection.ExecuteScalar("SELECT COALESCE(SCOPE_IDENTITY(), @@IDENTITY);");
+            return connection.ExecuteScalar("SELECT COALESCE(SCOPE_IDENTITY(), @@IDENTITY);",
+                transaction: transaction);
         }
 
         /// <summary>
-        /// Gets the newly generated identity from the database in an asychronous way.
+        /// Gets the newly generated identity from the database in an asynchronous way.
         /// </summary>
         /// <param name="connection">The instance of the connection object.</param>
         /// <param name="transaction">The transaction object that is currently in used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>The newly generated identity from the database.</returns>
         public async Task<object> GetScopeIdentityAsync(IDbConnection connection,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
-            return await connection.ExecuteScalarAsync("SELECT COALESCE(SCOPE_IDENTITY(), @@IDENTITY);");
+            return await connection.ExecuteScalarAsync("SELECT COALESCE(SCOPE_IDENTITY(), @@IDENTITY);",
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         #endregion

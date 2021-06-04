@@ -106,6 +106,25 @@ namespace RepoDb.IntegrationTests
         }
 
         [TestMethod]
+        public void TestSqlConnectionQueryForEmptyArrayContainsOperation()
+        {
+            // Setup
+            var entities = Helper.CreateIdentityTables(10);
+
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb))
+            {
+                // Act
+                connection.InsertAll<IdentityTable>(entities);
+
+                // Act
+                var queryResult = connection.Query<IdentityTable>(item => (new long[] { }).Contains(item.Id));
+
+                // Assert
+                Assert.AreEqual(0, queryResult.Count());
+            }
+        }
+
+        [TestMethod]
         public void TestSqlConnectionQueryForArrayContainsOperationViaVariable()
         {
             // Setup
@@ -147,6 +166,25 @@ namespace RepoDb.IntegrationTests
                 // Assert
                 Assert.AreEqual(2, queryResult.Count());
                 queryResult.AsList().ForEach(item => Helper.AssertPropertiesEquality(entities.First(entity => entity.Id == item.Id), item));
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionQueryForEmptyListContainsOperation()
+        {
+            // Setup
+            var entities = Helper.CreateIdentityTables(10);
+
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb))
+            {
+                // Act
+                connection.InsertAll<IdentityTable>(entities);
+
+                // Act
+                var queryResult = connection.Query<IdentityTable>(item => (new List<long>()).Contains(item.Id));
+
+                // Assert
+                Assert.AreEqual(0, queryResult.Count());
             }
         }
 
@@ -560,7 +598,7 @@ namespace RepoDb.IntegrationTests
         #region In
 
         [TestMethod]
-        public void TestSqlConnectionQueryForInOperation()
+        public void TestSqlConnectionQueryForInOperationViaArray()
         {
             // Setup
             var entities = Helper.CreateIdentityTables(10);
@@ -582,12 +620,36 @@ namespace RepoDb.IntegrationTests
             }
         }
 
+        [TestMethod]
+        public void TestSqlConnectionQueryForInOperationViaList()
+        {
+            // Setup
+            var entities = Helper.CreateIdentityTables(10);
+            var value = new List<int> { 4, 7 };
+
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb))
+            {
+                // Prepare
+                var field = new QueryField(nameof(IdentityTable.Id), Operation.In, value);
+
+                // Act
+                connection.InsertAll<IdentityTable>(entities);
+
+                // Act
+                var queryResult = connection.Query<IdentityTable>(field);
+
+                // Assert
+                Assert.AreEqual(2, queryResult.Count());
+                queryResult.AsList().ForEach(item => Helper.AssertPropertiesEquality(entities.First(entity => entity.Id == item.Id), item));
+            }
+        }
+
         #endregion
 
         #region NotIn
 
         [TestMethod]
-        public void TestSqlConnectionQueryForNotInOperation()
+        public void TestSqlConnectionQueryForNotInOperationViaArray()
         {
             // Setup
             var entities = Helper.CreateIdentityTables(10);
@@ -596,6 +658,30 @@ namespace RepoDb.IntegrationTests
             {
                 // Prepare
                 var field = new QueryField(nameof(IdentityTable.Id), Operation.NotIn, new[] { 4, 7 });
+
+                // Act
+                connection.InsertAll<IdentityTable>(entities);
+
+                // Act
+                var queryResult = connection.Query<IdentityTable>(field);
+
+                // Assert
+                Assert.AreEqual(8, queryResult.Count());
+                queryResult.AsList().ForEach(item => Helper.AssertPropertiesEquality(entities.First(entity => entity.Id == item.Id), item));
+            }
+        }
+
+        [TestMethod]
+        public void TestSqlConnectionQueryForNotInOperationViaList()
+        {
+            // Setup
+            var entities = Helper.CreateIdentityTables(10);
+            var value = new List<int> { 4, 7 };
+
+            using (var connection = new SqlConnection(Database.ConnectionStringForRepoDb))
+            {
+                // Prepare
+                var field = new QueryField(nameof(IdentityTable.Id), Operation.NotIn, value);
 
                 // Act
                 connection.InsertAll<IdentityTable>(entities);

@@ -5,7 +5,7 @@ using System.Data;
 namespace RepoDb.Resolvers
 {
     /// <summary>
-    /// A class used to resolve the <see cref="DbType"/> into its equivalent .NET CLR Types.
+    /// A class that is being used to resolve the <see cref="DbType"/> into its equivalent .NET CLR Types.
     /// </summary>
     public class DbTypeToClientTypeResolver : IResolver<DbType, Type>
     {
@@ -21,47 +21,26 @@ namespace RepoDb.Resolvers
         /// <returns>The equivalent string name.</returns>
         public Type Resolve(DbType dbType)
         {
-            switch (dbType)
+            return dbType switch
             {
-                case DbType.Int64:
-                    return typeof(long);
-                case DbType.Binary:
-                case DbType.Byte:
-                    return typeof(byte[]);
-                case DbType.Boolean:
-                    return typeof(bool);
-                case DbType.String:
-                case DbType.AnsiString:
-                case DbType.AnsiStringFixedLength:
-                case DbType.StringFixedLength:
-                    return typeof(string);
-                case DbType.Date:
-                case DbType.DateTime:
-                case DbType.DateTime2:
-                    return typeof(DateTime);
-                case DbType.DateTimeOffset:
-                    return typeof(DateTimeOffset);
-                case DbType.Decimal:
-                    return typeof(decimal);
-                case DbType.Single:
-                    return typeof(Single);
-                case DbType.Double:
-                    return typeof(double);
-                case DbType.Int32:
-                    return typeof(int);
-                case DbType.Int16:
-                    return typeof(short);
-                case DbType.Time:
-                    return typeof(TimeSpan);
-                case DbType.Guid:
-                    return typeof(Guid);
-                case DbType.Object:
-                    return typeof(object);
+                DbType.Int64 => StaticType.Int64,
+                DbType.Binary or DbType.Byte => StaticType.ByteArray,
+                DbType.Boolean => StaticType.Boolean,
+                DbType.String or DbType.AnsiString or DbType.AnsiStringFixedLength or DbType.StringFixedLength => StaticType.String,
+                DbType.Date or DbType.DateTime or DbType.DateTime2 => StaticType.DateTime,
+                DbType.DateTimeOffset => StaticType.DateTimeOffset,
+                DbType.Decimal => StaticType.Decimal,
+                DbType.Single => StaticType.Single,
+                DbType.Double => StaticType.Double,
+                DbType.Int32 => StaticType.Int32,
+                DbType.Int16 => StaticType.Int16,
+                DbType.Time => StaticType.TimeSpan,
+                DbType.Guid => StaticType.Guid,
+                DbType.Object => StaticType.Object,
                 //case DbType.Xml:
                 //    return "XML";
-                default:
-                    return typeof(string);
-            }
+                _ => typeof(string),
+            };
         }
     }
 }

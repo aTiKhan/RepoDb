@@ -1,16 +1,15 @@
-[![PostgreSqlBuild](https://img.shields.io/appveyor/ci/mikependon/repodb-xb4rk)](https://ci.appveyor.com/project/mikependon/repodb-xb4rk)
-[![Home](https://img.shields.io/badge/home-github-important)](https://github.com/mikependon/RepoDb)
-[![Website](https://img.shields.io/badge/website-information-yellow)](http://repodb.net)
-[![GetStarted](https://img.shields.io/badge/tutorial-getstarted-blueviolet)](http://repodb.net/tutorial/get-started-postgresql)
-[![PostgreSqlVersion](https://img.shields.io/nuget/v/RepoDb.PostgreSql)](https://www.nuget.org/packages/RepoDb.PostgreSql)
-[![PostgreSqlUnitTests](https://img.shields.io/appveyor/tests/mikependon/repodb-a63f5?label=unit%20tests)](https://ci.appveyor.com/project/mikependon/repodb-a63f5/build/tests)
-[![PostgreSqlIntegrationTests](https://img.shields.io/appveyor/tests/mikependon/repodb-uf6o7?label=integration%20tests)](https://ci.appveyor.com/project/mikependon/repodb-uf6o7/build/tests)
+[![PostgreSqlBuild](https://img.shields.io/appveyor/ci/mikependon/repodb-xb4rk?style=flat-square&logo=appveyor)](https://ci.appveyor.com/project/mikependon/repodb-xb4rk)
+[![PostgreSqlHome](https://img.shields.io/badge/home-github-important?style=flat-square&logo=github)](https://github.com/mikependon/RepoDb)
+[![PostgreSqlVersion](https://img.shields.io/nuget/v/RepoDb.PostgreSql?style=flat-square&logo=nuget)](https://www.nuget.org/packages/RepoDb.PostgreSql)
+[![PostgreSqlReleases](https://img.shields.io/badge/releases-core-important?style=flat-square&logo=nuget)](http://repodb.net/release/postgresql)
+[![PostgreSqlUnitTests](https://img.shields.io/appveyor/tests/mikependon/repodb-a63f5?style=flat-square&logo=appveyor&label=unit%20tests)](https://ci.appveyor.com/project/mikependon/repodb-a63f5/build/tests)
+[![PostgreSqlIntegrationTests](https://img.shields.io/appveyor/tests/mikependon/repodb-uf6o7?style=flat-square&logo=appveyor&label=integration%20tests)](https://ci.appveyor.com/project/mikependon/repodb-uf6o7/build/tests)
 
 # RepoDb.PostgreSql - a hybrid .NET ORM library for PostgreSQL.
 
-RepoDb is an open-source .NET ORM that bridge the gaps between micro-ORMs and full-ORMs. It helps the developer to simplify the switch-over of when to use the BASIC and ADVANCE operations during the development.
+RepoDB is an open-source .NET ORM library that bridges the gaps of micro-ORMs and full-ORMs. It helps you simplify the switch-over of when to use the BASIC and ADVANCE operations during the development.
 
-It is the best alternative ORM to both Dapper and EntityFramework.
+It is your best alternative ORM to both Dapper and EntityFramework.
 
 ## Important Pages
 
@@ -20,18 +19,18 @@ It is the best alternative ORM to both Dapper and EntityFramework.
 ## Community engagements
 
 - [GitHub](https://github.com/mikependon/RepoDb/issues) - for any issues, requests and problems.
-- [StackOverflow](https://stackoverflow.com/questions/tagged/repodb) - for any technical questions.
+- [StackOverflow](https://stackoverflow.com/search?q=RepoDB) - for any technical questions.
 - [Twitter](https://twitter.com/search?q=%23repodb) - for the latest news.
 - [Gitter Chat](https://gitter.im/RepoDb/community) - for direct and live Q&A.
 
 ## Dependencies
 
 - [Npgsql](https://www.nuget.org/packages/Npgsql/) - the data provider used for PostgreSql.
-- [RepoDb](https://www.nuget.org/packages/RepoDb.SqLite/) - the core library of RepoDb.
+- [RepoDb](https://www.nuget.org/packages/RepoDb.SqLite/) - the core library of RepoDB.
 
 ## License
 
-[Apache-2.0](http://apache.org/licenses/LICENSE-2.0.html) - Copyright © 2019 - Michael Camara Pendon
+[Apache-2.0](http://apache.org/licenses/LICENSE-2.0.html) - Copyright © 2019 - [Michael Camara Pendon](https://twitter.com/mike_pendon)
 
 --------
 

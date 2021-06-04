@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Reflection;
 
@@ -11,14 +12,83 @@ namespace RepoDb.Extensions
     public static class TypeExtension
     {
         /// <summary>
-        /// Checks whether the current type is wrapped within <see cref="Nullable{T}"/> object.
+        /// Gets the corresponding <see cref="DbType"/> object.
+        /// </summary>
+        /// <param name="type">The target type.</param>
+        /// <returns>The instance of the <see cref="DbType"/> object.</returns>
+        public static DbType? GetDbType(this Type type) =>
+            type != null ? TypeMapCache.Get(type.GetUnderlyingType()) : null;
+
+        /// <summary>
+        /// Returns the instance of <see cref="ConstructorInfo"/> with the most argument.
         /// </summary>
         /// <param name="type">The current type.</param>
-        /// <returns>Returns true if the current type is wrapped within <see cref="Nullable{T}"/> object.</returns>
-        public static bool IsNullable(this Type type)
-        {
-            return Nullable.GetUnderlyingType(type) != null;
-        }
+        /// <returns>The instance of <see cref="ConstructorInfo"/> with the most arguments.</returns>
+        public static ConstructorInfo GetConstructorWithMostArguments(this Type type) =>
+            type.GetConstructors().Where(item => item.GetParameters().Length > 0)
+                .OrderByDescending(item => item.GetParameters().Length).FirstOrDefault();
+
+        /// <summary>
+        /// Checks whether the current type is of type <see cref="object"/>.
+        /// </summary>
+        /// <param name="type">The current type.</param>
+        /// <returns>Returns true if the current type is a <see cref="object"/>.</returns>
+        public static bool IsObjectType(this Type type) =>
+            type == StaticType.Object;
+
+        /// <summary>
+        /// Checks whether the current type is a class.
+        /// </summary>
+        /// <param name="type">The current type.</param>
+        /// <returns>Returns true if the current type is a class.</returns>
+        public static bool IsClassType(this Type type) =>
+            type.IsClass &&
+            type.IsObjectType() != true &&
+            StaticType.IEnumerable.IsAssignableFrom(type) != true;
+
+        /// <summary>
+        /// Checks whether the current type is an anonymous type.
+        /// </summary>
+        /// <param name="type">The current type.</param>
+        /// <returns>Returns true if the current type is an anonymous class.</returns>
+        public static bool IsAnonymousType(this Type type) =>
+            type.FullName.StartsWith("<>f__AnonymousType");
+
+        /// <summary>
+        /// Checks whether the current type is of type <see cref="IDictionary{TKey, TValue}"/> (with string/object key-value-pair).
+        /// </summary>
+        /// <param name="type">The current type.</param>
+        /// <returns>Returns true if the current type is of type <see cref="IDictionary{TKey, TValue}"/> (with string/object key-value-pair).</returns>
+        public static bool IsDictionaryStringObject(this Type type) =>
+            type == StaticType.IDictionaryStringObject ||
+            type == StaticType.DictionaryStringObject || type == StaticType.ExpandoObject;
+
+        /// <summary>
+        /// Checks whether the current type is wrapped within a <see cref="Nullable{T}"/> object.
+        /// </summary>
+        /// <param name="type">The current type.</param>
+        /// <returns>Returns true if the current type is wrapped within a <see cref="Nullable{T}"/> object.</returns>
+        public static bool IsNullable(this Type type) =>
+            Nullable.GetUnderlyingType(type) != null;
+
+        /// <summary>
+        /// Checks whether the current type is a plain class type.
+        /// </summary>
+        /// <param name="type">The current type.</param>
+        /// <returns>Returns true if the current type is a plain class type.</returns>
+        internal static bool IsPlainType(this Type type) =>
+            (IsClassType(type) || IsAnonymousType(type)) &&
+            IsQueryObjectType(type) != true &&
+            IsDictionaryStringObject(type) != true &&
+            GetEnumerableClassProperties(type).Any() != true;
+
+        /// <summary>
+        /// Checks whether the current type is of type <see cref="QueryField"/> or <see cref="QueryGroup"/>.
+        /// </summary>
+        /// <param name="type">The current type.</param>
+        /// <returns>Returns true if the current type is of type <see cref="QueryField"/> or <see cref="QueryGroup"/>.</returns>
+        internal static bool IsQueryObjectType(this Type type) =>
+            type == StaticType.QueryField || type == StaticType.QueryGroup;
 
         /// <summary>
         /// Converts all properties of the type into an array of <see cref="Field"/> objects.
@@ -27,6 +97,22 @@ namespace RepoDb.Extensions
         /// <returns>A list of <see cref="Field"/> objects.</returns>
         internal static IEnumerable<Field> AsFields(this Type type) =>
             PropertyCache.Get(type).AsFields();
+
+        /// <summary>
+        /// Gets the list of enumerable <see cref="ClassProperty"/> objects of the type.
+        /// </summary>
+        /// <param name="type">The current type.</param>
+        /// <returns>The list of the enumerable <see cref="ClassProperty"/> objects.</returns>
+        internal static IEnumerable<ClassProperty> GetEnumerableClassProperties(this Type type) =>
+            PropertyCache.Get(type).Where(classProperty =>
+            {
+                var propType = classProperty.PropertyInfo.PropertyType;
+                return
+                    propType != StaticType.String &&
+                    propType != StaticType.CharArray &&
+                    propType != StaticType.ByteArray &&
+                    StaticType.IEnumerable.IsAssignableFrom(propType);
+            });
 
         /// <summary>
         /// Converts all properties of the type into an array of <see cref="ClassProperty"/> objects.
@@ -46,97 +132,79 @@ namespace RepoDb.Extensions
         /// </summary>
         /// <param name="type">The current type to check.</param>
         /// <returns>The underlying type or the current type.</returns>
-        public static Type GetUnderlyingType(this Type type)
-        {
-            return type != null ? Nullable.GetUnderlyingType(type) ?? type : null;
-        }
+        public static Type GetUnderlyingType(this Type type) =>
+            type != null ? (Nullable.GetUnderlyingType(type) ?? type) : null;
 
         /// <summary>
-        /// Returns the mapped property if the property is not present.
+        /// Returns the property of the type based on the mappings equality.
         /// </summary>
         /// <param name="type">The current type.</param>
         /// <param name="mappedName">The name of the property mapping.</param>
         /// <returns>The instance of <see cref="ClassProperty"/>.</returns>
-        internal static ClassProperty GetPropertyByMapping(this Type type,
-            string mappedName)
+        internal static ClassProperty GetMappedProperty(this Type type,
+            string mappedName) =>
+            PropertyCache.Get(type)?.FirstOrDefault(p => string.Equals(p.GetMappedName(), mappedName, StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>
+        /// Returns the list of the interface types being implemented by the current type.
+        /// </summary>
+        /// <param name="type">The current type.</param>
+        /// <returns>The list of the interface types.</returns>
+        public static Type[] GetImplementedInterfaces(this Type type) =>
+            type?.GetType().GetProperty("ImplementedInterfaces")?.GetValue(type) as Type[];
+
+        /// <summary>
+        /// Creates a generic type of the current type based on the generic type available from the source type.
+        /// </summary>
+        /// <param name="currentType">The current type.</param>
+        /// <param name="sourceType">The source type.</param>
+        /// <returns>The newly created generic type.</returns>
+        public static Type MakeGenericTypeFrom(this Type currentType,
+            Type sourceType)
         {
-            return PropertyCache.Get(type)
-                .FirstOrDefault(p => string.Equals(p.GetMappedName(), mappedName, StringComparison.OrdinalIgnoreCase));
+            var genericTypes = sourceType?.GetGenericArguments();
+            if (genericTypes?.Length == currentType?.GetGenericArguments().Length)
+            {
+                return currentType.MakeGenericType(genericTypes);
+            }
+            return null;
         }
 
         /// <summary>
         /// Checks whether the current type has implemented the target interface.
         /// </summary>
-        /// <typeparam name="T">The type of the interface.</typeparam>
-        /// <param name="type">The current type.</param>
+        /// <param name="currentType">The current type.</param>
+        /// <param name="interfaceType">The target interface type.</param>
         /// <returns>True if the current type has implemented the target interface.</returns>
-        public static bool IsInterfacedTo<T>(this Type type)
-        {
-            return IsInterfacedTo(type, typeof(T));
-        }
-
-        /// <summary>
-        /// Checks whether the current type has implemented the target interface.
-        /// </summary>
-        /// <param name="type">The current type.</param>
-        /// <param name="interfaceType">The type of the interface.</param>
-        /// <returns>True if the current type has implemented the target interface.</returns>
-        public static bool IsInterfacedTo(this Type type,
+        public static bool IsInterfacedTo(this Type currentType,
             Type interfaceType)
         {
-            if (interfaceType?.IsInterface != true)
+            var targetInterface = currentType?
+                .GetImplementedInterfaces()?
+                .FirstOrDefault(item =>
+                    item.Name == interfaceType.Name && item.Namespace == interfaceType.Namespace);
+            interfaceType = interfaceType?.MakeGenericTypeFrom(targetInterface);
+            return interfaceType?.IsAssignableFrom(currentType) == true;
+        }
+
+        /// <summary>
+        /// Checks whether the current class handler type is valid to be used for the target model type.
+        /// </summary>
+        /// <param name="classHandlerType">The current class handler type type.</param>
+        /// <param name="targetModelType">The target model type.</param>
+        /// <returns>True if the current class handler type is valid to be used for the target model type.</returns>
+        internal static bool IsClassHandlerValidForModel(this Type classHandlerType,
+            Type targetModelType)
+        {
+            var targetInterface = classHandlerType?
+                .GetImplementedInterfaces()?
+                .FirstOrDefault(item =>
+                    item.Name == StaticType.IClassHandler.Name && item.Namespace == StaticType.IClassHandler.Namespace);
+            if (targetInterface != null)
             {
-                throw new ArgumentException("The type of argument 'interfaceType' must be an interface.");
+                return targetInterface.GetGenericArguments().FirstOrDefault() == targetModelType;
             }
-
-            // Variables needed
-            var interfaces = type
-                .GetInterfaces()
-                .Where(e => string.Equals(e.Namespace, interfaceType.Namespace))
-                .AsList();
-            var isInterfacedTo = false;
-
-            // Iterates
-            foreach (var item in interfaces)
-            {
-                // Check the type equality
-                if (item == interfaceType)
-                {
-                    isInterfacedTo = true;
-                    break;
-                }
-
-                // Check the generic arguments length
-                if (AreGenericArgumentsLengthEquals(item, interfaceType) == false)
-                {
-                    continue;
-                }
-
-                // Check the members name
-                if (AreMembersNamesEquals(item, interfaceType) == false)
-                {
-                    continue;
-                }
-
-                // Check the name equality
-                if (item.FullName.Length > interfaceType.FullName.Length)
-                {
-                    isInterfacedTo = string.Equals(item.FullName.Substring(0, interfaceType.FullName.Length),
-                        interfaceType.FullName, StringComparison.Ordinal);
-                }
-                else
-                {
-                    isInterfacedTo = string.Equals(interfaceType.FullName.Substring(0, item.FullName.Length),
-                        item.FullName, StringComparison.Ordinal);
-                }
-                if (isInterfacedTo)
-                {
-                    break;
-                }
-            }
-
-            // Return the value
-            return isInterfacedTo;
+            return false;
         }
 
         #region Helpers
@@ -146,10 +214,8 @@ namespace RepoDb.Extensions
         /// </summary>
         /// <param name="type">The type of the data entity.</param>
         /// <returns>The generated hashcode.</returns>
-        internal static int GenerateHashCode(Type type)
-        {
-            return type.GetUnderlyingType().FullName.GetHashCode();
-        }
+        internal static int GenerateHashCode(Type type) =>
+            type.GetUnderlyingType().GetHashCode();
 
         /// <summary>
         /// Generates a hashcode for caching.
@@ -158,10 +224,8 @@ namespace RepoDb.Extensions
         /// <param name="propertyInfo">The instance of <see cref="PropertyInfo"/>.</param>
         /// <returns>The generated hashcode.</returns>
         internal static int GenerateHashCode(Type entityType,
-            PropertyInfo propertyInfo)
-        {
-            return entityType.GetUnderlyingType().FullName.GetHashCode() + propertyInfo.GenerateCustomizedHashCode();
-        }
+            PropertyInfo propertyInfo) =>
+            entityType.GetUnderlyingType().GetHashCode() + propertyInfo.GenerateCustomizedHashCode(entityType);
 
         /// <summary>
         /// A helper method to return the instance of <see cref="PropertyInfo"/> object based on name.
@@ -180,141 +244,9 @@ namespace RepoDb.Extensions
         /// <param name="propertyName">The name of the class property to be mapped.</param>
         /// <returns>An instance of <see cref="PropertyInfo"/> object.</returns>
         internal static PropertyInfo GetProperty(Type type,
-            string propertyName)
-        {
-            return type
-                .GetProperties()
-                .FirstOrDefault(p => string.Equals(p.Name, propertyName, StringComparison.OrdinalIgnoreCase));
-        }
+            string propertyName) =>
 
-        /// <summary>
-        /// Checks whether the generic arguments length are equal to both types.
-        /// </summary>
-        /// <param name="type1">The first type.</param>
-        /// <param name="type2">The second type.</param>
-        /// <returns>True if the type of the generic arguments length are equal.</returns>
-        internal static bool AreGenericArgumentsLengthEquals(Type type1,
-            Type type2)
-        {
-            // Variables
-            var genericArguments1 = type1?.GetGenericArguments();
-            var genericArguments2 = type2?.GetGenericArguments();
-
-            // Check nulls
-            if (null == genericArguments1 && null == genericArguments2)
-            {
-                return true;
-            }
-
-            // Check the length equality
-            if (genericArguments1?.Length != genericArguments2?.Length)
-            {
-                return false;
-            }
-
-            // Return True
-            return true;
-        }
-
-        /// <summary>
-        /// Checks whether the members names are equal to both types.
-        /// </summary>
-        /// <param name="type1">The first type.</param>
-        /// <param name="type2">The second type.</param>
-        /// <returns>True if the type of the members names are equal.</returns>
-        internal static bool AreMembersNamesEquals(Type type1,
-            Type type2)
-        {
-            // Variables
-            var members1 = type1?
-                .GetMembers()
-                .OrderBy(e => e.Name)
-                .AsList();
-            var members2 = type2?
-                .GetMembers()
-                .OrderBy(e => e.Name)
-                .AsList();
-
-            // Check nulls
-            if (null == members1 && null == members2)
-            {
-                return true;
-            }
-
-            // Check the name equality
-            if (members1?.Count() != members2?.Count())
-            {
-                return false;
-            }
-            else
-            {
-                for (var i = 0; i < members1.Count(); i++)
-                {
-                    if (string.Equals(members1[i].Name, members2[i].Name, StringComparison.Ordinal) == false)
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            // Return True
-            return true;
-        }
-
-        /// <summary>
-        /// Checks whether the members length are equal to both types.
-        /// </summary>
-        /// <param name="type1">The first type.</param>
-        /// <param name="type2">The second type.</param>
-        /// <returns>True if the type of the members length are equal.</returns>
-        internal static bool AreMembersLengthEquals(Type type1,
-            Type type2)
-        {
-            // Variables
-            var members1 = type1?
-                .GetMembers()
-                .OrderBy(e => e.Name)
-                .AsList();
-            var members2 = type2?
-                .GetMembers()
-                .OrderBy(e => e.Name)
-                .AsList();
-
-            // Check nulls
-            if (null == members1 && null == members2)
-            {
-                return true;
-            }
-
-            // Check the argument name equalities
-            if (members1?.Count() != members2?.Count())
-            {
-                return false;
-            }
-            else
-            {
-                for (var i = 0; i < members1.Count(); i++)
-                {
-                    var member1 = members1[i];
-                    var member2 = members2[i];
-
-                    // Arguments length
-                    if (MemberInfoExtension.IsMemberArgumentLengthEqual(member1, member2) == false)
-                    {
-                        return false;
-                    }
-
-                    // Check the name
-                    if (string.Equals(member1.Name, member2.Name) == false)
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            // Return True
-            return true;
-        }
+            type.GetProperties().FirstOrDefault(p => string.Equals(p.Name, propertyName, StringComparison.OrdinalIgnoreCase));
 
         #endregion
     }

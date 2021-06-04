@@ -4,11 +4,11 @@ using System;
 namespace RepoDb
 {
     /// <summary>
-    /// An object that holds the value of the field parameter.
+    /// A class that holds the value of the field parameter.
     /// </summary>
     public sealed class Parameter : IEquatable<Parameter>
     {
-        private int? m_hashCode = null;
+        private int? hashCode = null;
 
         /// <summary>
         /// Creates a new instance of <see cref="Parameter"/> object.
@@ -21,7 +21,7 @@ namespace RepoDb
             bool prependUnderscore)
         {
             // Name is required
-            if (string.IsNullOrEmpty(name))
+            if (string.IsNullOrWhiteSpace(name))
             {
                 throw new NullReferenceException(name);
             }
@@ -29,6 +29,7 @@ namespace RepoDb
             // Set the properties
             OriginalName = name.AsAlphaNumeric();
             Name = OriginalName;
+            OriginalValue = value;
             Value = value;
             if (prependUnderscore)
             {
@@ -51,7 +52,12 @@ namespace RepoDb
         /// <summary>
         /// Gets the value of the parameter.
         /// </summary>
-        public object Value { get; }
+        public object Value { get; private set; }
+
+        /// <summary>
+        /// Gets the original value of the parameter.
+        /// </summary>
+        private object OriginalValue { get; }
 
         #endregion
 
@@ -72,19 +78,32 @@ namespace RepoDb
         /// Set the name of the parameter.
         /// </summary>
         /// <param name="name">The new name.</param>
-        internal void SetName(string name)
-        {
+        internal void SetName(string name) =>
             Name = name;
+
+        /// <summary>
+        /// Set the value of the parameter.
+        /// </summary>
+        /// <param name="value">The new value.</param>
+        internal void SetValue(object value) =>
+            Value = value;
+
+        /// <summary>
+        /// Resets the <see cref="Parameter"/> object back to its default state (as is newly instantiated).
+        /// </summary>
+        public void Reset()
+        {
+            Name = OriginalName;
+            Value = OriginalValue;
+            hashCode = null;
         }
 
         /// <summary>
         /// Stringify the current object. Will return the format of <b>Name (Value)</b> text.
         /// </summary>
         /// <returns></returns>
-        public override string ToString()
-        {
-            return string.Concat(Name, " (", Value, ")");
-        }
+        public override string ToString() =>
+            string.Concat(Name, " (", Value.ToString(), ")");
 
         #endregion
 
@@ -96,18 +115,13 @@ namespace RepoDb
         /// <returns>The hashcode value.</returns>
         public override int GetHashCode()
         {
-            if (m_hashCode != null)
+            if (this.hashCode != null)
             {
-                return m_hashCode.Value;
+                return this.hashCode.Value;
             }
 
-            var hashCode = 0;
-
-            // Set the hashcode
-            hashCode = OriginalName.GetHashCode();
-
             // Set and return the hashcode
-            return (m_hashCode = hashCode).Value;
+            return (this.hashCode = OriginalName.GetHashCode()).Value;
         }
 
         /// <summary>
@@ -115,20 +129,16 @@ namespace RepoDb
         /// </summary>
         /// <param name="obj">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equals.</returns>
-        public override bool Equals(object obj)
-        {
-            return obj?.GetHashCode() == GetHashCode();
-        }
+        public override bool Equals(object obj) =>
+            obj?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the <see cref="Parameter"/> object equality against the given target object.
         /// </summary>
         /// <param name="other">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public bool Equals(Parameter other)
-        {
-            return other?.GetHashCode() == GetHashCode();
-        }
+        public bool Equals(Parameter other) =>
+            other?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the equality of the two <see cref="Parameter"/> objects.
@@ -136,11 +146,12 @@ namespace RepoDb
         /// <param name="objA">The first <see cref="Parameter"/> object.</param>
         /// <param name="objB">The second <see cref="Parameter"/> object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public static bool operator ==(Parameter objA, Parameter objB)
+        public static bool operator ==(Parameter objA,
+            Parameter objB)
         {
-            if (ReferenceEquals(null, objA))
+            if (objA is null)
             {
-                return ReferenceEquals(null, objB);
+                return objB is null;
             }
             return objB?.GetHashCode() == objA.GetHashCode();
         }
@@ -151,10 +162,9 @@ namespace RepoDb
         /// <param name="objA">The first <see cref="Parameter"/> object.</param>
         /// <param name="objB">The second <see cref="Parameter"/> object.</param>
         /// <returns>True if the instances are not equal.</returns>
-        public static bool operator !=(Parameter objA, Parameter objB)
-        {
-            return (objA == objB) == false;
-        }
+        public static bool operator !=(Parameter objA,
+            Parameter objB) =>
+            (objA == objB) == false;
 
         #endregion
     }

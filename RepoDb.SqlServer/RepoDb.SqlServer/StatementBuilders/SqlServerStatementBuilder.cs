@@ -54,8 +54,8 @@ namespace RepoDb.StatementBuilders
         public override string CreateBatchQuery(QueryBuilder queryBuilder,
             string tableName,
             IEnumerable<Field> fields,
-            int? page,
-            int? rowsPerBatch,
+            int page,
+            int rowsPerBatch,
             IEnumerable<OrderField> orderBy = null,
             QueryGroup where = null,
             string hints = null)
@@ -69,25 +69,25 @@ namespace RepoDb.StatementBuilders
             // There should be fields
             if (fields?.Any() != true)
             {
-                throw new NullReferenceException($"The list of queryable fields must not be null for '{tableName}'.");
+                throw new MissingFieldsException($"The list of queryable fields must not be null for '{tableName}'.");
             }
 
             // Validate order by
-            if (orderBy == null || orderBy?.Any() != true)
+            if (orderBy == null || orderBy.Any() != true)
             {
                 throw new EmptyException("The argument 'orderBy' is required.");
             }
 
             // Validate the page
-            if (page == null || page < 0)
+            if (page < 0)
             {
-                throw new ArgumentOutOfRangeException("The page must be equals or greater than 0.");
+                throw new ArgumentOutOfRangeException(nameof(page), "The page must be equals or greater than 0.");
             }
 
             // Validate the page
-            if (rowsPerBatch == null || rowsPerBatch < 1)
+            if (rowsPerBatch < 1)
             {
-                throw new ArgumentOutOfRangeException($"The rows per batch must be equals or greater than 1.");
+                throw new ArgumentOutOfRangeException(nameof(rowsPerBatch), "The rows per batch must be equals or greater than 1.");
             }
 
             // Initialize the builder
@@ -100,6 +100,7 @@ namespace RepoDb.StatementBuilders
                 .As()
                 .OpenParen()
                 .Select()
+                .TopFrom((page + 1) * rowsPerBatch)
                 .RowNumber()
                 .Over()
                 .OpenParen()
@@ -111,13 +112,13 @@ namespace RepoDb.StatementBuilders
                 .TableNameFrom(tableName, DbSetting)
                 .HintsFrom(hints)
                 .WhereFrom(where, DbSetting)
+                .OrderByFrom(orderBy, DbSetting)
                 .CloseParen()
                 .Select()
                 .FieldsFrom(fields, DbSetting)
                 .From()
                 .WriteText("CTE")
                 .WriteText(string.Concat("WHERE ([RowNumber] BETWEEN ", (page * rowsPerBatch) + 1, " AND ", (page + 1) * rowsPerBatch, ")"))
-                .OrderByFrom(orderBy, DbSetting)
                 .End();
 
             // Return the query
@@ -318,13 +319,13 @@ namespace RepoDb.StatementBuilders
                 var splitted = commandText.Split(";".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
 
                 // Iterate the indexes
-                for (var index = 0; index < splitted.Count(); index++)
+                for (var index = 0; index < splitted.Length; index++)
                 {
                     var line = splitted[index].Trim();
                     var returnValue = string.IsNullOrEmpty(databaseType) ?
-                            "SELECT SCOPE_IDENTITY()" :
-                            $"SELECT CONVERT({databaseType}, SCOPE_IDENTITY())";
-                    commandTexts.Add(string.Concat(line, " ; ", returnValue, " ;"));
+                        "SELECT SCOPE_IDENTITY()" :
+                        $"SELECT CONVERT({databaseType}, SCOPE_IDENTITY()) AS [Id]";
+                    commandTexts.Add(string.Concat(line, " ; ", returnValue, $", {DbSetting.ParameterPrefix}__RepoDb_OrderColumn_{index} AS [OrderColumn] ;"));
                 }
 
                 // Set the command text
@@ -367,7 +368,7 @@ namespace RepoDb.StatementBuilders
             // Verify the fields
             if (fields?.Any() != true)
             {
-                throw new NullReferenceException($"The list of fields cannot be null or empty.");
+                throw new MissingFieldsException($"The list of fields cannot be null or empty.");
             }
 
             // Check the qualifiers
@@ -379,7 +380,7 @@ namespace RepoDb.StatementBuilders
                         string.Equals(field.Name, f.Name, StringComparison.OrdinalIgnoreCase)) == null);
 
                 // Throw an error we found any unmatches
-                if (unmatchesQualifiers?.Any() == true)
+                if (unmatchesQualifiers.Any() == true)
                 {
                     throw new InvalidQualifiersException($"The qualifiers '{unmatchesQualifiers.Select(field => field.Name).Join(", ")}' are not " +
                         $"present at the given fields '{fields.Select(field => field.Name).Join(", ")}'.");
@@ -390,7 +391,7 @@ namespace RepoDb.StatementBuilders
                 if (primaryField != null)
                 {
                     // Make sure that primary is present in the list of fields before qualifying to become a qualifier
-                    var isPresent = fields?.FirstOrDefault(f => string.Equals(f.Name, primaryField.Name, StringComparison.OrdinalIgnoreCase)) != null;
+                    var isPresent = fields.FirstOrDefault(f => string.Equals(f.Name, primaryField.Name, StringComparison.OrdinalIgnoreCase)) != null;
 
                     // Throw if not present
                     if (isPresent == false)
@@ -405,7 +406,7 @@ namespace RepoDb.StatementBuilders
                 else
                 {
                     // Throw exception, qualifiers are not defined
-                    throw new NullReferenceException($"There are no qualifier field objects found for '{tableName}'.");
+                    throw new MissingQualifierFieldsException($"There are no qualifier fields found for '{tableName}'.");
                 }
             }
 
@@ -437,8 +438,8 @@ namespace RepoDb.StatementBuilders
                 // MERGE T USING S
                 .Merge()
                 .TableNameFrom(tableName, DbSetting)
-                .As("T")
                 .HintsFrom(hints)
+                .As("T")
                 .Using()
                 .OpenParen()
                 .Select()
@@ -478,13 +479,13 @@ namespace RepoDb.StatementBuilders
             var outputField = identityField ?? primaryField;
             if (outputField != null)
             {
-                queryBuilder
+                builder
                     .WriteText(string.Concat("OUTPUT INSERTED.", outputField.Name.AsField(DbSetting)))
                     .As("[Result]");
             }
 
             // End the builder
-            queryBuilder.End();
+            builder.End();
 
             // Return the query
             return builder.GetString();
@@ -524,7 +525,7 @@ namespace RepoDb.StatementBuilders
             // Verify the fields
             if (fields?.Any() != true)
             {
-                throw new NullReferenceException($"The list of fields cannot be null or empty.");
+                throw new MissingFieldsException($"The list of fields cannot be null or empty.");
             }
 
             // Check the qualifiers
@@ -536,7 +537,7 @@ namespace RepoDb.StatementBuilders
                         string.Equals(field.Name, f.Name, StringComparison.OrdinalIgnoreCase)) == null);
 
                 // Throw an error we found any unmatches
-                if (unmatchesQualifiers?.Any() == true)
+                if (unmatchesQualifiers.Any() == true)
                 {
                     throw new InvalidQualifiersException($"The qualifiers '{unmatchesQualifiers.Select(field => field.Name).Join(", ")}' are not " +
                         $"present at the given fields '{fields.Select(field => field.Name).Join(", ")}'.");
@@ -547,7 +548,7 @@ namespace RepoDb.StatementBuilders
                 if (primaryField != null)
                 {
                     // Make sure that primary is present in the list of fields before qualifying to become a qualifier
-                    var isPresent = fields?.FirstOrDefault(f => string.Equals(f.Name, primaryField.Name, StringComparison.OrdinalIgnoreCase)) != null;
+                    var isPresent = fields.FirstOrDefault(f => string.Equals(f.Name, primaryField.Name, StringComparison.OrdinalIgnoreCase)) != null;
 
                     // Throw if not present
                     if (isPresent == false)
@@ -562,7 +563,7 @@ namespace RepoDb.StatementBuilders
                 else
                 {
                     // Throw exception, qualifiers are not defined
-                    throw new NullReferenceException($"There are no qualifier field objects found for '{tableName}'.");
+                    throw new MissingQualifierFieldsException($"There are no qualifier fields found for '{tableName}'.");
                 }
             }
 
@@ -603,10 +604,10 @@ namespace RepoDb.StatementBuilders
             for (var index = 0; index < batchSize; index++)
             {
                 // MERGE T USING S
-                queryBuilder.Merge()
+                builder.Merge()
                     .TableNameFrom(tableName, DbSetting)
-                    .As("T")
                     .HintsFrom(hints)
+                    .As("T")
                     .Using()
                     .OpenParen()
                     .Select()
@@ -646,13 +647,15 @@ namespace RepoDb.StatementBuilders
                 var outputField = identityField ?? primaryField;
                 if (outputField != null)
                 {
-                    queryBuilder
+                    builder
                         .WriteText(string.Concat("OUTPUT INSERTED.", outputField.Name.AsField(DbSetting)))
-                        .As("[Result]");
+                            .As("[Id],")
+                        .WriteText($"{DbSetting.ParameterPrefix}__RepoDb_OrderColumn_{index}")
+                            .As("[OrderColumn]");
                 }
 
                 // End the builder
-                queryBuilder.End();
+                builder.End();
             }
 
             // Return the query

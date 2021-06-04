@@ -24,7 +24,7 @@ namespace RepoDb.SqlServer.IntegrationTests
         /// <summary>
         /// Gets the current <see cref="Random"/> object in used.
         /// </summary>
-        public static Random Randomizer => new Random(1);
+        public static Random Randomizer => new(1);
 
         /// <summary>
         /// Asserts the properties equality of 2 types.
@@ -50,10 +50,8 @@ namespace RepoDb.SqlServer.IntegrationTests
                 }
                 var value1 = propertyOfType1.GetValue(t1);
                 var value2 = propertyOfType2.GetValue(t2);
-                if (value1 is Array && value2 is Array)
+                if (value1 is Array array1 && value2 is Array array2)
                 {
-                    var array1 = (Array)value1;
-                    var array2 = (Array)value2;
                     for (var i = 0; i < Math.Min(array1.Length, array2.Length); i++)
                     {
                         var v1 = array1.GetValue(i);
@@ -117,10 +115,8 @@ namespace RepoDb.SqlServer.IntegrationTests
                 {
                     var value1 = property.GetValue(obj);
                     var value2 = dictionary[property.Name];
-                    if (value1 is Array && value2 is Array)
+                    if (value1 is Array array1 && value2 is Array array2)
                     {
-                        var array1 = (Array)value1;
-                        var array2 = (Array)value2;
                         for (var i = 0; i < Math.Min(array1.Length, array2.Length); i++)
                         {
                             var v1 = array1.GetValue(i);
@@ -132,9 +128,9 @@ namespace RepoDb.SqlServer.IntegrationTests
                     else
                     {
                         var propertyType = property.PropertyType.GetUnderlyingType();
-                        if (propertyType == typeof(TimeSpan) && value2 is DateTime)
+                        if (propertyType == typeof(TimeSpan) && value2 is DateTime dateTime)
                         {
-                            value2 = ((DateTime)value2).TimeOfDay;
+                            value2 = dateTime.TimeOfDay;
                         }
                         Assert.AreEqual(Convert.ChangeType(value1, propertyType), Convert.ChangeType(value2, propertyType),
                             $"Assert failed for '{property.Name}'. The values are '{value1}' and '{value2}'.");
@@ -146,10 +142,10 @@ namespace RepoDb.SqlServer.IntegrationTests
         #region CompleteTable
 
         /// <summary>
-        /// Creates a list of <see cref="CompleteTable"/> objects.
+        /// 
         /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="CompleteTable"/> objects.</returns>
+        /// <param name="count"></param>
+        /// <returns></returns>
         public static List<CompleteTable> CreateCompleteTables(int count)
         {
             var tables = new List<CompleteTable>();
@@ -170,7 +166,7 @@ namespace RepoDb.SqlServer.IntegrationTests
                     ColumnDateTime2 = now,
                     ColumnDateTimeOffset = new DateTimeOffset(now.Date).ToOffset(TimeSpan.FromHours(2)),
                     ColumnDecimal = Convert.ToDecimal(i),
-                    ColumnFloat = Convert.ToSingle(i),
+                    ColumnFloat = Convert.ToDouble(i),
                     //ColumnGeography = (object)null,
                     //ColumnGeometry = (object)null,
                     //ColumnHierarchyId = (object)null,
@@ -201,9 +197,9 @@ namespace RepoDb.SqlServer.IntegrationTests
         }
 
         /// <summary>
-        /// Update the properties of <see cref="CompleteTable"/> instance.
+        /// 
         /// </summary>
-        /// <param name="table">The instance to be updated.</param>
+        /// <param name="table"></param>
         public static void UpdateCompleteTableProperties(CompleteTable table)
         {
             var now = DateTime.SpecifyKind(
@@ -218,7 +214,7 @@ namespace RepoDb.SqlServer.IntegrationTests
             table.ColumnDateTime2 = now;
             table.ColumnDateTimeOffset = new DateTimeOffset(now.Date).ToOffset(TimeSpan.FromHours(2));
             table.ColumnDecimal = Convert.ToDecimal(2);
-            table.ColumnFloat = Convert.ToSingle(2);
+            table.ColumnFloat = Convert.ToDouble(2);
             //table.ColumnGeography = (object)null;
             //table.ColumnGeometry = (object)null;
             //table.ColumnHierarchyId = (object)null;
@@ -246,10 +242,10 @@ namespace RepoDb.SqlServer.IntegrationTests
         }
 
         /// <summary>
-        /// Creates a list of <see cref="CompleteTable"/> objects represented as dynamics.
+        /// 
         /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="CompleteTable"/> objects represented as dynamics.</returns>
+        /// <param name="count"></param>
+        /// <returns></returns>
         public static List<dynamic> CreateCompleteTablesAsDynamics(int count)
         {
             var tables = new List<dynamic>();
@@ -270,7 +266,7 @@ namespace RepoDb.SqlServer.IntegrationTests
                     ColumnDateTime2 = now,
                     ColumnDateTimeOffset = new DateTimeOffset(now.Date).ToOffset(TimeSpan.FromHours(2)),
                     ColumnDecimal = Convert.ToDecimal(i),
-                    ColumnFloat = Convert.ToSingle(i),
+                    ColumnFloat = Convert.ToDouble(i),
                     //ColumnGeography = (object)null,
                     //ColumnGeometry = (object)null,
                     //ColumnHierarchyId = (object)null,
@@ -301,9 +297,9 @@ namespace RepoDb.SqlServer.IntegrationTests
         }
 
         /// <summary>
-        /// Update the properties of <see cref="CompleteTable"/> instance represented asy dynamic.
+        /// 
         /// </summary>
-        /// <param name="table">The instance to be updated.</param>
+        /// <param name="table"></param>
         public static void UpdateCompleteTableAsDynamicProperties(dynamic table)
         {
             var now = DateTime.SpecifyKind(
@@ -318,7 +314,7 @@ namespace RepoDb.SqlServer.IntegrationTests
             table.ColumnDateTime2 = now;
             table.ColumnDateTimeOffset = new DateTimeOffset(now.Date).ToOffset(TimeSpan.FromHours(2));
             table.ColumnDecimal = Convert.ToDecimal(2);
-            table.ColumnFloat = Convert.ToSingle(2);
+            table.ColumnFloat = Convert.ToDouble(2);
             table.ColumnGeography = (object)null;
             table.ColumnGeometry = (object)null;
             table.ColumnHierarchyId = (object)null;
@@ -345,15 +341,115 @@ namespace RepoDb.SqlServer.IntegrationTests
             table.SessionId = Guid.NewGuid();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<ExpandoObject> CreateCompleteTablesAsExpandoObjects(int count)
+        {
+            var tables = new List<ExpandoObject>();
+            var now = DateTime.SpecifyKind(
+                DateTime.Parse(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fffff")),
+                    DateTimeKind.Unspecified);
+            for (var i = 0; i < count; i++)
+            {
+                var item = new ExpandoObject() as IDictionary<string, object>;
+                item["Id"] = (i + 1);
+                item["ColumnBigInt"] = Convert.ToInt64(i);
+                item["ColumnBinary"] = (byte[])null;
+                item["ColumnBit"] = true;
+                item["ColumnChar"] = "C";
+                item["ColumnDate"] = now.Date;
+                item["ColumnDateTime"] = now.Date;
+                item["ColumnDateTime2"] = now;
+                item["ColumnDateTimeOffset"] = new DateTimeOffset(now.Date).ToOffset(TimeSpan.FromHours(2));
+                item["ColumnDecimal"] = Convert.ToDecimal(i);
+                item["ColumnFloat"] = Convert.ToDouble(i);
+                //item["ColumnGeography"] = (object)null;
+                //item["ColumnGeometry"] = (object)null;
+                //item["ColumnHierarchyId"] = (object)null;
+                item["ColumnImage"] = (byte[])null;
+                item["ColumnInt"] = Convert.ToInt32(i);
+                item["ColumnMoney"] = Convert.ToDecimal(i);
+                item["ColumnNChar"] = "C";
+                item["ColumnNText"] = "NText";
+                item["ColumnNumeric"] = Convert.ToDecimal(i);
+                item["ColumnNVarChar"] = "NVarChar";
+                item["ColumnReal"] = Convert.ToSingle(i);
+                item["ColumnSmallDateTime"] = now.Date;
+                item["ColumnSmallInt"] = Convert.ToInt16(i);
+                item["ColumnSmallMoney"] = Convert.ToDecimal(i);
+                item["ColumnSqlVariant"] = (object)null;
+                item["ColumnText"] = "Text";
+                item["ColumnTime"] = now.TimeOfDay;
+                //item["ColumnTimestamp"] = (byte[])null;
+                item["ColumnTinyInt"] = (byte)0;
+                item["ColumnUniqueIdentifier"] = Guid.NewGuid();
+                item["ColumnVarBinary"] = (byte[])null;
+                item["ColumnVarChar"] = "VarChar";
+                item["ColumnXml"] = (string)null;
+                item["SessionId"] = Guid.NewGuid();
+                tables.Add((ExpandoObject)item);
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        public static void UpdateCompleteTableAsExpandoObjectProperties(ExpandoObject table)
+        {
+            var now = DateTime.SpecifyKind(
+                DateTime.Parse(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fffff")),
+                    DateTimeKind.Unspecified);
+            var item = table as IDictionary<string, object>;
+            item["ColumnBigInt"] = Convert.ToInt64(2);
+            item["ColumnBinary"] = (byte[])null;
+            item["ColumnBit"] = true;
+            item["ColumnChar"] = "C";
+            item["ColumnDate"] = now.Date;
+            item["ColumnDateTime"] = now.Date;
+            item["ColumnDateTime2"] = now;
+            item["ColumnDateTimeOffset"] = new DateTimeOffset(now.Date).ToOffset(TimeSpan.FromHours(2));
+            item["ColumnDecimal"] = Convert.ToDecimal(2);
+            item["ColumnFloat"] = Convert.ToDouble(2);
+            //item["ColumnGeography"] = (object)null;
+            //item["ColumnGeometry"] = (object)null;
+            //item["ColumnHierarchyId"] = (object)null;
+            item["ColumnImage"] = (byte[])null;
+            item["ColumnInt"] = Convert.ToInt32(2);
+            item["ColumnMoney"] = Convert.ToDecimal(2);
+            item["ColumnNChar"] = "C";
+            item["ColumnNText"] = "NText";
+            item["ColumnNumeric"] = Convert.ToDecimal(2);
+            item["ColumnNVarChar"] = "NVarChar";
+            item["ColumnReal"] = Convert.ToSingle(2);
+            item["ColumnSmallDateTime"] = now.Date;
+            item["ColumnSmallInt"] = Convert.ToInt16(2);
+            item["ColumnSmallMoney"] = Convert.ToDecimal(2);
+            item["ColumnSqlVariant"] = (object)null;
+            item["ColumnText"] = "Text";
+            item["ColumnTime"] = now.TimeOfDay;
+            //item["ColumnTimestamp"] = (byte[])null;
+            item["ColumnTinyInt"] = (byte)0;
+            item["ColumnUniqueIdentifier"] = Guid.NewGuid();
+            item["ColumnVarBinary"] = (byte[])null;
+            item["ColumnVarChar"] = "VarChar-Updated";
+            item["ColumnXml"] = (string)null;
+            item["SessionId"] = Guid.NewGuid();
+        }
+
         #endregion
 
         #region NonIdentityCompleteTable
 
         /// <summary>
-        /// Creates a list of <see cref="NonIdentityCompleteTable"/> objects.
+        /// 
         /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="NonIdentityCompleteTable"/> objects.</returns>
+        /// <param name="count"></param>
+        /// <returns></returns>
         public static List<NonIdentityCompleteTable> CreateNonIdentityCompleteTables(int count)
         {
             var tables = new List<NonIdentityCompleteTable>();
@@ -374,7 +470,7 @@ namespace RepoDb.SqlServer.IntegrationTests
                     ColumnDateTime2 = now,
                     ColumnDateTimeOffset = new DateTimeOffset(now.Date).ToOffset(TimeSpan.FromHours(2)),
                     ColumnDecimal = Convert.ToDecimal(i),
-                    ColumnFloat = Convert.ToSingle(i),
+                    ColumnFloat = Convert.ToDouble(i),
                     //ColumnGeography = (object)null,
                     //ColumnGeometry = (object)null,
                     //ColumnHierarchyId = (object)null,
@@ -405,9 +501,9 @@ namespace RepoDb.SqlServer.IntegrationTests
         }
 
         /// <summary>
-        /// Update the properties of <see cref="NonIdentityCompleteTable"/> instance.
+        /// 
         /// </summary>
-        /// <param name="table">The instance to be updated.</param>
+        /// <param name="table"></param>
         public static void UpdateNonIdentityCompleteTableProperties(NonIdentityCompleteTable table)
         {
             var now = DateTime.SpecifyKind(
@@ -422,7 +518,7 @@ namespace RepoDb.SqlServer.IntegrationTests
             table.ColumnDateTime2 = now;
             table.ColumnDateTimeOffset = new DateTimeOffset(now.Date).ToOffset(TimeSpan.FromHours(2));
             table.ColumnDecimal = Convert.ToDecimal(2);
-            table.ColumnFloat = Convert.ToSingle(2);
+            table.ColumnFloat = Convert.ToDouble(2);
             //table.ColumnGeography = (object)null;
             //table.ColumnGeometry = (object)null;
             //table.ColumnHierarchyId = (object)null;
@@ -450,10 +546,10 @@ namespace RepoDb.SqlServer.IntegrationTests
         }
 
         /// <summary>
-        /// Creates a list of <see cref="NonIdentityCompleteTable"/> objects represented as dynamics.
+        /// 
         /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="NonIdentityCompleteTable"/> objects represented as dynamics.</returns>
+        /// <param name="count"></param>
+        /// <returns></returns>
         public static List<dynamic> CreateNonIdentityCompleteTablesAsDynamics(int count)
         {
             var tables = new List<dynamic>();
@@ -474,7 +570,7 @@ namespace RepoDb.SqlServer.IntegrationTests
                     ColumnDateTime2 = now,
                     ColumnDateTimeOffset = new DateTimeOffset(now.Date).ToOffset(TimeSpan.FromHours(2)),
                     ColumnDecimal = Convert.ToDecimal(i),
-                    ColumnFloat = Convert.ToSingle(i),
+                    ColumnFloat = Convert.ToDouble(i),
                     //ColumnGeography = (object)null,
                     //ColumnGeometry = (object)null,
                     //ColumnHierarchyId = (object)null,
@@ -505,9 +601,9 @@ namespace RepoDb.SqlServer.IntegrationTests
         }
 
         /// <summary>
-        /// Update the properties of <see cref="NonIdentityCompleteTable"/> instance represented asy dynamic.
+        /// 
         /// </summary>
-        /// <param name="table">The instance to be updated.</param>
+        /// <param name="table"></param>
         public static void UpdateNonIdentityCompleteTableAsDynamicProperties(dynamic table)
         {
             var now = DateTime.SpecifyKind(
@@ -522,7 +618,7 @@ namespace RepoDb.SqlServer.IntegrationTests
             table.ColumnDateTime2 = now;
             table.ColumnDateTimeOffset = new DateTimeOffset(now.Date).ToOffset(TimeSpan.FromHours(2));
             table.ColumnDecimal = Convert.ToDecimal(2);
-            table.ColumnFloat = Convert.ToSingle(2);
+            table.ColumnFloat = Convert.ToDouble(2);
             table.ColumnGeography = (object)null;
             table.ColumnGeometry = (object)null;
             table.ColumnHierarchyId = (object)null;
@@ -547,6 +643,106 @@ namespace RepoDb.SqlServer.IntegrationTests
             table.ColumnVarChar = "VarChar - Updated";
             table.ColumnXml = (string)null;
             table.SessionId = Guid.NewGuid();
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<ExpandoObject> CreateNonIdentityCompleteTablesAsExpandoObjects(int count)
+        {
+            var tables = new List<ExpandoObject>();
+            var now = DateTime.SpecifyKind(
+                DateTime.Parse(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fffff")),
+                    DateTimeKind.Unspecified);
+            for (var i = 0; i < count; i++)
+            {
+                var item = new ExpandoObject() as IDictionary<string, object>;
+                item["Id"] = (i + 1);
+                item["ColumnBigInt"] = Convert.ToInt64(i);
+                item["ColumnBinary"] = (byte[])null;
+                item["ColumnBit"] = true;
+                item["ColumnChar"] = "C";
+                item["ColumnDate"] = now.Date;
+                item["ColumnDateTime"] = now.Date;
+                item["ColumnDateTime2"] = now;
+                item["ColumnDateTimeOffset"] = new DateTimeOffset(now.Date).ToOffset(TimeSpan.FromHours(2));
+                item["ColumnDecimal"] = Convert.ToDecimal(i);
+                item["ColumnFloat"] = Convert.ToDouble(i);
+                //item["ColumnGeography"] = (object)null;
+                //item["ColumnGeometry"] = (object)null;
+                //item["ColumnHierarchyId"] = (object)null;
+                item["ColumnImage"] = (byte[])null;
+                item["ColumnInt"] = Convert.ToInt32(i);
+                item["ColumnMoney"] = Convert.ToDecimal(i);
+                item["ColumnNChar"] = "C";
+                item["ColumnNText"] = "NText";
+                item["ColumnNumeric"] = Convert.ToDecimal(i);
+                item["ColumnNVarChar"] = "NVarChar";
+                item["ColumnReal"] = Convert.ToSingle(i);
+                item["ColumnSmallDateTime"] = now.Date;
+                item["ColumnSmallInt"] = Convert.ToInt16(i);
+                item["ColumnSmallMoney"] = Convert.ToDecimal(i);
+                item["ColumnSqlVariant"] = (object)null;
+                item["ColumnText"] = "Text";
+                item["ColumnTime"] = now.TimeOfDay;
+                //item["ColumnTimestamp"] = (byte[])null;
+                item["ColumnTinyInt"] = (byte)0;
+                item["ColumnUniqueIdentifier"] = Guid.NewGuid();
+                item["ColumnVarBinary"] = (byte[])null;
+                item["ColumnVarChar"] = "VarChar";
+                item["ColumnXml"] = (string)null;
+                item["SessionId"] = Guid.NewGuid();
+                tables.Add((ExpandoObject)item);
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        public static void UpdateNonIdentityCompleteTableAsExpandoObjectProperties(ExpandoObject table)
+        {
+            var now = DateTime.SpecifyKind(
+                DateTime.Parse(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fffff")),
+                    DateTimeKind.Unspecified);
+            var item = table as IDictionary<string, object>;
+            item["ColumnBigInt"] = Convert.ToInt64(2);
+            item["ColumnBinary"] = (byte[])null;
+            item["ColumnBit"] = true;
+            item["ColumnChar"] = "C";
+            item["ColumnDate"] = now.Date;
+            item["ColumnDateTime"] = now.Date;
+            item["ColumnDateTime2"] = now;
+            item["ColumnDateTimeOffset"] = new DateTimeOffset(now.Date).ToOffset(TimeSpan.FromHours(2));
+            item["ColumnDecimal"] = Convert.ToDecimal(2);
+            item["ColumnFloat"] = Convert.ToDouble(2);
+            //item["ColumnGeography"] = (object)null;
+            //item["ColumnGeometry"] = (object)null;
+            //item["ColumnHierarchyId"] = (object)null;
+            item["ColumnImage"] = (byte[])null;
+            item["ColumnInt"] = Convert.ToInt32(2);
+            item["ColumnMoney"] = Convert.ToDecimal(2);
+            item["ColumnNChar"] = "C";
+            item["ColumnNText"] = "NText";
+            item["ColumnNumeric"] = Convert.ToDecimal(2);
+            item["ColumnNVarChar"] = "NVarChar";
+            item["ColumnReal"] = Convert.ToSingle(2);
+            item["ColumnSmallDateTime"] = now.Date;
+            item["ColumnSmallInt"] = Convert.ToInt16(2);
+            item["ColumnSmallMoney"] = Convert.ToDecimal(2);
+            item["ColumnSqlVariant"] = (object)null;
+            item["ColumnText"] = "Text";
+            item["ColumnTime"] = now.TimeOfDay;
+            //item["ColumnTimestamp"] = (byte[])null;
+            item["ColumnTinyInt"] = (byte)0;
+            item["ColumnUniqueIdentifier"] = Guid.NewGuid();
+            item["ColumnVarBinary"] = (byte[])null;
+            item["ColumnVarChar"] = "VarChar-Updated";
+            item["ColumnXml"] = (string)null;
+            item["SessionId"] = Guid.NewGuid();
         }
 
         #endregion

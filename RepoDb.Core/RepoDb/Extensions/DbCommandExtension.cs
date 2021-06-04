@@ -1,14 +1,12 @@
-﻿using RepoDb.Attributes;
-using RepoDb.Enumerations;
+﻿using RepoDb.Enumerations;
 using RepoDb.Exceptions;
 using RepoDb.Interfaces;
+using RepoDb.Resolvers;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.Common;
 using System.Dynamic;
 using System.Linq;
-using System.Reflection;
 
 namespace RepoDb.Extensions
 {
@@ -19,58 +17,11 @@ namespace RepoDb.Extensions
     {
         #region Privates
 
-        internal static Type m_bytesType = typeof(byte[]);
-        internal static Type m_dictionaryType = typeof(Dictionary<,>);
+        private static ClientTypeToDbTypeResolver clientTypeToDbTypeResolver = new();
 
         #endregion
 
-        #region CreateParameters
-
-        /// <summary>
-        /// Creates the command object list of parameters based on type.
-        /// </summary>
-        /// <param name="command">The command object instance to be used.</param>
-        /// <param name="properties">The target list of properties.</param>
-        /// <param name="propertiesToSkip">The list of the properties to be skipped.</param>
-        internal static void CreateParametersFromClassProperties(this IDbCommand command,
-            IEnumerable<ClassProperty> properties,
-            IEnumerable<string> propertiesToSkip)
-        {
-            // Filter the target properties
-            if (propertiesToSkip?.Any() == true)
-            {
-                properties = properties?.Where(p =>
-                    propertiesToSkip.Contains(PropertyMappedNameCache.Get(p.PropertyInfo), StringComparer.OrdinalIgnoreCase) == false);
-            }
-
-            // Check if there are properties
-            if (properties?.Any() == true)
-            {
-                // Iterate the properties
-                foreach (var property in properties)
-                {
-                    // Get the database type
-                    var dbType = property.GetDbType() ??
-                        TypeMapper.Get(property.PropertyInfo.PropertyType.GetUnderlyingType());
-
-                    // Ensure the type mapping
-                    if (dbType == null)
-                    {
-                        if (property.PropertyInfo.PropertyType == m_bytesType)
-                        {
-                            dbType = DbType.Binary;
-                        }
-                    }
-
-                    // Create the parameter
-                    var name = PropertyMappedNameCache.Get(property.PropertyInfo);
-                    var parameter = CreateParameter(command, name, null, dbType);
-
-                    // Add the parameter
-                    command.Parameters.Add(parameter);
-                }
-            }
-        }
+        #region CreateParameter
 
         /// <summary>
         /// Creates a parameter for a command object.
@@ -83,7 +34,23 @@ namespace RepoDb.Extensions
         public static IDbDataParameter CreateParameter(this IDbCommand command,
             string name,
             object value,
-            DbType? dbType)
+            DbType? dbType) =>
+            CreateParameter(command, name, value, dbType, null);
+
+        /// <summary>
+        /// Creates a parameter for a command object.
+        /// </summary>
+        /// <param name="command">The command object instance to be used.</param>
+        /// <param name="name">The name of the parameter.</param>
+        /// <param name="value">The value of the parameter.</param>
+        /// <param name="dbType">The database type of the parameter.</param>
+        /// <param name="parameterDirection">The direction of the parameter.</param>
+        /// <returns>An instance of the newly created parameter object.</returns>
+        public static IDbDataParameter CreateParameter(this IDbCommand command,
+            string name,
+            object value,
+            DbType? dbType,
+            ParameterDirection? parameterDirection)
         {
             // Create the parameter
             var parameter = command.CreateParameter();
@@ -93,36 +60,87 @@ namespace RepoDb.Extensions
             parameter.Value = value ?? DBNull.Value;
 
             // The DB Type is auto set when setting the values (so check properly Time/DateTime problem)
-            if (dbType != null && parameter.DbType != dbType.Value)
+            if (dbType != null) // && parameter.DbType != dbType.Value)
             {
+                // Prepare() requires an explicit assignment, weird Microsoft
                 parameter.DbType = dbType.Value;
             }
+
+            // Set the direction
+            if (parameterDirection != null)
+            {
+                parameter.Direction = parameterDirection.Value;
+            }
+
+            // Table-Valued Parameter
+            EnsureTableValueParameter(parameter);
 
             // Return the parameter
             return parameter;
         }
 
         /// <summary>
-        /// Creates a parameter for a command object.
+        ///
         /// </summary>
-        /// <param name="command">The command object instance to be used.</param>
-        /// <param name="commandArrayParameters">The list of <see cref="CommandArrayParameter"/> to be used for replacement.</param>
+        /// <param name="parameter"></param>
+        private static void EnsureTableValueParameter(IDbDataParameter parameter)
+        {
+            if (parameter == null || parameter.Value is DataTable == false)
+            {
+                return;
+            }
+
+            var property = parameter.GetType().GetProperty("TypeName");
+            if (property == null)
+            {
+                return;
+            }
+
+            var table = ((DataTable)parameter.Value);
+            property.SetValue(parameter, table.TableName);
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="commandArrayParameters"></param>
         internal static void CreateParametersFromArray(this IDbCommand command,
             IEnumerable<CommandArrayParameter> commandArrayParameters)
         {
-            if (commandArrayParameters?.Any() != true)
+            if (commandArrayParameters.Any() != true)
             {
                 return;
             }
             var dbSetting = command.Connection.GetDbSetting();
-            for (var i = 0; i < commandArrayParameters.Count(); i++)
+            foreach (var commandArrayParameter in commandArrayParameters)
             {
-                var commandArrayParameter = commandArrayParameters.ElementAt(i);
-                for (var c = 0; c < commandArrayParameter.Values.Count(); c++)
+                CreateParametersFromArray(command, commandArrayParameter, dbSetting);
+            }
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="commandArrayParameter"></param>
+        /// <param name="dbSetting"></param>
+        private static void CreateParametersFromArray(this IDbCommand command,
+            CommandArrayParameter commandArrayParameter,
+            IDbSetting dbSetting)
+        {
+            var values = commandArrayParameter.Values.AsArray();
+
+            if (values.Length == 0)
+            {
+                command.Parameters.Add(command.CreateParameter(commandArrayParameter.ParameterName.AsParameter(dbSetting), null, null));
+            }
+            else
+            {
+                for (var i = 0; i < values.Length; i++)
                 {
-                    var name = string.Concat(commandArrayParameter.ParameterName, c).AsParameter(dbSetting);
-                    var value = commandArrayParameter.Values.ElementAt(c);
-                    command.Parameters.Add(command.CreateParameter(name, value, null));
+                    var name = string.Concat(commandArrayParameter.ParameterName, i.ToString()).AsParameter(dbSetting);
+                    command.Parameters.Add(command.CreateParameter(name, values[i], null));
                 }
             }
         }
@@ -133,683 +151,503 @@ namespace RepoDb.Extensions
         /// <param name="command">The command object to be used.</param>
         /// <param name="param">The object to be used when creating the parameters.</param>
         public static void CreateParameters(this IDbCommand command,
-            object param)
-        {
+            object param) =>
             CreateParameters(command, param, null);
-        }
 
         /// <summary>
         /// Creates a parameter from object by mapping the property from the target entity type.
         /// </summary>
         /// <param name="command">The command object to be used.</param>
         /// <param name="param">The object to be used when creating the parameters.</param>
-        /// <param name="propertiesToSkip">The list of the properties to be skipped.</param>
+        /// <param name="entityType">The type of the data entity.</param>
+        public static void CreateParameters(this IDbCommand command,
+            object param,
+            Type entityType) =>
+            CreateParameters(command, param, null, entityType, null);
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="param"></param>
+        /// <param name="propertiesToSkip"></param>
+        /// <param name="entityType"></param>
+        /// <param name="dbFields"></param>
         internal static void CreateParameters(this IDbCommand command,
             object param,
-            IEnumerable<string> propertiesToSkip)
+            HashSet<string> propertiesToSkip,
+            Type entityType,
+            IEnumerable<DbField> dbFields = null)
         {
-            // Check for presence
+            // Check
             if (param == null)
             {
                 return;
             }
 
-            // Supporting the IDictionary<string, object>
+            // IDictionary<string, object>
             if (param is ExpandoObject || param is IDictionary<string, object>)
             {
-                CreateParameters(command, (IDictionary<string, object>)param, propertiesToSkip);
+                CreateParameters(command, (IDictionary<string, object>)param, propertiesToSkip, dbFields);
             }
 
-            // Supporting the QueryField
-            else if (param is QueryField)
+            // QueryField
+            else if (param is QueryField field)
             {
-                CreateParameters(command, (QueryField)param, propertiesToSkip);
+                CreateParameters(command, field, propertiesToSkip, entityType, dbFields);
             }
 
-            // Supporting the IEnumerable<QueryField>
-            else if (param is IEnumerable<QueryField>)
+            // IEnumerable<QueryField>
+            else if (param is IEnumerable<QueryField> fields)
             {
-                CreateParameters(command, (IEnumerable<QueryField>)param, propertiesToSkip);
+                CreateParameters(command, fields, propertiesToSkip, entityType, dbFields);
             }
 
-            // Supporting the QueryGroup
-            else if (param is QueryGroup)
+            // QueryGroup
+            else if (param is QueryGroup group)
             {
-                CreateParameters(command, (QueryGroup)param, propertiesToSkip);
+                CreateParameters(command, group, propertiesToSkip, entityType, dbFields);
             }
 
-            // Otherwise, iterate the properties
+            // Other
             else
             {
-                var type = param.GetType();
-
-                // Check the validity of the type
-                if (type.IsGenericType && type.GetGenericTypeDefinition() == m_dictionaryType)
-                {
-                    throw new InvalidParameterException("The supported type of dictionary object must be of type IDictionary<string, object>.");
-                }
-
-                // Variables for properties
-                var properties = (IEnumerable<ClassProperty>)null;
-
-                // Add this check for performance
-                if (type.IsGenericType == true)
-                {
-                    properties = type.GetClassProperties();
-                }
-                else
-                {
-                    properties = PropertyCache.Get(type);
-                }
-
-                // Skip some properties
-                if (propertiesToSkip != null)
-                {
-                    properties = properties?
-                        .Where(p => propertiesToSkip?.Contains(p.PropertyInfo.Name,
-                            StringComparer.OrdinalIgnoreCase) == false);
-                }
-
-                // Iterate the properties
-                foreach (var property in properties)
-                {
-                    // Get the property vaues
-                    var name = property.GetMappedName();
-                    var value = property.PropertyInfo.GetValue(param);
-
-                    // Get property db type
-                    var dbType = property.GetDbType();
-
-                    // Ensure mapping based on the value type
-                    if (dbType == null)
-                    {
-                        dbType = TypeMapper.Get(value?.GetType().GetUnderlyingType());
-                    }
-
-                    // Check for specialized
-                    if (dbType == null)
-                    {
-                        var propertyType = property.PropertyInfo.PropertyType.GetUnderlyingType();
-                        if (propertyType?.IsEnum == true)
-                        {
-                            dbType = DbType.String;
-                        }
-                        else if (propertyType == m_bytesType)
-                        {
-                            dbType = DbType.Binary;
-                        }
-                    }
-
-                    // Add the new parameter
-                    command.Parameters.Add(command.CreateParameter(name, value, dbType));
-                }
+                CreateParametersInternal(command, param, propertiesToSkip, dbFields);
             }
         }
 
         /// <summary>
-        /// Create the command parameters from the <see cref="IDictionary{TKey, TValue}"/> object.
+        /// Create Parameter, the process will handle value conversion and type conversion.
         /// </summary>
         /// <param name="command">The command object to be used.</param>
-        /// <param name="dictionary">The parameters from the <see cref="Dictionary{TKey, TValue}"/> object.</param>
-        /// <param name="propertiesToSkip">The list of the properties to be skipped.</param>
-        internal static void CreateParameters(this IDbCommand command,
-            IDictionary<string, object> dictionary,
-            IEnumerable<string> propertiesToSkip)
+        /// <param name="name">Entity property's name.</param>
+        /// <param name="value">Entity property's value, maybe null.</param>
+        /// <param name="classProperty">
+        /// The entity's class property information. <br />
+        /// If the parameter is a dictionary, it will be null, otherwise it will not be null.
+        /// </param>
+        /// <param name="dbField">
+        /// Used to get the actual field type information of the database to determine whether automatic type conversion is required. <br />
+        /// When the tableName is assigned, it will be based on the database field information obtained by the tableName, so this parameter will be null in most cases.
+        /// </param>
+        /// <param name="parameterDirection">The direction of the parameter.</param>
+        /// <param name="fallbackType">Used when none of the above parameters can determine the value of Parameter.DbType.</param>
+        /// <returns>An instance of the newly created parameter object.</returns>
+        private static IDbDataParameter CreateParameter(IDbCommand command,
+            string name,
+            object value,
+            ClassProperty classProperty,
+            DbField dbField,
+            ParameterDirection? parameterDirection,
+            Type fallbackType)
         {
-            // Variables needed
-            var dbType = (DbType?)null;
-            var kvps = dictionary.Where(kvp => propertiesToSkip?.Contains(kvp.Key, StringComparer.OrdinalIgnoreCase) != true);
+            /*
+             * In some cases, the value type and the classProperty type will be inconsistent, Therefore, the type gives priority to value.
+             * ex: in RepoDb.MySql.IntegrationTests.TestMySqlConnectionForQueryForMySqlMapAttribute
+             *    entity AttributeTable.Id = int
+             *    database completetable.Id = bigint(20) AUTO_INCREMENT
+             *    value id in connection.Query<AttributeTable>(id) is from connection.Insert<AttributeTable>(table) = ulong
+             */
+            var valueType = (value?.GetType() ?? classProperty?.PropertyInfo.PropertyType).GetUnderlyingType();
+
+            // Enum
+            if (valueType?.IsEnum == true && dbField != null)
+            {
+                value = ConvertEnumValueToType(value, dbField.Type);
+            }
+
+            /*
+             * Try to get the propertyHandler, the order of the source of resolve is classProperty and valueType.
+             * If the propertyHandler exists, the value and DbType are re-determined by the propertyHandler.
+             */
+            var propertyHandler =
+                classProperty?.GetPropertyHandler() ??
+                (valueType == null ? null : PropertyHandlerCache.Get<object>(valueType));
+            if (propertyHandler != null)
+            {
+                var propertyHandlerSetMethod = propertyHandler.GetType().GetMethod("Set");
+                value = propertyHandlerSetMethod.Invoke(propertyHandler, new[] { value, classProperty });
+                valueType = propertyHandlerSetMethod.ReturnType.GetUnderlyingType();
+            }
+
+            /*
+             * When the database field information exists and the field type definition is found to be different from the valueType, 
+             * if automatic type conversion is activated at this time, it will be processed.
+             */
+            if (valueType != null && dbField != null && IsAutomaticConversion(dbField))
+            {
+                var dbFieldType = dbField.Type.GetUnderlyingType();
+                if (dbFieldType != valueType)
+                {
+                    if (value != null)
+                    {
+                        value = AutomaticConvert(value, valueType, dbFieldType);
+                    }
+                    valueType = dbFieldType;
+                }
+            }
+
+            /*
+             * Set DbType as much as possible, to avoid parameter misjudgment when Value is null.
+             * order:
+             *      1. attribute level, TypeMapAttribute define on class's property
+             *      2. property level, assigned by TypeMapper.Add(entityType, property, dbType, ...)
+             *      3. type level, use TypeMapCache, assigned by TypeMapper.Add(type, dbType, ...), not included Primitive mapping.
+             *      4. type level, primitive mapping, included special type. ex: byte[] ...etc.
+             *      5. if isEnum, use Converter.EnumDefaultDatabaseType.
+             */
+
+            // if classProperty exists, try get dbType from attribute level or property level, 
+            // The reason for not using classProperty.GetDbType() is to avoid getting the type level mapping.
+            var dbType = classProperty == null ? null :
+                TypeMapCache.Get(classProperty.GetDeclaringType(), classProperty.PropertyInfo);
+            if (dbType == null && (valueType ??= dbField?.Type.GetUnderlyingType() ?? fallbackType) != null)
+            {
+                dbType =
+                    valueType.GetDbType() ??                                        // type level, use TypeMapCache
+                    clientTypeToDbTypeResolver.Resolve(valueType) ??                // type level, primitive mapping
+                    (dbField?.Type != null ?
+                        clientTypeToDbTypeResolver.Resolve(dbField?.Type) : null);  // fallback to the database type
+            }
+            if (dbType == null && valueType.IsEnum)
+            {
+                dbType = Converter.EnumDefaultDatabaseType;                         // use Converter.EnumDefaultDatabaseType
+            }
+
+            /*
+             * Return the parameter
+             */
+            return command.CreateParameter(name, value, dbType, parameterDirection);
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="param"></param>
+        /// <param name="propertiesToSkip"></param>
+        /// <param name="dbFields"></param>
+        private static void CreateParametersInternal(IDbCommand command,
+            object param,
+            HashSet<string> propertiesToSkip,
+            IEnumerable<DbField> dbFields = null)
+        {
+            var type = param.GetType();
+
+            // Check
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == StaticType.Dictionary)
+            {
+                throw new InvalidParameterException("The supported type of dictionary object must be of type IDictionary<string, object>.");
+            }
+
+            // Variables
+            var classProperties = type.IsClassType() ? PropertyCache.Get(type) : type.GetClassProperties();
+
+            // Skip
+            if (propertiesToSkip != null)
+            {
+                classProperties = classProperties?.Where(p => propertiesToSkip.Contains(p.PropertyInfo.Name) == false);
+            }
+
+            // Iterate
+            foreach (var classProperty in classProperties)
+            {
+                var name = classProperty.GetMappedName();
+                var dbField = GetDbField(name, dbFields);
+                var value = classProperty.PropertyInfo.GetValue(param);
+                command.Parameters.Add(CreateParameter(command, name, value, classProperty, dbField, null, null));
+            }
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="dictionary"></param>
+        /// <param name="propertiesToSkip"></param>
+        /// <param name="dbFields"></param>
+        private static void CreateParameters(IDbCommand command,
+            IDictionary<string, object> dictionary,
+            HashSet<string> propertiesToSkip,
+            IEnumerable<DbField> dbFields = null)
+        {
+            var kvps = dictionary.Where(kvp =>
+                propertiesToSkip?.Contains(kvp.Key) != true);
 
             // Iterate the key value pairs
             foreach (var kvp in kvps)
             {
+                var dbField = GetDbField(kvp.Key, dbFields);
                 var value = kvp.Value;
-                var valueType = (Type)null;
+                var classProperty = (ClassProperty)null;
 
-                // Cast the proper object and identify the properties
-                if (kvp.Value is CommandParameter)
+                // CommandParameter
+                if (kvp.Value is CommandParameter commandParameter)
                 {
-                    var commandParameter = (CommandParameter)kvp.Value;
-                    var property = commandParameter.MappedToType.GetProperty(kvp.Key);
-
-                    // Get the value
                     value = commandParameter.Value;
-
-                    // Get the DB Type
-                    dbType = property?.GetCustomAttribute<TypeMapAttribute>()?.DbType;
-
-                    // Get the property-level mapping
-                    if (property != null)
-                    {
-                        dbType = TypeMapper.Get(property.PropertyType.GetUnderlyingType());
-                    }
-
-                    // Set the value type if the DB Type is not found
-                    if (dbType == null)
-                    {
-                        valueType = value?.GetType()?.GetUnderlyingType();
-                    }
+                    dbField ??= GetDbField(commandParameter.Field.Name, dbFields);
+                    classProperty = PropertyCache.Get(commandParameter.MappedToType, commandParameter.Field.Name);
                 }
-                else
-                {
-                    valueType = kvp.Value?.GetType()?.GetUnderlyingType();
-                }
-
-                // Check for the specialized types
-                if (dbType == null)
-                {
-                    if (valueType?.IsEnum == true)
-                    {
-                        dbType = DbType.String;
-                    }
-                    else if (valueType == m_bytesType)
-                    {
-                        dbType = DbType.Binary;
-                    }
-                }
-
-                // Add the parameter
-                command.Parameters.Add(command.CreateParameter(kvp.Key, value, dbType));
+                command.Parameters.Add(CreateParameter(command, kvp.Key, value, classProperty, dbField, null, null));
             }
         }
 
         /// <summary>
-        /// Create the command parameters from the <see cref="QueryGroup"/> object.
+        ///
         /// </summary>
-        /// <param name="command">The command object to be used.</param>
-        /// <param name="queryGroup">The value of the <see cref="QueryGroup"/> object.</param>
-        /// <param name="propertiesToSkip">The list of the properties to be skipped.</param>
-        internal static void CreateParameters(this IDbCommand command,
+        /// <param name="command"></param>
+        /// <param name="queryGroup"></param>
+        /// <param name="propertiesToSkip"></param>
+        /// <param name="entityType"></param>
+        /// <param name="dbFields"></param>
+        internal static void CreateParameters(IDbCommand command,
             QueryGroup queryGroup,
-            IEnumerable<string> propertiesToSkip)
+            HashSet<string> propertiesToSkip,
+            Type entityType,
+            IEnumerable<DbField> dbFields = null)
         {
-            // Call the overloaded methods for the query fields
-            CreateParameters(command, queryGroup?.GetFields(true), propertiesToSkip);
+            if (queryGroup == null)
+            {
+                return;
+            }
+            CreateParameters(command, queryGroup.GetFields(true), propertiesToSkip, entityType, dbFields);
         }
 
         /// <summary>
-        /// Create the command parameters from the list of <see cref="QueryField"/> objects.
+        ///
         /// </summary>
-        /// <param name="command">The command object to be used.</param>
-        /// <param name="queryFields">The list of <see cref="QueryField"/> objects.</param>
-        /// <param name="propertiesToSkip">The list of the properties to be skipped.</param>
+        /// <param name="command"></param>
+        /// <param name="queryFields"></param>
+        /// <param name="propertiesToSkip"></param>
+        /// <param name="entityType"></param>
+        /// <param name="dbFields"></param>
         internal static void CreateParameters(this IDbCommand command,
             IEnumerable<QueryField> queryFields,
-            IEnumerable<string> propertiesToSkip)
+            HashSet<string> propertiesToSkip,
+            Type entityType,
+            IEnumerable<DbField> dbFields = null)
         {
+            if (queryFields == null)
+            {
+                return;
+            }
+
             // Filter the query fields
             var filteredQueryFields = queryFields
-                .Where(qf => propertiesToSkip?.Contains(qf.Field.Name, StringComparer.OrdinalIgnoreCase) != true);
+                .Where(qf => propertiesToSkip?.Contains(qf.Field.Name) != true);
 
             // Iterate the filtered query fields
             foreach (var queryField in filteredQueryFields)
             {
-                CreateParameters(command, queryField, null);
+                if (queryField.Operation == Operation.In || queryField.Operation == Operation.NotIn)
+                {
+                    var dbField = GetDbField(queryField.Field.Name, dbFields);
+                    CreateParametersForInOperation(command, queryField, dbField);
+                }
+                else if (queryField.Operation == Operation.Between || queryField.Operation == Operation.NotBetween)
+                {
+                    var dbField = GetDbField(queryField.Field.Name, dbFields);
+                    CreateParametersForBetweenOperation(command, queryField, dbField);
+                }
+                else
+                {
+                    CreateParameters(command, queryField, null, entityType, dbFields);
+                }
             }
         }
 
         /// <summary>
-        /// Creates a command parameter from the <see cref="QueryField"/> object.
+        ///
         /// </summary>
-        /// <param name="command">The command object to be used.</param>
-        /// <param name="queryField">The value of <see cref="QueryField"/> object.</param>
-        /// <param name="propertiesToSkip">The list of the properties to be skipped.</param>
-        internal static void CreateParameters(this IDbCommand command,
+        /// <param name="command"></param>
+        /// <param name="queryField"></param>
+        /// <param name="propertiesToSkip"></param>
+        /// <param name="entityType"></param>
+        /// <param name="dbFields"></param>
+        private static void CreateParameters(this IDbCommand command,
             QueryField queryField,
-            IEnumerable<string> propertiesToSkip)
+            HashSet<string> propertiesToSkip,
+            Type entityType,
+            IEnumerable<DbField> dbFields = null)
         {
-            // Exclude those to be skipped
-            if (propertiesToSkip?.Contains(queryField.Field.Name, StringComparer.OrdinalIgnoreCase) == true)
+            if (queryField == null)
             {
                 return;
             }
 
-            // Validate, make sure to only have the proper operation
-            if (queryField.Operation != Operation.Equal)
+            var fieldName = queryField.Field.Name;
+
+            // Skip
+            if (propertiesToSkip?.Contains(fieldName) == true)
             {
-                throw new InvalidOperationException($"Operation must only be '{nameof(Operation.Equal)}' when calling the 'Execute' methods.");
+                return;
             }
 
-            // Get the values
+            // Variables
+            var dbField = GetDbField(fieldName, dbFields);
             var value = queryField.Parameter.Value;
-            var valueType = value?.GetType()?.GetUnderlyingType();
-            var dbType = TypeMapper.Get(valueType);
+            var classProperty = PropertyCache.Get(entityType, queryField.Field);
+            var (direction, fallbackType) = queryField is DirectionalQueryField n ? ((ParameterDirection?)n.Direction, n.Type) : default;
+            var parameter = CreateParameter(command, queryField.Parameter.Name, value, classProperty, dbField, direction, fallbackType);
+            command.Parameters.Add(parameter);
 
-            // Check for the specialized types
-            if (dbType == null)
-            {
-                if (valueType?.IsEnum == true)
-                {
-                    dbType = DbType.String;
-                }
-                else if (valueType == m_bytesType)
-                {
-                    dbType = DbType.Binary;
-                }
-            }
-
-            // Create the parameter
-            command.Parameters.Add(command.CreateParameter(queryField.Parameter.Name, value, dbType));
+            // Set the parameter
+            queryField.DbParameter = parameter;
         }
 
-        #endregion
-
-        #region SetParameters
-
         /// <summary>
-        /// Set the <see cref="IDbCommand"/> exist <see cref="IDbDataParameter"/> object value and type.
+        ///
         /// </summary>
-        /// <param name="command">The command object instance to be used.</param>
-        /// <param name="name">The name of the parameter.</param>
-        /// <param name="value">The value of the parameter.</param>
-        /// <param name="dbType">The database type of the parameter.</param>
-        /// <returns>The instance of updated parameter.</returns>
-        public static IDbDataParameter SetParameter(this IDbCommand command,
-            string name,
-            object value,
-            DbType? dbType)
+        /// <param name="command"></param>
+        /// <param name="queryField"></param>
+        /// <param name="dbField"></param>
+        private static void CreateParametersForInOperation(this IDbCommand command,
+            QueryField queryField,
+            DbField dbField = null)
         {
-            // Check the name
-            if (name == null)
+            var values = (queryField?.Parameter.Value as System.Collections.IEnumerable)?
+                        .WithType<object>()
+                        .AsList();
+            if (values?.Count > 0)
             {
-                throw new NullReferenceException("The name must not be null.");
-            }
-
-            // Check the presence
-            if (command.Parameters.Contains(name) == false)
-            {
-                throw new ParameterNotFoundException($"Parameter '{name}' is not found.");
-            }
-
-            // Parameterized the name
-            name = name.AsParameter(command.Connection.GetDbSetting());
-
-            // Get the paramete
-            var parameter = (DbParameter)command.Parameters[name];
-
-            // Set the properties
-            parameter.Value = value ?? DBNull.Value;
-            if (dbType != null)
-            {
-                parameter.DbType = dbType.Value;
-            }
-
-            // Return the parameter
-            return parameter;
-        }
-        /// <summary>
-        /// Set the <see cref="IDbCommand"/> object existing <see cref="IDbDataParameter"/> values.
-        /// </summary>
-        /// <param name="command">The command object to be used.</param>
-        /// <param name="param">The instance of where the parameter values will be set.</param>
-        /// <param name="propertiesToSkip">The list of the properties to be skipped.</param>
-        /// <param name="resetOthers">True to reset the other parameter object. This will ignore the skipped properties.</param>
-        internal static void SetParameters(this IDbCommand command,
-            object param,
-            IEnumerable<string> propertiesToSkip,
-            bool resetOthers)
-        {
-            // Do nothing if there is no parameter
-            if (command.Parameters.Count == 0)
-            {
-                return;
-            }
-
-            // Check for presence
-            if (param == null)
-            {
-                foreach (var parameter in command.Parameters.OfType<DbParameter>())
+                for (var i = 0; i < values.Count; i++)
                 {
-                    parameter.Value = DBNull.Value;
-                    parameter.ResetDbType();
+                    var name = string.Concat(queryField.Parameter.Name, "_In_", i.ToString());
+                    command.Parameters.Add(CreateParameter(command, name, values[i], null, dbField, null, null));
                 }
             }
+        }
 
-            // Supporting the IDictionary<string, object>
-            else if (param is ExpandoObject || param is IDictionary<string, object>)
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="queryField"></param>
+        /// <param name="dbField"></param>
+        private static void CreateParametersForBetweenOperation(this IDbCommand command,
+            QueryField queryField,
+            DbField dbField = null)
+        {
+            var values = (queryField?.Parameter.Value as System.Collections.IEnumerable)?
+                        .WithType<object>()
+                        .AsList();
+            if (values?.Count == 2)
             {
-                SetParameters(command, (IDictionary<string, object>)param, propertiesToSkip, resetOthers);
+                command.Parameters.Add(CreateParameter(command, string.Concat(queryField.Parameter.Name, "_Left"), values[0], null, dbField, null, null));
+                command.Parameters.Add(CreateParameter(command, string.Concat(queryField.Parameter.Name, "_Right"), values[1], null, dbField, null, null));
             }
-
-            // Supporting the QueryField
-            else if (param is QueryField)
-            {
-                SetParameters(command, (QueryField)param, propertiesToSkip, resetOthers);
-            }
-
-            // Supporting the IEnumerable<QueryField>
-            else if (param is IEnumerable<QueryField>)
-            {
-                SetParameters(command, (IEnumerable<QueryField>)param, propertiesToSkip, resetOthers);
-            }
-
-            // Supporting the QueryGroup
-            else if (param is QueryGroup)
-            {
-                SetParameters(command, (QueryGroup)param, propertiesToSkip, resetOthers);
-            }
-
-            // Otherwise, iterate the properties
             else
             {
-                var type = param.GetType();
-
-                // Check the validity of the type
-                if (type.IsGenericType && type.GetGenericTypeDefinition() == m_dictionaryType)
-                {
-                    throw new InvalidParameterException("The supported type of dictionary object must be of type IDictionary<string, object>.");
-                }
-
-                // variables for properties
-                var properties = (IEnumerable<ClassProperty>)null;
-
-                // Add this check for performance
-                if (propertiesToSkip == null)
-                {
-                    properties = PropertyCache.Get(type);
-                }
-                else
-                {
-                    properties = PropertyCache.Get(type)
-                        .Where(p => propertiesToSkip?.Contains(p.PropertyInfo.Name,
-                            StringComparer.OrdinalIgnoreCase) == false);
-                }
-
-                // Ensure there are properties
-                if (resetOthers == true && properties.Any() != true)
-                {
-                    SetParameters(command, (object)null, propertiesToSkip, true);
-                }
-                else
-                {
-                    var parameters = command.Parameters.OfType<DbParameter>();
-                    var missingParameters = (IList<DbParameter>)null;
-
-                    // Iterate the parameter instead
-                    foreach (var parameter in parameters)
-                    {
-                        var property = properties.FirstOrDefault(p => string.Equals(p.GetMappedName(), parameter.ParameterName, StringComparison.OrdinalIgnoreCase));
-
-                        // Skip if null
-                        if (property == null)
-                        {
-                            // Add to missing properties if allowed to
-                            if (resetOthers == true)
-                            {
-                                if (missingParameters == null)
-                                {
-                                    missingParameters = new List<DbParameter>();
-                                }
-                                missingParameters.Add(parameter);
-                            }
-
-                            // Continue to next
-                            continue;
-                        }
-
-                        // Get the property values
-                        var value = property.PropertyInfo.GetValue(param);
-                        var dbType = property.GetDbType() ??
-                            TypeMapper.Get(property.PropertyInfo.PropertyType.GetUnderlyingType());
-
-                        // Ensure the type mapping
-                        if (dbType == null)
-                        {
-                            if (value == null && property.PropertyInfo.PropertyType == m_bytesType)
-                            {
-                                dbType = DbType.Binary;
-                            }
-                        }
-
-                        // Set the parameter
-                        parameter.Value = value;
-                        if (dbType != null)
-                        {
-                            parameter.DbType = dbType.Value;
-                        }
-                    }
-
-                    // If there is any (then set to null)
-                    if (resetOthers == true && missingParameters?.Any() == true)
-                    {
-                        foreach (var parameter in missingParameters)
-                        {
-                            parameter.Value = DBNull.Value;
-                            parameter.ResetDbType();
-                        }
-                    }
-                }
+                throw new InvalidParameterException("The values for 'Between' and 'NotBetween' operations must be 2.");
             }
         }
 
         /// <summary>
-        /// Create the command parameters from the <see cref="IDictionary{TKey, TValue}"/> object.
+        ///
         /// </summary>
-        /// <param name="command">The command object to be used.</param>
-        /// <param name="dictionary">The parameters from the <see cref="Dictionary{TKey, TValue}"/> object.</param>
-        /// <param name="propertiesToSkip">The list of the properties to be skipped.</param>
-        /// <param name="resetOthers">True to reset the other parameter object. This will ignore the skipped properties.</param>
-        internal static void SetParameters(this IDbCommand command,
-            IDictionary<string, object> dictionary,
-            IEnumerable<string> propertiesToSkip,
-            bool resetOthers)
+        /// <param name="dbField"></param>
+        /// <returns></returns>
+        private static bool IsAutomaticConversion(DbField dbField) =>
+            (
+                Converter.ConversionType == ConversionType.Automatic ||
+                dbField?.IsPrimary == true ||
+                dbField?.IsIdentity == true
+            ) &&
+            dbField?.Type != null;
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="fieldName"></param>
+        /// <param name="dbFields"></param>
+        /// <returns></returns>
+        private static DbField GetDbField(string fieldName,
+            IEnumerable<DbField> dbFields)
         {
-            // Variables needed
-            var dbType = (DbType?)null;
-            var others = (IList<DbParameter>)null;
-            var fitered = dictionary
-                .Where(kvp => propertiesToSkip?.Contains(kvp.Key, StringComparer.OrdinalIgnoreCase) != true);
-
-            // Iterate the parameter instead
-            foreach (var parameter in command.Parameters.OfType<DbParameter>())
+            if (string.IsNullOrWhiteSpace(fieldName))
             {
-                var kvp = fitered.FirstOrDefault(item => string.Equals(item.Key, parameter.ParameterName, StringComparison.OrdinalIgnoreCase));
-
-                // Skip and add to missing if null
-                if (ReferenceEquals(null, kvp))
-                {
-                    // Add to missing properties if allowed to
-                    if (resetOthers == true)
-                    {
-                        if (others == null)
-                        {
-                            others = new List<DbParameter>();
-                        }
-                        others.Add(parameter);
-                    }
-
-                    // Continue to next
-                    continue;
-                }
-
-                // Get the value
-                var value = kvp.Value;
-
-                // Cast the proper object and identify the properties
-                if (kvp.Value is CommandParameter)
-                {
-                    var commandParameter = (CommandParameter)kvp.Value;
-                    var property = commandParameter.MappedToType.GetProperty(kvp.Key);
-
-                    // Get the value
-                    value = commandParameter.Value;
-
-                    // Get the DB Type
-                    dbType = property?.GetCustomAttribute<TypeMapAttribute>()?.DbType ??
-                        TypeMapper.Get(property?.PropertyType.GetUnderlyingType());
-                }
-                else
-                {
-                    // Get the DB Type
-                    dbType = TypeMapper.Get(kvp.Value?.GetType()?.GetUnderlyingType());
-                }
-
-                // Set the parameter
-                parameter.Value = value;
-                if (dbType != null)
-                {
-                    parameter.DbType = dbType.Value;
-                }
-                else
-                {
-                    parameter.ResetDbType();
-                }
+                return null;
             }
-
-            // If there is any (then set to null)
-            if (resetOthers == true && others?.Any() == true)
+            if (fieldName.Contains("_In_"))
             {
-                foreach (var parameter in others)
-                {
-                    parameter.Value = DBNull.Value;
-                    parameter.ResetDbType();
-                }
+                return dbFields?.FirstOrDefault(df =>
+                    fieldName.StartsWith(df.Name, StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                return dbFields?.FirstOrDefault(df =>
+                    string.Equals(df.Name, fieldName, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="fromType"></param>
+        /// <param name="targetType"></param>
+        /// <returns></returns>
+        private static object AutomaticConvert(object value,
+            Type fromType,
+            Type targetType)
+        {
+            if (fromType == null || targetType == null || fromType == targetType)
+            {
+                return value;
+            }
+            if (fromType == StaticType.String && targetType == StaticType.Guid)
+            {
+                return AutomaticConvertStringToGuid(value);
+            }
+            else if (fromType == StaticType.Guid && targetType == StaticType.String)
+            {
+                return AutomaticConvertGuidToString(value);
+            }
+            else
+            {
+                return Convert.ChangeType(value, targetType);
             }
         }
 
         /// <summary>
-        /// Create the command parameters from the <see cref="QueryGroup"/> object.
+        ///
         /// </summary>
-        /// <param name="command">The command object to be used.</param>
-        /// <param name="queryGroup">The value of the <see cref="QueryGroup"/> object.</param>
-        /// <param name="propertiesToSkip">The list of the properties to be skipped.</param>
-        /// <param name="resetOthers">True to reset the other parameter object. This will ignore the skipped properties.</param>
-        internal static void SetParameters(this IDbCommand command,
-            QueryGroup queryGroup,
-            IEnumerable<string> propertiesToSkip,
-            bool resetOthers)
+        /// <param name="value"></param>
+        /// <returns></returns>
+        private static object AutomaticConvertStringToGuid(object value)
         {
-            // Call the overloaded methods for the query fields
-            SetParameters(command, queryGroup?.GetFields(true), propertiesToSkip, resetOthers);
+            if (value != null)
+            {
+                value = StaticType.Guid
+                    .GetMethod("Parse", new[] { StaticType.String })
+                    .Invoke(null, new[] { value });
+
+            }
+            return value;
         }
 
         /// <summary>
-        /// Create the command parameters from the list of <see cref="QueryField"/> objects.
+        ///
         /// </summary>
-        /// <param name="command">The command object to be used.</param>
-        /// <param name="queryFields">The list of <see cref="QueryField"/> objects.</param>
-        /// <param name="propertiesToSkip">The list of the properties to be skipped.</param>
-        /// <param name="resetOthers">True to reset the other parameter object. This will ignore the skipped properties.</param>
-        internal static void SetParameters(this IDbCommand command,
-            IEnumerable<QueryField> queryFields,
-            IEnumerable<string> propertiesToSkip,
-            bool resetOthers)
+        /// <param name="value"></param>
+        /// <returns></returns>
+        private static object AutomaticConvertGuidToString(object value)
         {
-            // Variables needed
-            var dbType = (DbType?)null;
-            var others = (IList<DbParameter>)null;
-            var filtered = queryFields
-                .Where(qf => propertiesToSkip?.Contains(qf.Field.Name, StringComparer.OrdinalIgnoreCase) != true);
-
-            // Iterate the parameter instead
-            foreach (var parameter in command.Parameters.OfType<DbParameter>())
-            {
-                var queryField = filtered.FirstOrDefault(qf => string.Equals(qf.Field.Name, parameter.ParameterName, StringComparison.OrdinalIgnoreCase));
-
-                // Skip and add to missing if null
-                if (queryField == null)
-                {
-                    // Add to missing properties if allowed to
-                    if (resetOthers == true)
-                    {
-                        if (others == null)
-                        {
-                            others = new List<DbParameter>();
-                        }
-                        others.Add(parameter);
-                    }
-
-                    // Continue to next
-                    continue;
-                }
-
-                // Get the value
-                var value = queryField.Parameter.Value;
-
-                // Get the DB Type
-                dbType = TypeMapper.Get(value?.GetType()?.GetUnderlyingType());
-
-                // Set the parameter
-                parameter.Value = value;
-                if (dbType != null)
-                {
-                    parameter.DbType = dbType.Value;
-                }
-                else
-                {
-                    parameter.ResetDbType();
-                }
-            }
-
-            // If there is any (then set to null)
-            if (resetOthers == true && others?.Any() == true)
-            {
-                foreach (var parameter in others)
-                {
-                    parameter.Value = DBNull.Value;
-                    parameter.ResetDbType();
-                }
-            }
+            return value?.ToString();
         }
 
         /// <summary>
-        /// Creates a command parameter from the <see cref="QueryField"/> object.
+        /// 
         /// </summary>
-        /// <param name="command">The command object to be used.</param>
-        /// <param name="queryField">The value of <see cref="QueryField"/> object.</param>
-        /// <param name="propertiesToSkip">The list of the properties to be skipped.</param>
-        /// <param name="resetOthers">True to reset the other parameter object. This will ignore the skipped properties.</param>
-        internal static void SetParameters(this IDbCommand command,
-            QueryField queryField,
-            IEnumerable<string> propertiesToSkip,
-            bool resetOthers)
-        {
-            // Exclude those to be skipped
-            if (propertiesToSkip?.Contains(queryField.Field.Name, StringComparer.OrdinalIgnoreCase) == true)
-            {
-                return;
-            }
-
-            // Validate, make sure to only have the proper operation
-            if (queryField.Operation != Operation.Equal)
-            {
-                throw new InvalidOperationException($"Operation must only be '{nameof(Operation.Equal)}' when calling the 'Execute' methods.");
-            }
-
-            // Get the values
-            var parameters = command.Parameters.OfType<DbParameter>();
-            var parameter = parameters.FirstOrDefault(p => string.Equals(p.ParameterName, queryField.Field.Name, StringComparison.OrdinalIgnoreCase));
-
-            // Get the target parameter
-            if (parameter != null)
-            {
-                var value = queryField.Parameter.Value;
-                var dbType = TypeMapper.Get(value?.GetType()?.GetUnderlyingType());
-
-                // Set the value
-                parameter.Value = value;
-
-                // Set the DB Type
-                if (dbType != null)
-                {
-                    parameter.DbType = dbType.Value;
-                }
-            }
-
-            // If there is any (then set to null)
-            if (resetOthers == true)
-            {
-                var others = parameters.Where(p => p != parameter);
-                if (others?.Any() == true)
-                {
-                    foreach (var p in others)
-                    {
-                        p.Value = DBNull.Value;
-                        p.ResetDbType();
-                    }
-                }
-            }
-        }
+        /// <param name="value"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        private static object ConvertEnumValueToType(object value,
+            Type type) =>
+            value != null ?
+                type == StaticType.String ?
+                    value?.ToString() : Convert.ChangeType(Convert.ToInt32(value), type) : null;
 
         #endregion
     }

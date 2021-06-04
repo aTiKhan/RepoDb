@@ -4,6 +4,7 @@ using RepoDb.Extensions;
 using RepoDb.PostgreSql.IntegrationTests.Setup;
 using RepoDb.PostgreSql.IntegrationTests.Models;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace RepoDb.PostgreSql.IntegrationTests.Operations
 {
@@ -39,13 +40,14 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                 var result = connection.MergeAll<CompleteTable>(tables);
 
                 // Assert
-                Assert.AreEqual(tables.Count(), result);
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+                Assert.AreEqual(tables.Count, result);
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -65,13 +67,14 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                 var result = connection.MergeAll<CompleteTable>(tables);
 
                 // Assert
-                Assert.AreEqual(tables.Count(), result);
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+                Assert.AreEqual(tables.Count, result);
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -96,13 +99,14 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                     qualifiers);
 
                 // Assert
-                Assert.AreEqual(tables.Count(), result);
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+                Assert.AreEqual(tables.Count, result);
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -110,22 +114,23 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         [TestMethod]
         public void TestPostgreSqlConnectionMergeAllForNonIdentityForEmptyTable()
         {
+            // Setup
+            var tables = Helper.CreateNonIdentityCompleteTables(10);
+
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
-                // Setup
-                var tables = Helper.CreateNonIdentityCompleteTables(10);
-
                 // Act
                 var result = connection.MergeAll<NonIdentityCompleteTable>(tables);
 
                 // Assert
-                Assert.AreEqual(tables.Count(), result);
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
+                Assert.AreEqual(tables.Count, result);
 
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -144,11 +149,14 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                 // Act
                 var result = connection.MergeAll<NonIdentityCompleteTable>(tables);
 
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
+
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -172,11 +180,14 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                 var result = connection.MergeAll<NonIdentityCompleteTable>(tables,
                     qualifiers);
 
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
+
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -188,22 +199,23 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         [TestMethod]
         public void TestPostgreSqlConnectionMergeAllAsyncForIdentityForEmptyTable()
         {
+            // Setup
+            var tables = Helper.CreateCompleteTables(10);
+
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
-                // Setup
-                var tables = Helper.CreateCompleteTables(10);
-
                 // Act
                 var result = connection.MergeAllAsync<CompleteTable>(tables).Result;
 
                 // Assert
-                Assert.AreEqual(tables.Count(), result);
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+                Assert.AreEqual(tables.Count, result);
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -223,13 +235,14 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                 var result = connection.MergeAllAsync<CompleteTable>(tables).Result;
 
                 // Assert
-                Assert.AreEqual(tables.Count(), result);
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+                Assert.AreEqual(tables.Count, result);
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -254,13 +267,14 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                     qualifiers).Result;
 
                 // Assert
-                Assert.AreEqual(tables.Count(), result);
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+                Assert.AreEqual(tables.Count, result);
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -268,22 +282,23 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         [TestMethod]
         public void TestPostgreSqlConnectionMergeAllAsyncForNonIdentityForEmptyTable()
         {
+            // Setup
+            var tables = Helper.CreateNonIdentityCompleteTables(10);
+
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
-                // Setup
-                var tables = Helper.CreateNonIdentityCompleteTables(10);
-
                 // Act
                 var result = connection.MergeAllAsync<NonIdentityCompleteTable>(tables).Result;
 
                 // Assert
-                Assert.AreEqual(tables.Count(), result);
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
+                Assert.AreEqual(tables.Count, result);
 
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -302,11 +317,14 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                 // Act
                 var result = connection.MergeAllAsync<NonIdentityCompleteTable>(tables).Result;
 
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
+
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -330,11 +348,14 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                 var result = connection.MergeAllAsync<NonIdentityCompleteTable>(tables,
                     qualifiers).Result;
 
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
+
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -350,24 +371,51 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         [TestMethod]
         public void TestPostgreSqlConnectionMergeAllViaTableNameForIdentityForEmptyTable()
         {
+            // Setup
+            var tables = Helper.CreateCompleteTables(10);
+
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
-                // Setup
-                var tables = Helper.CreateCompleteTables(10);
-
                 // Act
                 var result = connection.MergeAll(ClassMappedNameCache.Get<CompleteTable>(),
                     tables);
 
                 // Assert
-                Assert.AreEqual(tables.Count(), result);
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+                Assert.AreEqual(tables.Count, result);
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.First(e => e.Id == table.Id)));
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
+            }
+        }
+
+        [TestMethod]
+        public void TestPostgreSqlConnectionMergeAllAsExpandoObjectViaTableNameForIdentityForEmptyTable()
+        {
+            // Setup
+            var tables = Helper.CreateCompleteTablesAsExpandoObjects(10);
+
+            using (var connection = new NpgsqlConnection(Database.ConnectionString))
+            {
+                // Act
+                var result = connection.MergeAll(ClassMappedNameCache.Get<CompleteTable>(),
+                    tables);
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+                Assert.AreEqual(tables.Count, result);
+                Assert.IsTrue(tables.All(table => ((dynamic)table).Id > 0));
+
+                // Act
+                var queryResult = connection.QueryAll<CompleteTable>();
+
+                // Assert
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertMembersEquality(queryResult.First(e => e.Id == ((dynamic)table).Id), table));
             }
         }
 
@@ -386,12 +434,43 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                 var result = connection.MergeAll(ClassMappedNameCache.Get<CompleteTable>(),
                     tables);
 
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.First(e => e.Id == table.Id)));
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
+            }
+        }
+
+        [TestMethod]
+        public void TestPostgreSqlConnectionMergeAllAsExpandoObjectViaTableNameForIdentityForNonEmptyTable()
+        {
+            // Setup
+            var entities = Database.CreateCompleteTables(10).AsList();
+
+            using (var connection = new NpgsqlConnection(Database.ConnectionString))
+            {
+                // Setup
+                var tables = Helper.CreateCompleteTablesAsExpandoObjects(10).AsList();
+                tables.ForEach(e => ((IDictionary<string, object>)e)["Id"] = entities[tables.IndexOf(e)].Id);
+
+                // Act
+                var result = connection.MergeAll(ClassMappedNameCache.Get<CompleteTable>(),
+                    tables);
+
+                // Assert
+                Assert.AreEqual(entities.Count, connection.CountAll<CompleteTable>());
+
+                // Act
+                var queryResult = connection.QueryAll<CompleteTable>();
+
+                // Assert
+                Assert.AreEqual(entities.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertMembersEquality(queryResult.First(e => e.Id == ((dynamic)table).Id), table));
             }
         }
 
@@ -415,37 +494,39 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                     tables,
                     qualifiers);
 
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.First(e => e.Id == table.Id)));
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
         [TestMethod]
         public void TestPostgreSqlConnectionMergeAllAsDynamicsViaTableNameForIdentityForEmptyTable()
         {
+            // Setup
+            var tables = Helper.CreateCompleteTablesAsDynamics(10);
+
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
-                // Setup
-                var tables = Helper.CreateCompleteTablesAsDynamics(10);
-
                 // Act
                 var result = connection.MergeAll(ClassMappedNameCache.Get<CompleteTable>(),
                     tables);
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                tables.ForEach(table =>
-                {
-                    Helper.AssertMembersEquality(table,
-                        queryResult.OrderBy(e => e.Id).ElementAt((int)tables.IndexOf(table)));
-                });
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
@@ -454,28 +535,25 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         {
             // Setup
             var tables = Database.CreateCompleteTables(10).AsList();
-            var entities = tables.Select(table => new
-            {
-                Id = table.Id,
-                ColumnInteger = int.MaxValue
-            }).AsList();
 
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
+                // Setup
+                tables.ForEach(table => Helper.UpdateCompleteTableProperties(table));
+
                 // Act
                 var result = connection.MergeAll(ClassMappedNameCache.Get<CompleteTable>(),
-                    entities);
+                    tables);
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                entities.ForEach(table =>
-                {
-                    Assert.AreEqual(table.ColumnInteger,
-                        queryResult.OrderBy(e => e.Id).ElementAt((int)entities.IndexOf(table)).ColumnInteger);
-                });
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
@@ -484,11 +562,6 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         {
             // Setup
             var tables = Database.CreateCompleteTables(10).AsList();
-            var entities = tables.Select(table => new
-            {
-                Id = table.Id,
-                ColumnInteger = int.MaxValue
-            }).AsList();
             var qualifiers = new[]
             {
                 new Field("Id", typeof(long))
@@ -496,45 +569,48 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
 
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
+                // Setup
+                tables.ForEach(table => Helper.UpdateCompleteTableProperties(table));
+
                 // Act
                 var result = connection.MergeAll(ClassMappedNameCache.Get<CompleteTable>(),
-                    entities,
+                    tables,
                     qualifiers);
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                entities.ForEach(table =>
-                {
-                    Assert.AreEqual(table.ColumnInteger,
-                        queryResult.OrderBy(e => e.Id).ElementAt((int)entities.IndexOf(table)).ColumnInteger);
-                });
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
         [TestMethod]
         public void TestPostgreSqlConnectionMergeAllViaTableNameForNonIdentityForEmptyTable()
         {
+            // Setup
+            var tables = Helper.CreateNonIdentityCompleteTables(10);
+
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
-                // Setup
-                var tables = Helper.CreateNonIdentityCompleteTables(10);
-
                 // Act
                 var result = connection.MergeAll(ClassMappedNameCache.Get<NonIdentityCompleteTable>(),
                     tables);
 
                 // Assert
-                Assert.AreEqual(tables.Count(), result);
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
+                Assert.AreEqual(tables.Count, result);
 
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.OrderBy(e => e.Id).ElementAt((int)tables.IndexOf(table))));
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
@@ -553,11 +629,14 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                 var result = connection.MergeAll(ClassMappedNameCache.Get<NonIdentityCompleteTable>(),
                     tables);
 
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
+
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.ElementAt(tables.IndexOf(table))));
             }
         }
@@ -582,11 +661,14 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                     tables,
                     qualifiers);
 
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
+
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -594,23 +676,26 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         [TestMethod]
         public void TestPostgreSqlConnectionMergeAllAsDynamicsViaTableNameForNonIdentityForEmptyTable()
         {
+            // Setup
+            var tables = Helper.CreateNonIdentityCompleteTablesAsDynamics(10);
+
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
-                // Setup
-                var tables = Helper.CreateNonIdentityCompleteTablesAsDynamics(10);
-
                 // Act
                 var result = connection.MergeAll(ClassMappedNameCache.Get<NonIdentityCompleteTable>(),
                     tables);
 
                 // Assert
-                Assert.AreEqual(tables.Count(), result);
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
+
+                // Assert
+                Assert.AreEqual(tables.Count, result);
 
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -620,28 +705,25 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         {
             // Setup
             var tables = Database.CreateNonIdentityCompleteTables(10).AsList();
-            var entities = tables.Select(table => new
-            {
-                Id = table.Id,
-                ColumnInteger = int.MaxValue
-            }).AsList();
 
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
+                // Setup
+                tables.ForEach(table => Helper.UpdateNonIdentityCompleteTableProperties(table));
+
                 // Act
                 var result = connection.MergeAll(ClassMappedNameCache.Get<NonIdentityCompleteTable>(),
-                    entities);
+                    tables);
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                entities.ForEach(table =>
-                {
-                    Assert.AreEqual(table.ColumnInteger,
-                        queryResult.OrderBy(e => e.Id).ElementAt((int)entities.IndexOf(table)).ColumnInteger);
-                });
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
@@ -650,11 +732,6 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         {
             // Setup
             var tables = Database.CreateNonIdentityCompleteTables(10).AsList();
-            var entities = tables.Select(table => new
-            {
-                Id = table.Id,
-                ColumnInteger = int.MaxValue
-            }).AsList();
             var qualifiers = new[]
             {
                 new Field("Id", typeof(long))
@@ -662,17 +739,23 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
 
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
+                // Setup
+                tables.ForEach(table => Helper.UpdateNonIdentityCompleteTableProperties(table));
+
                 // Act
                 var result = connection.MergeAll(ClassMappedNameCache.Get<NonIdentityCompleteTable>(),
-                    entities,
+                    tables,
                     qualifiers);
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                entities.ForEach(table => Assert.AreEqual(table.ColumnInteger, queryResult.ElementAt((int)entities.IndexOf(table)).ColumnInteger));
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
@@ -683,21 +766,50 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         [TestMethod]
         public void TestPostgreSqlConnectionMergeAllViaTableNameAsyncForIdentityForEmptyTable()
         {
+            // Setup
+            var tables = Helper.CreateCompleteTables(10);
+
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
-                // Setup
-                var tables = Helper.CreateCompleteTables(10);
-
                 // Act
                 var result = connection.MergeAllAsync(ClassMappedNameCache.Get<CompleteTable>(),
                     tables).Result;
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.First(e => e.Id == table.Id)));
+            }
+        }
+
+        [TestMethod]
+        public void TestPostgreSqlConnectionMergeAllAsyncAsExpandoObjectViaTableNameForIdentityForEmptyTable()
+        {
+            // Setup
+            var tables = Helper.CreateCompleteTablesAsExpandoObjects(10);
+
+            using (var connection = new NpgsqlConnection(Database.ConnectionString))
+            {
+                // Act
+                var result = connection.MergeAllAsync(ClassMappedNameCache.Get<CompleteTable>(),
+                    tables).Result;
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+                Assert.AreEqual(tables.Count, result);
+                Assert.IsTrue(tables.All(table => ((dynamic)table).Id > 0));
+
+                // Act
+                var queryResult = connection.QueryAll<CompleteTable>();
+
+                // Assert
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertMembersEquality(queryResult.First(e => e.Id == ((dynamic)table).Id), table));
             }
         }
 
@@ -716,12 +828,43 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                 var result = connection.MergeAllAsync(ClassMappedNameCache.Get<CompleteTable>(),
                     tables).Result;
 
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.First(e => e.Id == table.Id)));
+            }
+        }
+
+        [TestMethod]
+        public void TestPostgreSqlConnectionMergeAllAsyncAsExpandoObjectViaTableNameForIdentityForNonEmptyTable()
+        {
+            // Setup
+            var entities = Database.CreateCompleteTables(10).AsList();
+
+            using (var connection = new NpgsqlConnection(Database.ConnectionString))
+            {
+                // Setup
+                var tables = Helper.CreateCompleteTablesAsExpandoObjects(10).AsList();
+                tables.ForEach(e => ((IDictionary<string, object>)e)["Id"] = entities[tables.IndexOf(e)].Id);
+
+                // Act
+                var result = connection.MergeAllAsync(ClassMappedNameCache.Get<CompleteTable>(),
+                    tables).Result;
+
+                // Assert
+                Assert.AreEqual(entities.Count, connection.CountAll<CompleteTable>());
+
+                // Act
+                var queryResult = connection.QueryAll<CompleteTable>();
+
+                // Assert
+                Assert.AreEqual(entities.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertMembersEquality(queryResult.First(e => e.Id == ((dynamic)table).Id), table));
             }
         }
 
@@ -745,11 +888,14 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                     tables,
                     qualifiers).Result;
 
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
+
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -757,20 +903,23 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         [TestMethod]
         public void TestPostgreSqlConnectionMergeAllAsyncAsDynamicsViaTableNameForIdentityForEmptyTable()
         {
+            // Setup
+            var tables = Helper.CreateCompleteTablesAsDynamics(10);
+
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
-                // Setup
-                var tables = Helper.CreateCompleteTablesAsDynamics(10);
-
                 // Act
                 var result = connection.MergeAllAsync(ClassMappedNameCache.Get<CompleteTable>(),
                     tables).Result;
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
+                Assert.AreEqual(tables.Count, queryResult.Count());
                 tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
@@ -780,24 +929,25 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         {
             // Setup
             var tables = Database.CreateCompleteTables(10).AsList();
-            var entities = tables.Select(table => new
-            {
-                Id = table.Id,
-                ColumnInteger = int.MaxValue
-            }).AsList();
 
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
+                // Setup
+                tables.ForEach(table => Helper.UpdateCompleteTableProperties(table));
+
                 // Act
                 var result = connection.MergeAllAsync(ClassMappedNameCache.Get<CompleteTable>(),
-                    entities).Result;
+                    tables).Result;
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                entities.ForEach(table => Assert.AreEqual(table.ColumnInteger, queryResult.First(e => e.Id == table.Id).ColumnInteger));
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
@@ -806,11 +956,6 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         {
             // Setup
             var tables = Database.CreateCompleteTables(10).AsList();
-            var entities = tables.Select(table => new
-            {
-                Id = table.Id,
-                ColumnInteger = int.MaxValue
-            }).AsList();
             var qualifiers = new[]
             {
                 new Field("Id", typeof(long))
@@ -818,38 +963,47 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
 
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
+                // Setup
+                tables.ForEach(table => Helper.UpdateCompleteTableProperties(table));
+
                 // Act
                 var result = connection.MergeAllAsync(ClassMappedNameCache.Get<CompleteTable>(),
-                    entities,
+                    tables,
                     qualifiers).Result;
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<CompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<CompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                entities.ForEach(table => Assert.AreEqual(table.ColumnInteger, queryResult.ElementAt((int)entities.IndexOf(table)).ColumnInteger));
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
         [TestMethod]
         public void TestPostgreSqlConnectionMergeAllAsyncViaTableNameForNonIdentityForEmptyTable()
         {
+            // Setup
+            var tables = Helper.CreateNonIdentityCompleteTables(10);
+
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
-                // Setup
-                var tables = Helper.CreateNonIdentityCompleteTables(10);
-
                 // Act
                 var result = connection.MergeAllAsync(ClassMappedNameCache.Get<NonIdentityCompleteTable>(),
                     tables).Result;
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.First(e => e.Id == table.Id)));
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
@@ -868,16 +1022,15 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                 var result = connection.MergeAllAsync(ClassMappedNameCache.Get<NonIdentityCompleteTable>(),
                     tables).Result;
 
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
+
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                tables.ForEach(table =>
-                {
-                    Helper.AssertMembersEquality(table,
-                      queryResult.OrderBy(e => e.Id).ElementAt(tables.IndexOf(table)));
-                });
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
@@ -901,33 +1054,39 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
                     tables,
                     qualifiers).Result;
 
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
+
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.First(e => e.Id == table.Id)));
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
         [TestMethod]
         public void TestPostgreSqlConnectionMergeAllAsyncAsDynamicsViaTableNameForNonIdentityForEmptyTable()
         {
+            // Setup
+            var tables = Helper.CreateNonIdentityCompleteTablesAsDynamics(10);
+
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
-                // Setup
-                var tables = Helper.CreateNonIdentityCompleteTablesAsDynamics(10);
-
                 // Act
                 var result = connection.MergeAllAsync(ClassMappedNameCache.Get<NonIdentityCompleteTable>(),
                     tables).Result;
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                tables.ForEach(table => Helper.AssertMembersEquality(table, queryResult.OrderBy(e => e.Id).ElementAt((int)tables.IndexOf(table))));
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
@@ -936,24 +1095,25 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         {
             // Setup
             var tables = Database.CreateNonIdentityCompleteTables(10).AsList();
-            var entities = tables.Select(table => new
-            {
-                Id = table.Id,
-                ColumnInteger = int.MaxValue
-            }).AsList();
 
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
+                // Setup
+                tables.ForEach(table => Helper.UpdateNonIdentityCompleteTableProperties(table));
+
                 // Act
                 var result = connection.MergeAllAsync(ClassMappedNameCache.Get<NonIdentityCompleteTable>(),
-                    entities).Result;
+                    tables).Result;
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                entities.ForEach(table => Assert.AreEqual(table.ColumnInteger, queryResult.ElementAt((int)entities.IndexOf(table)).ColumnInteger));
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 
@@ -962,11 +1122,6 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
         {
             // Setup
             var tables = Database.CreateNonIdentityCompleteTables(10).AsList();
-            var entities = tables.Select(table => new
-            {
-                Id = table.Id,
-                ColumnInteger = int.MaxValue
-            }).AsList();
             var qualifiers = new[]
             {
                 new Field("Id", typeof(long))
@@ -974,17 +1129,23 @@ namespace RepoDb.PostgreSql.IntegrationTests.Operations
 
             using (var connection = new NpgsqlConnection(Database.ConnectionString))
             {
+                // Setup
+                tables.ForEach(table => Helper.UpdateNonIdentityCompleteTableProperties(table));
+
                 // Act
                 var result = connection.MergeAllAsync(ClassMappedNameCache.Get<NonIdentityCompleteTable>(),
-                    entities,
+                    tables,
                     qualifiers).Result;
+
+                // Assert
+                Assert.AreEqual(tables.Count, connection.CountAll<NonIdentityCompleteTable>());
 
                 // Act
                 var queryResult = connection.QueryAll<NonIdentityCompleteTable>();
 
                 // Assert
-                Assert.AreEqual(tables.Count(), queryResult.Count());
-                entities.ForEach(table => Assert.AreEqual(table.ColumnInteger, queryResult.ElementAt((int)entities.IndexOf(table)).ColumnInteger));
+                Assert.AreEqual(tables.Count, queryResult.Count());
+                tables.ForEach(table => Helper.AssertPropertiesEquality(table, queryResult.First(e => e.Id == table.Id)));
             }
         }
 

@@ -38,13 +38,13 @@ namespace RepoDb.SqlServer.Tests.UnitTests
             var expected = $"" +
                 $"WITH CTE AS " +
                 $"( " +
-                $"SELECT ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
+                $"SELECT TOP (10) ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
                 $"FROM [Table] " +
+                $"ORDER BY [Field1] ASC " +
                 $") " +
                 $"SELECT [Field1], [Field2] " +
                 $"FROM CTE " +
-                $"WHERE ([RowNumber] BETWEEN 1 AND 10) " +
-                $"ORDER BY [Field1] ASC ;";
+                $"WHERE ([RowNumber] BETWEEN 1 AND 10) ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -71,13 +71,13 @@ namespace RepoDb.SqlServer.Tests.UnitTests
             var expected = $"" +
                 $"WITH CTE AS " +
                 $"( " +
-                $"SELECT ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
-                $"FROM [Table] " +
+                $"SELECT TOP (20) ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
+                $"FROM [Table] " + 
+                $"ORDER BY [Field1] ASC " +
                 $") " +
                 $"SELECT [Field1], [Field2] " +
                 $"FROM CTE " +
-                $"WHERE ([RowNumber] BETWEEN 11 AND 20) " +
-                $"ORDER BY [Field1] ASC ;";
+                $"WHERE ([RowNumber] BETWEEN 11 AND 20) ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -105,13 +105,13 @@ namespace RepoDb.SqlServer.Tests.UnitTests
             var expected = $"" +
                 $"WITH CTE AS " +
                 $"( " +
-                $"SELECT ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
+                $"SELECT TOP (10) ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
                 $"FROM [dbo].[Table] WITH (NOLOCK) " +
+                $"ORDER BY [Field1] ASC " +
                 $") " +
                 $"SELECT [Field1], [Field2] " +
                 $"FROM CTE " +
-                $"WHERE ([RowNumber] BETWEEN 1 AND 10) " +
-                $"ORDER BY [Field1] ASC ;";
+                $"WHERE ([RowNumber] BETWEEN 1 AND 10) ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -138,13 +138,13 @@ namespace RepoDb.SqlServer.Tests.UnitTests
             var expected = $"" +
                 $"WITH CTE AS " +
                 $"( " +
-                $"SELECT ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
+                $"SELECT TOP (10) ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
                 $"FROM [dbo].[Table] " +
+                $"ORDER BY [Field1] ASC " +
                 $") " +
                 $"SELECT [Field1], [Field2] " +
                 $"FROM CTE " +
-                $"WHERE ([RowNumber] BETWEEN 1 AND 10) " +
-                $"ORDER BY [Field1] ASC ;";
+                $"WHERE ([RowNumber] BETWEEN 1 AND 10) ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -171,13 +171,13 @@ namespace RepoDb.SqlServer.Tests.UnitTests
             var expected = $"" +
                 $"WITH CTE AS " +
                 $"( " +
-                $"SELECT ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
+                $"SELECT TOP (10) ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
                 $"FROM [dbo].[Table] " +
+                $"ORDER BY [Field1] ASC " +
                 $") " +
                 $"SELECT [Field1], [Field2] " +
                 $"FROM CTE " +
-                $"WHERE ([RowNumber] BETWEEN 1 AND 10) " +
-                $"ORDER BY [Field1] ASC ;";
+                $"WHERE ([RowNumber] BETWEEN 1 AND 10) ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -205,14 +205,14 @@ namespace RepoDb.SqlServer.Tests.UnitTests
             var expected = $"" +
                 $"WITH CTE AS " +
                 $"( " +
-                $"SELECT ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
+                $"SELECT TOP (20) ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
                 $"FROM [Table] " +
                 $"WHERE ([Field1] <> @Field1) " +
+                $"ORDER BY [Field1] ASC " +
                 $") " +
                 $"SELECT [Field1], [Field2] " +
                 $"FROM CTE " +
-                $"WHERE ([RowNumber] BETWEEN 11 AND 20) " +
-                $"ORDER BY [Field1] ASC ;";
+                $"WHERE ([RowNumber] BETWEEN 11 AND 20) ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -240,14 +240,14 @@ namespace RepoDb.SqlServer.Tests.UnitTests
             var expected = $"" +
                 $"WITH CTE AS " +
                 $"( " +
-                $"SELECT ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
+                $"SELECT TOP (20) ROW_NUMBER() OVER ( ORDER BY [Field1] ASC ) AS [RowNumber], [Field1], [Field2] " +
                 $"FROM [Table] " +
                 $"WHERE ([Id] <> @Id) " +
+                $"ORDER BY [Field1] ASC " +
                 $") " +
                 $"SELECT [Field1], [Field2] " +
                 $"FROM CTE " +
-                $"WHERE ([RowNumber] BETWEEN 11 AND 20) " +
-                $"ORDER BY [Field1] ASC ;";
+                $"WHERE ([RowNumber] BETWEEN 11 AND 20) ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -310,7 +310,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 where: null);
         }
 
-        [TestMethod, ExpectedException(typeof(NullReferenceException))]
+        [TestMethod, ExpectedException(typeof(MissingFieldsException))]
         public void ThrowExceptionOnSqlServerStatementBuilderCreateBatchQueryIfTheFieldsAreNull()
         {
             // Setup
@@ -613,7 +613,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"( [Field2], [Field3] ) " +
                 $"VALUES " +
                 $"( @Field2, @Field3 ) ; " +
-                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) ;";
+                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -641,7 +641,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"( [Field2], [Field3] ) " +
                 $"VALUES " +
                 $"( @Field2, @Field3 ) ; " +
-                $"SELECT CONVERT(BIGINT, SCOPE_IDENTITY()) ;";
+                $"SELECT CONVERT(BIGINT, SCOPE_IDENTITY()) AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -670,7 +670,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"( [Field1], [Field3] ) " +
                 $"VALUES " +
                 $"( @Field1, @Field3 ) ; " +
-                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) ;";
+                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -699,7 +699,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"( [Field1], [Field3] ) " +
                 $"VALUES " +
                 $"( @Field1, @Field3 ) ; " +
-                $"SELECT CONVERT(BIGINT, SCOPE_IDENTITY()) ;";
+                $"SELECT CONVERT(BIGINT, SCOPE_IDENTITY()) AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -727,17 +727,17 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"( [Field2], [Field3] ) " +
                 $"VALUES " +
                 $"( @Field2, @Field3 ) ; " +
-                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) ; " +
+                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ; " +
                 $"INSERT INTO [Table] " +
                 $"( [Field2], [Field3] ) " +
                 $"VALUES " +
                 $"( @Field2_1, @Field3_1 ) ; " +
-                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) ; " +
+                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) AS [Id], @__RepoDb_OrderColumn_1 AS [OrderColumn] ; " +
                 $"INSERT INTO [Table] " +
                 $"( [Field2], [Field3] ) " +
                 $"VALUES " +
                 $"( @Field2_2, @Field3_2 ) ; " +
-                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) ;";
+                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) AS [Id], @__RepoDb_OrderColumn_2 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -766,7 +766,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"( [Field2], [Field3] ) " +
                 $"VALUES " +
                 $"( @Field2, @Field3 ) ; " +
-                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) ;";
+                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -795,17 +795,17 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"( [Field2], [Field3] ) " +
                 $"VALUES " +
                 $"( @Field2, @Field3 ) ; " +
-                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) ; " +
+                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ; " +
                 $"INSERT INTO [Table] WITH (TABLOCK) " +
                 $"( [Field2], [Field3] ) " +
                 $"VALUES " +
                 $"( @Field2_1, @Field3_1 ) ; " +
-                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) ; " +
+                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) AS [Id], @__RepoDb_OrderColumn_1 AS [OrderColumn] ; " +
                 $"INSERT INTO [Table] WITH (TABLOCK) " +
                 $"( [Field2], [Field3] ) " +
                 $"VALUES " +
                 $"( @Field2_2, @Field3_2 ) ; " +
-                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) ;";
+                $"SELECT CONVERT(INT, SCOPE_IDENTITY()) AS [Id], @__RepoDb_OrderColumn_2 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -1185,7 +1185,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field1], S.[Field2], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field2] = S.[Field2], T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Field1] AS [Result] ;";
+                $"OUTPUT INSERTED.[Field1] AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -1220,7 +1220,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field2], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field2] = S.[Field2], T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Field1] AS [Result] ;";
+                $"OUTPUT INSERTED.[Field1] AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -1254,7 +1254,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field1], S.[Field2], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field1] = S.[Field1], T.[Field2] = S.[Field2], T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Id] AS [Result] ;";
+                $"OUTPUT INSERTED.[Id] AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -1288,7 +1288,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field2], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field2] = S.[Field2], T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Field1] AS [Result] ;";
+                $"OUTPUT INSERTED.[Field1] AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -1322,7 +1322,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field1], S.[Field2], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field1] = S.[Field1], T.[Field2] = S.[Field2], T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Id] AS [Result] ;";
+                $"OUTPUT INSERTED.[Id] AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -1355,7 +1355,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field1], S.[Field2], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field2] = S.[Field2], T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Field1] AS [Result] ;";
+                $"OUTPUT INSERTED.[Field1] AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -1389,7 +1389,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field1], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Field2] AS [Result] ;";
+                $"OUTPUT INSERTED.[Field2] AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -1423,7 +1423,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field2], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field2] = S.[Field2], T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Field1] AS [Result] ; " +
+                $"OUTPUT INSERTED.[Field1] AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ; " +
                 $"MERGE [Table] AS T " +
                 $"USING ( SELECT @Field1_1 AS [Field1], @Field2_1 AS [Field2], @Field3_1 AS [Field3] ) " +
                 $"AS S ON ( S.[Field1] = T.[Field1] ) " +
@@ -1432,7 +1432,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field2], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field2] = S.[Field2], T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Field1] AS [Result] ; " +
+                $"OUTPUT INSERTED.[Field1] AS [Id], @__RepoDb_OrderColumn_1 AS [OrderColumn] ; " +
                 $"MERGE [Table] AS T " +
                 $"USING ( SELECT @Field1_2 AS [Field1], @Field2_2 AS [Field2], @Field3_2 AS [Field3] ) " +
                 $"AS S ON ( S.[Field1] = T.[Field1] ) " +
@@ -1441,7 +1441,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field2], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field2] = S.[Field2], T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Field1] AS [Result] ;";
+                $"OUTPUT INSERTED.[Field1] AS [Id], @__RepoDb_OrderColumn_2 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
@@ -1467,7 +1467,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 identityField: null,
                 hints: SqlServerTableHints.TabLock);
             var expected = $"" +
-                $"MERGE [Table] AS T WITH (TABLOCK) " +
+                $"MERGE [Table] WITH (TABLOCK) AS T " +
                 $"USING ( SELECT @Field1 AS [Field1], @Field2 AS [Field2], @Field3 AS [Field3] ) " +
                 $"AS S ON ( S.[Field1] = T.[Field1] ) " +
                 $"WHEN NOT MATCHED THEN " +
@@ -1501,7 +1501,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 identityField: identityField,
                 hints: SqlServerTableHints.TabLock);
             var expected = $"" +
-                $"MERGE [Table] AS T WITH (TABLOCK) " +
+                $"MERGE [Table] WITH (TABLOCK) AS T " +
                 $"USING ( SELECT @Field1 AS [Field1], @Field2 AS [Field2], @Field3 AS [Field3] ) " +
                 $"AS S ON ( S.[Field1] = T.[Field1] ) " +
                 $"WHEN NOT MATCHED THEN " +
@@ -1509,8 +1509,8 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field2], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field2] = S.[Field2], T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Field1] AS [Result] ; " +
-                $"MERGE [Table] AS T WITH (TABLOCK) " +
+                $"OUTPUT INSERTED.[Field1] AS [Id], @__RepoDb_OrderColumn_0 AS [OrderColumn] ; " +
+                $"MERGE [Table] WITH (TABLOCK) AS T " +
                 $"USING ( SELECT @Field1_1 AS [Field1], @Field2_1 AS [Field2], @Field3_1 AS [Field3] ) " +
                 $"AS S ON ( S.[Field1] = T.[Field1] ) " +
                 $"WHEN NOT MATCHED THEN " +
@@ -1518,8 +1518,8 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field2], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field2] = S.[Field2], T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Field1] AS [Result] ; " +
-                $"MERGE [Table] AS T WITH (TABLOCK) " +
+                $"OUTPUT INSERTED.[Field1] AS [Id], @__RepoDb_OrderColumn_1 AS [OrderColumn] ; " +
+                $"MERGE [Table] WITH (TABLOCK) AS T " +
                 $"USING ( SELECT @Field1_2 AS [Field1], @Field2_2 AS [Field2], @Field3_2 AS [Field3] ) " +
                 $"AS S ON ( S.[Field1] = T.[Field1] ) " +
                 $"WHEN NOT MATCHED THEN " +
@@ -1527,13 +1527,13 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 $"VALUES ( S.[Field2], S.[Field3] ) " +
                 $"WHEN MATCHED THEN " +
                 $"UPDATE SET T.[Field2] = S.[Field2], T.[Field3] = S.[Field3] " +
-                $"OUTPUT INSERTED.[Field1] AS [Result] ;";
+                $"OUTPUT INSERTED.[Field1] AS [Id], @__RepoDb_OrderColumn_2 AS [OrderColumn] ;";
 
             // Assert
             Assert.AreEqual(expected, actual);
         }
 
-        [TestMethod, ExpectedException(typeof(NullReferenceException))]
+        [TestMethod, ExpectedException(typeof(MissingFieldsException))]
         public void ThrowExceptionOnSqlServerStatementBuilderCreateMergeAllIfThereAreNoFields()
         {
             // Setup
@@ -1552,7 +1552,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 identityField: null);
         }
 
-        [TestMethod, ExpectedException(typeof(NullReferenceException))]
+        [TestMethod, ExpectedException(typeof(MissingQualifierFieldsException))]
         public void ThrowExceptionOnSqlServerStatementBuilderCreateMergeAllIfThereAreNoPrimaryAndNoQualifiers()
         {
             // Setup
@@ -2059,7 +2059,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 identityField: null,
                 hints: SqlServerTableHints.TabLock);
             var expected = $"" +
-                $"MERGE [Table] AS T WITH (TABLOCK) " +
+                $"MERGE [Table] WITH (TABLOCK) AS T " +
                 $"USING ( SELECT @Field1 AS [Field1], @Field2 AS [Field2], @Field3 AS [Field3] ) " +
                 $"AS S ON ( S.[Field1] = T.[Field1] ) " +
                 $"WHEN NOT MATCHED THEN " +
@@ -2072,7 +2072,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
             Assert.AreEqual(expected, actual);
         }
 
-        [TestMethod, ExpectedException(typeof(NullReferenceException))]
+        [TestMethod, ExpectedException(typeof(MissingFieldsException))]
         public void ThrowExceptionOnSqlServerStatementBuilderCreateMergeIfThereAreNoFields()
         {
             // Setup
@@ -2090,7 +2090,7 @@ namespace RepoDb.SqlServer.Tests.UnitTests
                 identityField: null);
         }
 
-        [TestMethod, ExpectedException(typeof(NullReferenceException))]
+        [TestMethod, ExpectedException(typeof(MissingQualifierFieldsException))]
         public void ThrowExceptionOnSqlServerStatementBuilderCreateMergeIfThereAreNoPrimaryAndNoQualifiers()
         {
             // Setup

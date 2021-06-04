@@ -16,6 +16,8 @@ namespace RepoDb.PostgreSql.IntegrationTests
             EpocDate = new DateTime(1970, 1, 1, 0, 0, 0);
         }
 
+        #region Properties
+
         /// <summary>
         /// Gets the value of the Epoc date.
         /// </summary>
@@ -24,7 +26,11 @@ namespace RepoDb.PostgreSql.IntegrationTests
         /// <summary>
         /// Gets the current <see cref="Random"/> object in used.
         /// </summary>
-        public static Random Randomizer => new Random(1);
+        public static Random Randomizer => new(1);
+
+        #endregion
+
+        #region Methods
 
         /// <summary>
         /// Asserts the properties equality of 2 types.
@@ -50,10 +56,8 @@ namespace RepoDb.PostgreSql.IntegrationTests
                 }
                 var value1 = propertyOfType1.GetValue(t1);
                 var value2 = propertyOfType2.GetValue(t2);
-                if (value1 is Array && value2 is Array)
+                if (value1 is Array array1 && value2 is Array array2)
                 {
-                    var array1 = (Array)value1;
-                    var array2 = (Array)value2;
                     for (var i = 0; i < Math.Min(array1.Length, array2.Length); i++)
                     {
                         var v1 = array1.GetValue(i);
@@ -117,10 +121,8 @@ namespace RepoDb.PostgreSql.IntegrationTests
                 {
                     var value1 = property.GetValue(obj);
                     var value2 = dictionary[property.Name];
-                    if (value1 is Array && value2 is Array)
+                    if (value1 is Array array1 && value2 is Array array2)
                     {
-                        var array1 = (Array)value1;
-                        var array2 = (Array)value2;
                         for (var i = 0; i < Math.Min(array1.Length, array2.Length); i++)
                         {
                             var v1 = array1.GetValue(i);
@@ -132,9 +134,9 @@ namespace RepoDb.PostgreSql.IntegrationTests
                     else
                     {
                         var propertyType = property.PropertyType.GetUnderlyingType();
-                        if (propertyType == typeof(TimeSpan) && value2 is DateTime)
+                        if (propertyType == typeof(TimeSpan) && value2 is DateTime dateTime)
                         {
-                            value2 = ((DateTime)value2).TimeOfDay;
+                            value2 = dateTime.TimeOfDay;
                         }
                         Assert.AreEqual(Convert.ChangeType(value1, propertyType), Convert.ChangeType(value2, propertyType),
                             $"Assert failed for '{property.Name}'. The values are '{value1}' and '{value2}'.");
@@ -143,13 +145,15 @@ namespace RepoDb.PostgreSql.IntegrationTests
             });
         }
 
+        #endregion
+
         #region CompleteTable
 
         /// <summary>
-        /// Creates a list of <see cref="CompleteTable"/> objects.
+        /// 
         /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="CompleteTable"/> objects.</returns>
+        /// <param name="count"></param>
+        /// <returns></returns>
         public static List<CompleteTable> CreateCompleteTables(int count)
         {
             var tables = new List<CompleteTable>();
@@ -181,6 +185,7 @@ namespace RepoDb.PostgreSql.IntegrationTests
                     ColumnReal = Convert.ToSingle(i),
                     ColumnSmallInt = Convert.ToInt16(i),
                     ColumnText = $"ColumnText{i}",
+                    ColumnTimestampWithTimeZone = now,
                     ColumnTimestampWithoutTimeZone = now
                 });
             }
@@ -188,9 +193,9 @@ namespace RepoDb.PostgreSql.IntegrationTests
         }
 
         /// <summary>
-        /// Update the properties of <see cref="CompleteTable"/> instance.
+        /// 
         /// </summary>
-        /// <param name="table">The instance to be updated.</param>
+        /// <param name="table"></param>
         public static void UpdateCompleteTableProperties(CompleteTable table)
         {
             var now = DateTime.SpecifyKind(
@@ -216,14 +221,15 @@ namespace RepoDb.PostgreSql.IntegrationTests
             table.ColumnReal = Convert.ToSingle(2);
             table.ColumnSmallInt = Convert.ToInt16(2);
             table.ColumnText = $"{table.ColumnText} (Updated)";
+            table.ColumnTimestampWithTimeZone = now;
             table.ColumnTimestampWithoutTimeZone = now;
         }
 
         /// <summary>
-        /// Creates a list of <see cref="CompleteTable"/> objects represented as dynamics.
+        /// 
         /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="CompleteTable"/> objects represented as dynamics.</returns>
+        /// <param name="count"></param>
+        /// <returns></returns>
         public static List<dynamic> CreateCompleteTablesAsDynamics(int count)
         {
             var tables = new List<dynamic>();
@@ -255,6 +261,7 @@ namespace RepoDb.PostgreSql.IntegrationTests
                     ColumnReal = Convert.ToSingle(i),
                     ColumnSmallInt = Convert.ToInt16(i),
                     ColumnText = $"ColumnText{i}",
+                    ColumnTimestampWithTimeZone = now,
                     ColumnTimestampWithoutTimeZone = now
                 });
             }
@@ -262,9 +269,9 @@ namespace RepoDb.PostgreSql.IntegrationTests
         }
 
         /// <summary>
-        /// Update the properties of <see cref="CompleteTable"/> instance represented asy dynamic.
+        /// 
         /// </summary>
-        /// <param name="table">The instance to be updated.</param>
+        /// <param name="table"></param>
         public static void UpdateCompleteTableAsDynamicProperties(dynamic table)
         {
             var now = DateTime.SpecifyKind(
@@ -290,7 +297,84 @@ namespace RepoDb.PostgreSql.IntegrationTests
             table.ColumnReal = Convert.ToSingle(2);
             table.ColumnSmallInt = Convert.ToInt16(2);
             table.ColumnText = $"{table.ColumnText} (Updated)";
+            table.ColumnTimestampWithTimeZone = now;
             table.ColumnTimestampWithoutTimeZone = now;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<ExpandoObject> CreateCompleteTablesAsExpandoObjects(int count)
+        {
+            var tables = new List<ExpandoObject>();
+            var now = DateTime.SpecifyKind(
+                DateTime.Parse(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fffff")),
+                    DateTimeKind.Unspecified);
+            for (var i = 0; i < count; i++)
+            {
+                var item = new ExpandoObject() as IDictionary<string, object>;
+                item["Id"] = (long)(i + 1);
+                item["ColumnBigInt"] = Convert.ToInt64(i);
+                item["ColumnBigIntAsArray"] = new long[] { 1, 2, 3, 4, 5 };
+                item["ColumnBigSerial"] = Convert.ToInt64(i);
+                //item["ColumnBit"] = true;
+                item["ColumnBoolean"] = true;
+                item["ColumnChar"] = 'C';
+                item["ColumnCharacter"] = "C";
+                item["ColumnCharacterVarying"] = "ColumnCharacterVarying";
+                item["ColumnDate"] = now.Date;
+                item["ColumnDateAsArray"] = new[] { now.Date, now.Date, now.Date };
+                item["ColumnInteger"] = Convert.ToInt32(i);
+                item["ColumnIntegerAsArray"] = new[] { 1, 2, 3, 4, 5 };
+                item["ColumnInterval"] = now.TimeOfDay;
+                item["ColumnIntervalAsArray"] = new[] { now.TimeOfDay, now.TimeOfDay, now.TimeOfDay };
+                //item["ColumnJson"] = "{\"field1\": 1, \"field2\": 2}";
+                item["ColumnMoney"] = Convert.ToDecimal(i);
+                item["ColumnName"] = $"ColumnName{i}";
+                item["ColumnReal"] = Convert.ToSingle(i);
+                item["ColumnSmallInt"] = Convert.ToInt16(i);
+                item["ColumnText"] = $"ColumnText{i}";
+                item["ColumnTimestampWithTimeZone"] = now;
+                item["ColumnTimestampWithoutTimeZone"] = now;
+                tables.Add((ExpandoObject)item);
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        public static void UpdateCompleteTableAsExpandoObjectProperties(CompleteTable table)
+        {
+            var now = DateTime.SpecifyKind(
+                DateTime.Parse(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fffff")),
+                    DateTimeKind.Unspecified);
+            var item = table as IDictionary<string, object>;
+            item["ColumnBigInt"] = Convert.ToInt64(2);
+            item["ColumnBigIntAsArray"] = new long[] { 1, 2, 3, 4, 5 };
+            item["ColumnBigSerial"] = Convert.ToInt64(2);
+            //item["ColumnBit"] = true;
+            item["ColumnBoolean"] = true;
+            item["ColumnChar"] = 'C';
+            item["ColumnCharacter"] = "C";
+            item["ColumnCharacterVarying"] = "ColumnCharacterVarying";
+            item["ColumnDate"] = now.Date;
+            item["ColumnDateAsArray"] = new[] { now.Date, now.Date, now.Date };
+            item["ColumnInteger"] = Convert.ToInt32(2);
+            item["ColumnIntegerAsArray"] = new[] { 1, 2, 3, 4, 5 };
+            item["ColumnInterval"] = now.TimeOfDay;
+            item["ColumnIntervalAsArray"] = new[] { now.TimeOfDay, now.TimeOfDay, now.TimeOfDay };
+            //item["ColumnJson"] = "{\"field1\": 1, \"field2\": 2}";
+            item["ColumnMoney"] = Convert.ToDecimal(2);
+            item["ColumnName"] = $"ColumnName-{Guid.NewGuid()}-Updated";
+            item["ColumnReal"] = Convert.ToSingle(2);
+            item["ColumnSmallInt"] = Convert.ToInt16(2);
+            item["ColumnText"] = $"ColumnText-{Guid.NewGuid()}-Updated";
+            item["ColumnTimestampWithTimeZone"] = now;
+            item["ColumnTimestampWithoutTimeZone"] = now;
         }
 
         #endregion
@@ -298,10 +382,10 @@ namespace RepoDb.PostgreSql.IntegrationTests
         #region NonIdentityCompleteTable
 
         /// <summary>
-        /// Creates a list of <see cref="NonIdentityCompleteTable"/> objects.
+        /// 
         /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="NonIdentityCompleteTable"/> objects.</returns>
+        /// <param name="count"></param>
+        /// <returns></returns>
         public static List<NonIdentityCompleteTable> CreateNonIdentityCompleteTables(int count)
         {
             var tables = new List<NonIdentityCompleteTable>();
@@ -333,6 +417,7 @@ namespace RepoDb.PostgreSql.IntegrationTests
                     ColumnReal = Convert.ToSingle(i),
                     ColumnSmallInt = Convert.ToInt16(i),
                     ColumnText = $"ColumnText{i}",
+                    ColumnTimestampWithTimeZone = now,
                     ColumnTimestampWithoutTimeZone = now
                 });
             }
@@ -340,9 +425,9 @@ namespace RepoDb.PostgreSql.IntegrationTests
         }
 
         /// <summary>
-        /// Update the properties of <see cref="NonIdentityCompleteTable"/> instance.
+        /// 
         /// </summary>
-        /// <param name="table">The instance to be updated.</param>
+        /// <param name="table"></param>
         public static void UpdateNonIdentityCompleteTableProperties(NonIdentityCompleteTable table)
         {
             var now = DateTime.SpecifyKind(
@@ -368,14 +453,15 @@ namespace RepoDb.PostgreSql.IntegrationTests
             table.ColumnReal = Convert.ToSingle(2);
             table.ColumnSmallInt = Convert.ToInt16(2);
             table.ColumnText = $"{table.ColumnText} (Updated)";
+            table.ColumnTimestampWithTimeZone = now;
             table.ColumnTimestampWithoutTimeZone = now;
         }
 
         /// <summary>
-        /// Creates a list of <see cref="NonIdentityCompleteTable"/> objects represented as dynamics.
+        /// 
         /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="NonIdentityCompleteTable"/> objects represented as dynamics.</returns>
+        /// <param name="count"></param>
+        /// <returns></returns>
         public static List<dynamic> CreateNonIdentityCompleteTablesAsDynamics(int count)
         {
             var tables = new List<dynamic>();
@@ -407,6 +493,7 @@ namespace RepoDb.PostgreSql.IntegrationTests
                     ColumnReal = Convert.ToSingle(i),
                     ColumnSmallInt = Convert.ToInt16(i),
                     ColumnText = $"ColumnText{i}",
+                    ColumnTimestampWithTimeZone = now,
                     ColumnTimestampWithoutTimeZone = now
                 });
             }
@@ -414,9 +501,9 @@ namespace RepoDb.PostgreSql.IntegrationTests
         }
 
         /// <summary>
-        /// Update the properties of <see cref="NonIdentityCompleteTable"/> instance represented asy dynamic.
+        /// 
         /// </summary>
-        /// <param name="table">The instance to be updated.</param>
+        /// <param name="table"></param>
         public static void UpdateNonIdentityCompleteTableAsDynamicProperties(dynamic table)
         {
             var now = DateTime.SpecifyKind(
@@ -442,7 +529,84 @@ namespace RepoDb.PostgreSql.IntegrationTests
             table.ColumnReal = Convert.ToSingle(2);
             table.ColumnSmallInt = Convert.ToInt16(2);
             table.ColumnText = $"{table.ColumnText} (Updated)";
+            table.ColumnTimestampWithTimeZone = now;
             table.ColumnTimestampWithoutTimeZone = now;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        public static List<ExpandoObject> CreateNonIdentityCompleteTablesAsExpandoObjects(int count)
+        {
+            var tables = new List<ExpandoObject>();
+            var now = DateTime.SpecifyKind(
+                DateTime.Parse(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fffff")),
+                    DateTimeKind.Unspecified);
+            for (var i = 0; i < count; i++)
+            {
+                var item = new ExpandoObject() as IDictionary<string, object>;
+                item["Id"] = (i + 1);
+                item["ColumnBigInt"] = Convert.ToInt64(i);
+                item["ColumnBigIntAsArray"] = new long[] { 1, 2, 3, 4, 5 };
+                item["ColumnBigSerial"] = Convert.ToInt64(i);
+                //item["ColumnBit"] = true;
+                item["ColumnBoolean"] = true;
+                item["ColumnChar"] = 'C';
+                item["ColumnCharacter"] = "C";
+                item["ColumnCharacterVarying"] = "ColumnCharacterVarying";
+                item["ColumnDate"] = now.Date;
+                item["ColumnDateAsArray"] = new[] { now.Date, now.Date, now.Date };
+                item["ColumnInteger"] = Convert.ToInt32(i);
+                item["ColumnIntegerAsArray"] = new[] { 1, 2, 3, 4, 5 };
+                item["ColumnInterval"] = now.TimeOfDay;
+                item["ColumnIntervalAsArray"] = new[] { now.TimeOfDay, now.TimeOfDay, now.TimeOfDay };
+                //item["ColumnJson"] = "{\"field1\": 1, \"field2\": 2}";
+                item["ColumnMoney"] = Convert.ToDecimal(i);
+                item["ColumnName"] = $"ColumnName{i}";
+                item["ColumnReal"] = Convert.ToSingle(i);
+                item["ColumnSmallInt"] = Convert.ToInt16(i);
+                item["ColumnText"] = $"ColumnText{i}";
+                item["ColumnTimestampWithTimeZone"] = now;
+                item["ColumnTimestampWithoutTimeZone"] = now;
+                tables.Add((ExpandoObject)item);
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="table"></param>
+        public static void UpdateNonIdentityCompleteTableAsExpandoObjectProperties(CompleteTable table)
+        {
+            var now = DateTime.SpecifyKind(
+                DateTime.Parse(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fffff")),
+                    DateTimeKind.Unspecified);
+            var item = table as IDictionary<string, object>;
+            item["ColumnBigInt"] = Convert.ToInt64(2);
+            item["ColumnBigIntAsArray"] = new long[] { 1, 2, 3, 4, 5 };
+            item["ColumnBigSerial"] = Convert.ToInt64(2);
+            //item["ColumnBit"] = true;
+            item["ColumnBoolean"] = true;
+            item["ColumnChar"] = 'C';
+            item["ColumnCharacter"] = "C";
+            item["ColumnCharacterVarying"] = "ColumnCharacterVarying";
+            item["ColumnDate"] = now.Date;
+            item["ColumnDateAsArray"] = new[] { now.Date, now.Date, now.Date };
+            item["ColumnInteger"] = Convert.ToInt32(2);
+            item["ColumnIntegerAsArray"] = new[] { 1, 2, 3, 4, 5 };
+            item["ColumnInterval"] = now.TimeOfDay;
+            item["ColumnIntervalAsArray"] = new[] { now.TimeOfDay, now.TimeOfDay, now.TimeOfDay };
+            //item["ColumnJson"] = "{\"field1\": 1, \"field2\": 2}";
+            item["ColumnMoney"] = Convert.ToDecimal(2);
+            item["ColumnName"] = $"ColumnName-{Guid.NewGuid()}-Updated";
+            item["ColumnReal"] = Convert.ToSingle(2);
+            item["ColumnSmallInt"] = Convert.ToInt16(2);
+            item["ColumnText"] = $"ColumnText-{Guid.NewGuid()}-Updated";
+            item["ColumnTimestampWithTimeZone"] = now;
+            item["ColumnTimestampWithoutTimeZone"] = now;
         }
 
         #endregion

@@ -1,5 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
+using RepoDb.Contexts.Execution;
 using RepoDb.Extensions;
 using RepoDb.Interfaces;
 using RepoDb.UnitTests.CustomObjects;
@@ -33,13 +34,22 @@ namespace RepoDb.UnitTests.DbHelpers
 
         #region Helpers
 
-        private static IEnumerable<DbField> GetDbFields()
+        private IEnumerable<DbField> GetDbFields()
         {
             return new[]
             {
                 new DbField("Id", true, true, false, typeof(int), null, null, null, null),
                 new DbField("Name", false, false, false, typeof(string), null, null, null, null)
             };
+        }
+
+        private Mock<IDbHelper> GetMockedDbHelper()
+        {
+            var dbHelper = new Mock<IDbHelper>();
+            dbHelper
+                .Setup(e => e.GetFields(It.IsAny<IDbConnection>(), It.IsAny<string>(), It.IsAny<IDbTransaction>()))
+                .Returns(GetDbFields());
+            return dbHelper;
         }
 
         #endregion
@@ -50,16 +60,8 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForBatchQuery()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
-
-            // Setup
-            dbHelper.Setup(builder =>
-                builder.GetFields(
-                    It.Is<IDbConnection>(s => s == connection),
-                    It.Is<string>(s => s == ClassMappedNameCache.Get<DbHelperDataEntity>()),
-                    It.IsAny<IDbTransaction>())
-                ).Returns(GetDbFields());
 
             // Act
             CommandTextCache.Flush();
@@ -84,7 +86,7 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForInsert()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
 
             // Act
@@ -107,7 +109,7 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForInsertAll()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
 
             // Act
@@ -130,7 +132,7 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForMerge()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
 
             // Act
@@ -153,7 +155,7 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForMergeAll()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
 
             // Act
@@ -176,7 +178,7 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForQuery()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
 
             // Act
@@ -199,7 +201,7 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForQueryAll()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
 
             // Act
@@ -222,7 +224,7 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForUpdate()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
 
             // Act
@@ -245,7 +247,7 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForUpdateAll()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
 
             // Act
@@ -272,16 +274,8 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForBatchQueryViaTableName()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
-
-            // Setup
-            dbHelper.Setup(builder =>
-                builder.GetFields(
-                    It.Is<IDbConnection>(s => s == connection),
-                    It.Is<string>(s => s == ClassMappedNameCache.Get<DbHelperDataEntity>()),
-                    It.IsAny<IDbTransaction>())
-                ).Returns(GetDbFields());
 
             // Act
             CommandTextCache.Flush();
@@ -307,16 +301,8 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForInsertViaTableName()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
-
-            // Setup
-            dbHelper.Setup(builder =>
-                builder.GetFields(
-                    It.Is<IDbConnection>(s => s == connection),
-                    It.Is<string>(s => s == ClassMappedNameCache.Get<DbHelperDataEntity>()),
-                    It.IsAny<IDbTransaction>())
-                ).Returns(GetDbFields());
 
             // Act
             CommandTextCache.Flush();
@@ -339,16 +325,8 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForInsertAllViaTableName()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
-
-            // Setup
-            dbHelper.Setup(builder =>
-                builder.GetFields(
-                    It.Is<IDbConnection>(s => s == connection),
-                    It.Is<string>(s => s == ClassMappedNameCache.Get<DbHelperDataEntity>()),
-                    It.IsAny<IDbTransaction>())
-                ).Returns(GetDbFields());
 
             // Act
             CommandTextCache.Flush();
@@ -371,16 +349,8 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForMergeViaTableName()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
-
-            // Setup
-            dbHelper.Setup(builder =>
-                builder.GetFields(
-                    It.Is<IDbConnection>(s => s == connection),
-                    It.Is<string>(s => s == ClassMappedNameCache.Get<DbHelperDataEntity>()),
-                    It.IsAny<IDbTransaction>())
-                ).Returns(GetDbFields());
 
             // Act
             CommandTextCache.Flush();
@@ -403,16 +373,8 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForMergeAllViaTableName()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
-
-            // Setup
-            dbHelper.Setup(builder =>
-                builder.GetFields(
-                    It.Is<IDbConnection>(s => s == connection),
-                    It.Is<string>(s => s == ClassMappedNameCache.Get<DbHelperDataEntity>()),
-                    It.IsAny<IDbTransaction>())
-                ).Returns(GetDbFields());
 
             // Act
             CommandTextCache.Flush();
@@ -435,16 +397,8 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForQueryViaTableName()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
-
-            // Setup
-            dbHelper.Setup(builder =>
-                builder.GetFields(
-                    It.Is<IDbConnection>(s => s == connection),
-                    It.Is<string>(s => s == ClassMappedNameCache.Get<DbHelperDataEntity>()),
-                    It.IsAny<IDbTransaction>())
-                ).Returns(GetDbFields());
 
             // Act
             CommandTextCache.Flush();
@@ -467,16 +421,8 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForQueryAllViaTableName()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
-
-            // Setup
-            dbHelper.Setup(builder =>
-                builder.GetFields(
-                    It.Is<IDbConnection>(s => s == connection),
-                    It.Is<string>(s => s == ClassMappedNameCache.Get<DbHelperDataEntity>()),
-                    It.IsAny<IDbTransaction>())
-                ).Returns(GetDbFields());
 
             // Act
             CommandTextCache.Flush();
@@ -498,16 +444,8 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForUpdateViaTableName()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
-
-            // Setup
-            dbHelper.Setup(builder =>
-                builder.GetFields(
-                    It.Is<IDbConnection>(s => s == connection),
-                    It.Is<string>(s => s == ClassMappedNameCache.Get<DbHelperDataEntity>()),
-                    It.IsAny<IDbTransaction>())
-                ).Returns(GetDbFields());
 
             // Act
             CommandTextCache.Flush();
@@ -516,7 +454,7 @@ namespace RepoDb.UnitTests.DbHelpers
 
             // Act
             connection.Update(ClassMappedNameCache.Get<DbHelperDataEntity>(),
-                new DbHelperDataEntity { Id = 1, Name = "Name" });
+                new { Id = 1, Name = "Name" });
 
             // Assert
             dbHelper.Verify(builder =>
@@ -530,16 +468,8 @@ namespace RepoDb.UnitTests.DbHelpers
         public void TestDbHelperForUpdateAllViaTableName()
         {
             // Prepare
-            var dbHelper = new Mock<IDbHelper>();
+            var dbHelper = GetMockedDbHelper();
             var connection = new DbHelperDbConnection();
-
-            // Setup
-            dbHelper.Setup(builder =>
-                builder.GetFields(
-                    It.Is<IDbConnection>(s => s == connection),
-                    It.Is<string>(s => s == ClassMappedNameCache.Get<DbHelperDataEntity>()),
-                    It.IsAny<IDbTransaction>())
-                ).Returns(GetDbFields());
 
             // Act
             CommandTextCache.Flush();

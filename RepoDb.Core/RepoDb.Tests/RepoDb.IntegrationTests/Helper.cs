@@ -23,6 +23,8 @@ namespace RepoDb.IntegrationTests
             EpocDate = new DateTime(1970, 1, 1, 0, 0, 0);
         }
 
+        #region Properties
+
         /// <summary>
         /// Gets the instance of <see cref="IStatementBuilder"/> object.
         /// </summary>
@@ -32,6 +34,10 @@ namespace RepoDb.IntegrationTests
         /// Gets the value of the Epoc date.
         /// </summary>
         public static DateTime EpocDate { get; }
+
+        #endregion
+
+        #region Helpers
 
         /// <summary>
         /// Gets the description of the library.
@@ -80,7 +86,7 @@ namespace RepoDb.IntegrationTests
             var result = default(T);
             fromType.GetProperties().AsList().ForEach(property =>
             {
-                var toProperty = toTypeProperties.FirstOrDefault(p => p.Name == property.Name);
+                var toProperty = toTypeProperties.FirstOrDefault(p => p.GetMappedName() == property.GetMappedName());
                 if (strict)
                 {
                     if (toProperty == null)
@@ -118,7 +124,7 @@ namespace RepoDb.IntegrationTests
                 {
                     return;
                 }
-                var propertyOfType2 = propertiesOfType2.FirstOrDefault(p => p.Name == propertyOfType1.Name);
+                var propertyOfType2 = propertiesOfType2.FirstOrDefault(p => p.GetMappedName() == propertyOfType1.GetMappedName());
                 if (propertyOfType2 == null)
                 {
                     return;
@@ -184,11 +190,11 @@ namespace RepoDb.IntegrationTests
             var properties = obj.GetType().GetProperties();
             properties.AsList().ForEach(property =>
             {
-                if (property.Name == "Id")
+                if (property.GetMappedName() == "Id")
                 {
                     return;
                 }
-                if (dictionary.ContainsKey(property.Name))
+                if (dictionary.ContainsKey(property.GetMappedName()))
                 {
                     var value1 = property.GetValue(obj);
                     var value2 = dictionary[property.Name];
@@ -217,6 +223,10 @@ namespace RepoDb.IntegrationTests
                 }
             });
         }
+
+        #endregion
+
+        #region StrongTypes
 
         #region IdentityTable
 
@@ -424,6 +434,316 @@ namespace RepoDb.IntegrationTests
 
         #endregion
 
+        #region NonMappedIdentityTable
+
+        /// <summary>
+        /// Creates a list of <see cref="NonMappedIdentityTable"/> objects.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="NonMappedIdentityTable"/> objects.</returns>
+        public static List<NonMappedIdentityTable> CreateNonMappedIdentityTable(int count)
+        {
+            var tables = new List<NonMappedIdentityTable>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                tables.Add(new NonMappedIdentityTable
+                {
+                    RowGuid = Guid.NewGuid(),
+                    ColumnBit = true,
+                    ColumnDateTime = EpocDate.AddDays(index),
+                    ColumnDateTime2 = DateTime.UtcNow,
+                    ColumnDecimal = index,
+                    ColumnFloat = index,
+                    ColumnInt = index,
+                    ColumnNVarChar = $"NVARCHAR{index}"
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="NonMappedIdentityTable"/> object.
+        /// </summary>
+        /// <returns>A new created instance of <see cref="NonMappedIdentityTable"/> object.</returns>
+        public static NonMappedIdentityTable NonMappedIdentityTable()
+        {
+            var random = new Random();
+            return new NonMappedIdentityTable
+            {
+                RowGuid = Guid.NewGuid(),
+                ColumnBit = true,
+                ColumnDateTime = EpocDate,
+                ColumnDateTime2 = DateTime.UtcNow,
+                ColumnDecimal = Convert.ToDecimal(random.Next(int.MinValue, int.MaxValue)),
+                ColumnFloat = Convert.ToSingle(random.Next(int.MinValue, int.MaxValue)),
+                ColumnInt = random.Next(int.MinValue, int.MaxValue),
+                ColumnNVarChar = Guid.NewGuid().ToString()
+            };
+        }
+
+        #endregion
+
+        #region InheritedIdentityTable
+
+        /// <summary>
+        /// Creates a list of <see cref="InheritedIdentityTable"/> objects.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="InheritedIdentityTable"/> objects.</returns>
+        public static List<InheritedIdentityTable> CreateInheritedIdentityTables(int count)
+        {
+            var tables = new List<InheritedIdentityTable>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                tables.Add(new InheritedIdentityTable
+                {
+                    RowGuid = Guid.NewGuid(),
+                    ColumnBit = true,
+                    ColumnDateTime = EpocDate.AddDays(index),
+                    ColumnDateTime2 = DateTime.UtcNow,
+                    ColumnDecimal = index,
+                    ColumnFloat = index,
+                    ColumnInt = index,
+                    ColumnNVarChar = $"NVARCHAR{index}"
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="InheritedIdentityTable"/> object.
+        /// </summary>
+        /// <returns>A new created instance of <see cref="InheritedIdentityTable"/> object.</returns>
+        public static InheritedIdentityTable CreateInheritedIdentityTable()
+        {
+            var random = new Random();
+            return new InheritedIdentityTable
+            {
+                RowGuid = Guid.NewGuid(),
+                ColumnBit = true,
+                ColumnDateTime = EpocDate,
+                ColumnDateTime2 = DateTime.UtcNow,
+                ColumnDecimal = Convert.ToDecimal(random.Next(int.MinValue, int.MaxValue)),
+                ColumnFloat = Convert.ToSingle(random.Next(int.MinValue, int.MaxValue)),
+                ColumnInt = random.Next(int.MinValue, int.MaxValue),
+                ColumnNVarChar = Guid.NewGuid().ToString()
+            };
+        }
+
+        #endregion
+
+        #region ImmutableIdentityTable
+
+        /// <summary>
+        /// Creates a list of <see cref="ImmutableIdentityTable"/> objects.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="ImmutableIdentityTable"/> objects.</returns>
+        public static List<ImmutableIdentityTable> CreateImmutableIdentityTables(int count)
+        {
+            var tables = new List<ImmutableIdentityTable>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                tables.Add(new ImmutableIdentityTable(0,
+                    Guid.NewGuid(),
+                    true,
+                    EpocDate.AddDays(index),
+                    DateTime.UtcNow,
+                    index,
+                    index,
+                    index,
+                    $"NVARCHAR{index}"));
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="ImmutableIdentityTable"/> object.
+        /// </summary>
+        /// <returns>A new created instance of <see cref="ImmutableIdentityTable"/> object.</returns>
+        public static ImmutableIdentityTable CreateImmutableIdentityTable()
+        {
+            var random = new Random();
+            return new ImmutableIdentityTable(0,
+                Guid.NewGuid(),
+                true,
+                EpocDate,
+                DateTime.UtcNow,
+                Convert.ToDecimal(random.Next(int.MinValue, int.MaxValue)),
+                Convert.ToSingle(random.Next(int.MinValue, int.MaxValue)),
+                random.Next(int.MinValue, int.MaxValue),
+                Guid.NewGuid().ToString());
+        }
+
+        #endregion
+
+        #region ImmutableWithFewerCtorArgumentsIdentityTable
+
+        /// <summary>
+        /// Creates a list of <see cref="ImmutableWithFewerCtorArgumentsIdentityTable"/> objects.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="ImmutableWithFewerCtorArgumentsIdentityTable"/> objects.</returns>
+        public static List<ImmutableWithFewerCtorArgumentsIdentityTable> CreateImmutableWithFewerCtorArgumentsIdentityTables(int count)
+        {
+            var tables = new List<ImmutableWithFewerCtorArgumentsIdentityTable>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                tables.Add(new ImmutableWithFewerCtorArgumentsIdentityTable(0,
+                    Guid.NewGuid(),
+                    true,
+                    EpocDate.AddDays(index),
+                    DateTime.UtcNow)
+                {
+                    ColumnDecimal = index,
+                    ColumnFloat = index,
+                    ColumnInt = index,
+                    ColumnNVarChar = $"NVARCHAR{index}"
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="ImmutableWithFewerCtorArgumentsIdentityTable"/> object.
+        /// </summary>
+        /// <returns>A new created instance of <see cref="ImmutableWithFewerCtorArgumentsIdentityTable"/> object.</returns>
+        public static ImmutableWithFewerCtorArgumentsIdentityTable CreateImmutableWithFewerCtorArgumentsIdentityTable()
+        {
+            var random = new Random();
+            return new ImmutableWithFewerCtorArgumentsIdentityTable(0,
+                Guid.NewGuid(),
+                true,
+                EpocDate,
+                DateTime.UtcNow)
+            {
+                ColumnDecimal = Convert.ToDecimal(random.Next(int.MinValue, int.MaxValue)),
+                ColumnFloat = Convert.ToSingle(random.Next(int.MinValue, int.MaxValue)),
+                ColumnInt = random.Next(int.MinValue, int.MaxValue),
+                ColumnNVarChar = $"NVARCHAR-{Guid.NewGuid().ToString()}"
+            };
+        }
+
+        #endregion
+
+        #region ImmutableWithFewerCtorArgumentsIdentityTable
+
+        /// <summary>
+        /// Creates a list of <see cref="ImmutableWithWritablePropertiesIdentityTable"/> objects.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="ImmutableWithWritablePropertiesIdentityTable"/> objects.</returns>
+        public static List<ImmutableWithWritablePropertiesIdentityTable> CreateImmutableWithWritablePropertiesIdentityTables(int count)
+        {
+            var tables = new List<ImmutableWithWritablePropertiesIdentityTable>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                tables.Add(new ImmutableWithWritablePropertiesIdentityTable(0,
+                    Guid.NewGuid(),
+                    true,
+                    EpocDate,
+                    DateTime.UtcNow,
+                    index,
+                    index,
+                    index,
+                    $"NVARCHAR{index}-Ctor")
+                {
+                    Id = 0,
+                    RowGuid = Guid.NewGuid(),
+                    ColumnBit = false,
+                    ColumnDateTime = EpocDate.AddDays(index),
+                    ColumnDateTime2 = DateTime.UtcNow.AddDays(index),
+                    ColumnDecimal = index + 1,
+                    ColumnFloat = index + 1,
+                    ColumnInt = index + 1,
+                    ColumnNVarChar = $"NVARCHAR{index}-Property"
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="ImmutableWithWritablePropertiesIdentityTable"/> object.
+        /// </summary>
+        /// <returns>A new created instance of <see cref="ImmutableWithWritablePropertiesIdentityTable"/> object.</returns>
+        public static ImmutableWithWritablePropertiesIdentityTable CreateImmutableWithWritablePropertiesIdentityTable()
+        {
+            var random = new Random();
+            return new ImmutableWithWritablePropertiesIdentityTable(0,
+                Guid.NewGuid(),
+                true,
+                EpocDate,
+                DateTime.UtcNow,
+                Convert.ToDecimal(random.Next(100)),
+                Convert.ToSingle(random.Next(100)),
+                random.Next(100),
+                $"NVARCHAR-{Guid.NewGuid()}-Ctor")
+            {
+                Id = 0,
+                RowGuid = Guid.NewGuid(),
+                ColumnBit = false,
+                ColumnDateTime = EpocDate.AddDays(random.Next(100)),
+                ColumnDateTime2 = DateTime.UtcNow.AddDays(random.Next(100)),
+                ColumnDecimal = Convert.ToDecimal(random.Next(int.MinValue, int.MaxValue)),
+                ColumnFloat = Convert.ToSingle(random.Next(int.MinValue, int.MaxValue)),
+                ColumnInt = random.Next(int.MinValue, int.MaxValue),
+                ColumnNVarChar = $"NVARCHAR-{Guid.NewGuid()}-Property"
+            };
+        }
+
+        #endregion
+
+        #region MappedPropertiesImmutableIdentityTable
+
+        /// <summary>
+        /// Creates a list of <see cref="MappedPropertiesImmutableIdentityTable"/> objects.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="MappedPropertiesImmutableIdentityTable"/> objects.</returns>
+        public static List<MappedPropertiesImmutableIdentityTable> CreateMappedPropertiesImmutableIdentityTables(int count)
+        {
+            var tables = new List<MappedPropertiesImmutableIdentityTable>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                tables.Add(new MappedPropertiesImmutableIdentityTable(0,
+                    Guid.NewGuid(),
+                    true,
+                    EpocDate,
+                    DateTime.UtcNow,
+                    index,
+                    index,
+                    index,
+                    $"NVARCHAR{index}-Ctor"));
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="MappedPropertiesImmutableIdentityTable"/> object.
+        /// </summary>
+        /// <returns>A new created instance of <see cref="MappedPropertiesImmutableIdentityTable"/> object.</returns>
+        public static MappedPropertiesImmutableIdentityTable CreateMappedPropertiesImmutableIdentityTable()
+        {
+            var random = new Random();
+            return new MappedPropertiesImmutableIdentityTable(0,
+                Guid.NewGuid(),
+                true,
+                EpocDate,
+                DateTime.UtcNow,
+                Convert.ToDecimal(random.Next(100)),
+                Convert.ToSingle(random.Next(100)),
+                random.Next(100),
+                $"NVARCHAR-{Guid.NewGuid()}-Ctor");
+        }
+
+        #endregion
+
         #region EnumCompleteTable
 
         /// <summary>
@@ -468,7 +788,7 @@ namespace RepoDb.IntegrationTests
                     ColumnNVarChar = null,
                     ColumnInt = null,
                     ColumnBigInt = null,
-                    ColumnSmallInt = null,
+                    ColumnSmallInt = Direction.None,
                 });
             }
             return tables;
@@ -504,7 +824,7 @@ namespace RepoDb.IntegrationTests
                 ColumnNVarChar = null,
                 ColumnInt = null,
                 ColumnBigInt = null,
-                ColumnSmallInt = null
+                ColumnSmallInt = Direction.None
             };
         }
 
@@ -580,6 +900,146 @@ namespace RepoDb.IntegrationTests
 
         #endregion
 
+        #region FlaggedEnumForStringCompleteTable
+
+        /// <summary>
+        /// Creates a list of <see cref="FlaggedEnumForStringCompleteTable"/> objects.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="FlaggedEnumForStringCompleteTable"/> objects.</returns>
+        public static List<FlaggedEnumForStringCompleteTable> CreateFlaggedEnumForStringCompleteTables(int count)
+        {
+            var tables = new List<FlaggedEnumForStringCompleteTable>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                tables.Add(new FlaggedEnumForStringCompleteTable
+                {
+                    SessionId = Guid.NewGuid(),
+                    ColumnNVarChar = StorageType.MemoryStorage | StorageType.InternalStorage | StorageType.Drive
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// Creates a list of <see cref="FlaggedEnumForStringCompleteTable"/> objects with null properties.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="FlaggedEnumForStringCompleteTable"/> objects.</returns>
+        public static List<FlaggedEnumForStringCompleteTable> CreateFlaggedEnumForStringCompleteTablesAsNull(int count)
+        {
+            var tables = new List<FlaggedEnumForStringCompleteTable>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                tables.Add(new FlaggedEnumForStringCompleteTable
+                {
+                    SessionId = Guid.NewGuid(),
+                    ColumnNVarChar = null
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="FlaggedEnumForStringCompleteTable"/> object.
+        /// </summary>
+        /// <returns>A new created instance of <see cref="FlaggedEnumForStringCompleteTable"/> object.</returns>
+        public static FlaggedEnumForStringCompleteTable CreateFlaggedEnumForStringCompleteTable()
+        {
+            return new FlaggedEnumForStringCompleteTable
+            {
+                SessionId = Guid.NewGuid(),
+                ColumnNVarChar = StorageType.MemoryStorage | StorageType.InternalStorage | StorageType.Drive
+            };
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="FlaggedEnumForStringCompleteTable"/> object with null properties.
+        /// </summary>
+        /// <returns>A new created instance of <see cref="FlaggedEnumForStringCompleteTable"/> object.</returns>
+        public static FlaggedEnumForStringCompleteTable CreateFlaggedEnumForStringCompleteTableAsNull()
+        {
+            return new FlaggedEnumForStringCompleteTable
+            {
+                SessionId = Guid.NewGuid(),
+                ColumnNVarChar = null
+            };
+        }
+
+        #endregion
+
+        #region FlaggedEnumForIntCompleteTable
+
+        /// <summary>
+        /// Creates a list of <see cref="FlaggedEnumForIntCompleteTable"/> objects.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="FlaggedEnumForIntCompleteTable"/> objects.</returns>
+        public static List<FlaggedEnumForIntCompleteTable> CreateFlaggedEnumForIntCompleteTables(int count)
+        {
+            var tables = new List<FlaggedEnumForIntCompleteTable>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                tables.Add(new FlaggedEnumForIntCompleteTable
+                {
+                    SessionId = Guid.NewGuid(),
+                    ColumnNVarChar = StorageType.MemoryStorage | StorageType.InternalStorage | StorageType.Drive
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// Creates a list of <see cref="FlaggedEnumForIntCompleteTable"/> objects with null properties.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="FlaggedEnumForIntCompleteTable"/> objects.</returns>
+        public static List<FlaggedEnumForIntCompleteTable> CreateFlaggedEnumForIntCompleteTablesAsNull(int count)
+        {
+            var tables = new List<FlaggedEnumForIntCompleteTable>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                tables.Add(new FlaggedEnumForIntCompleteTable
+                {
+                    SessionId = Guid.NewGuid(),
+                    ColumnNVarChar = null
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="FlaggedEnumForIntCompleteTable"/> object.
+        /// </summary>
+        /// <returns>A new created instance of <see cref="FlaggedEnumForIntCompleteTable"/> object.</returns>
+        public static FlaggedEnumForIntCompleteTable CreateFlaggedEnumForIntCompleteTable()
+        {
+            return new FlaggedEnumForIntCompleteTable
+            {
+                SessionId = Guid.NewGuid(),
+                ColumnNVarChar = StorageType.MemoryStorage | StorageType.InternalStorage | StorageType.Drive
+            };
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="FlaggedEnumForIntCompleteTable"/> object with null properties.
+        /// </summary>
+        /// <returns>A new created instance of <see cref="FlaggedEnumForIntCompleteTable"/> object.</returns>
+        public static FlaggedEnumForIntCompleteTable CreateFlaggedEnumForIntCompleteTableAsNull()
+        {
+            return new FlaggedEnumForIntCompleteTable
+            {
+                SessionId = Guid.NewGuid(),
+                ColumnNVarChar = null
+            };
+        }
+
+        #endregion
+
         #region TypeLevelMappedForStringEnumCompleteTable
 
         /// <summary>
@@ -590,14 +1050,14 @@ namespace RepoDb.IntegrationTests
         public static List<TypeLevelMappedForStringEnumCompleteTable> CreateTypeLevelMappedForStringEnumCompleteTables(int count)
         {
             var tables = new List<TypeLevelMappedForStringEnumCompleteTable>();
+            var values = Enum.GetValues(typeof(Continent)).AsEnumerable<Continent>().AsList();
             for (var i = 0; i < count; i++)
             {
-                var index = i + 1;
                 tables.Add(new TypeLevelMappedForStringEnumCompleteTable
                 {
                     SessionId = Guid.NewGuid(),
-                    ColumnNVarChar = Continent.Asia
-                });
+                    ColumnNVarChar = (Continent)values[new Random().Next(values.Count)]
+                }); ;
             }
             return tables;
         }
@@ -608,38 +1068,17 @@ namespace RepoDb.IntegrationTests
         /// <returns>A new created instance of <see cref="TypeLevelMappedForStringEnumCompleteTable"/> object.</returns>
         public static TypeLevelMappedForStringEnumCompleteTable CreateTypeLevelMappedForStringEnumCompleteTable()
         {
+            var values = Enum.GetValues(typeof(Continent)).AsEnumerable<Continent>().AsList();
             return new TypeLevelMappedForStringEnumCompleteTable
             {
                 SessionId = Guid.NewGuid(),
-                ColumnNVarChar = Continent.Asia
+                ColumnNVarChar = (Continent)values[new Random().Next(values.Count)]
             };
         }
 
         #endregion
 
         #region UnorganizedTable
-
-        /// <summary>
-        /// Creates a list of <see cref="UnorganizedTable"/> objects.
-        /// </summary>
-        /// <param name="count">The number of rows.</param>
-        /// <returns>A list of <see cref="UnorganizedTable"/> objects.</returns>
-        public static List<UnorganizedTable> CreateUnorganizedTables(int count)
-        {
-            var tables = new List<UnorganizedTable>();
-            for (var i = 0; i < count; i++)
-            {
-                var index = i + 1;
-                tables.Add(new UnorganizedTable
-                {
-                    SessionId = Guid.NewGuid(),
-                    ColumnDateTime2 = DateTime.UtcNow,
-                    ColumnInt = index,
-                    ColumnNVarChar = $"NVARCHAR{index}"
-                });
-            }
-            return tables;
-        }
 
         /// <summary>
         /// Creates an instance of <see cref="UnorganizedTable"/> object.
@@ -656,6 +1095,93 @@ namespace RepoDb.IntegrationTests
                 ColumnNVarChar = Guid.NewGuid().ToString()
             };
         }
+
+        /// <summary>
+        /// Creates a list of <see cref="UnorganizedTable"/> objects.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="UnorganizedTable"/> objects.</returns>
+        public static List<UnorganizedTable> CreateUnorganizedTables(int count)
+        {
+            var list = new List<UnorganizedTable>();
+            for (var i = 0; i < count; i++)
+            {
+                list.Add(CreateUnorganizedTable());
+            }
+            return list;
+        }
+
+        #endregion
+
+        #region DottedTable
+
+        /// <summary>
+        /// Creates an instance of <see cref="DottedTable"/> object.
+        /// </summary>
+        /// <returns>A new created instance of <see cref="DottedTable"/> object.</returns>
+        public static DottedTable CreateDottedTable()
+        {
+            return new DottedTable
+            {
+                SessionId = Guid.NewGuid(),
+                ColumnDateTime2 = DateTime.UtcNow,
+                ColumnInt = new Random().Next(int.MinValue, int.MaxValue),
+                ColumnNVarChar = Guid.NewGuid().ToString()
+            };
+        }
+
+        /// <summary>
+        /// Creates a list of <see cref="DottedTable"/> objects.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="DottedTable"/> objects.</returns>
+        public static List<DottedTable> CreateDottedTables(int count)
+        {
+            var list = new List<DottedTable>();
+            for (var i = 0; i < count; i++)
+            {
+                list.Add(CreateDottedTable());
+            }
+            return list;
+        }
+
+        #endregion
+
+        #region NonKeyedTable
+
+        /// <summary>
+        /// Creates a list of <see cref="NonKeyedTable"/> objects.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="NonKeyedTable"/> objects.</returns>
+        public static IEnumerable<NonKeyedTable> CreateNonKeyedTables(int count = 10)
+        {
+            for (var index = 0; index < count; index++)
+            {
+                yield return new NonKeyedTable
+                {
+                    ColumnDateTime2 = DateTime.UtcNow,
+                    ColumnInt = index,
+                    ColumnNVarChar = $"NVARCHAR{index}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="NonKeyedTable"/> object.
+        /// </summary>
+        /// <returns>A new created instance of <see cref="NonKeyedTable"/> object.</returns>
+        public static NonKeyedTable CreateNonKeyedTable()
+        {
+            return new NonKeyedTable
+            {
+                ColumnDateTime2 = DateTime.UtcNow,
+                ColumnInt = new Random().Next(int.MinValue, int.MaxValue),
+                ColumnNVarChar = Guid.NewGuid().ToString()
+            };
+        }
+
+        #endregion
 
         #endregion
 
@@ -678,9 +1204,9 @@ namespace RepoDb.IntegrationTests
                 ColumnDateTime = EpocDate.AddDays(1),
                 ColumnDateTime2 = DateTime.UtcNow,
                 ColumnDecimal = Convert.ToDecimal(1),
-                ColumnFloat = Convert.ToSingle(1),
+                ColumnFloat = Convert.ToDouble(1),
                 ColumnInt = 1,
-                ColumnNVarChar = $"NVARCHAR{1}"
+                ColumnNVarChar = Guid.NewGuid().ToString()
             };
         }
 
@@ -703,7 +1229,7 @@ namespace RepoDb.IntegrationTests
                     ColumnDateTime = EpocDate.AddDays(index),
                     ColumnDateTime2 = DateTime.UtcNow,
                     ColumnDecimal = Convert.ToDecimal(index),
-                    ColumnFloat = Convert.ToSingle(index),
+                    ColumnFloat = Convert.ToDouble(index),
                     ColumnInt = index,
                     ColumnNVarChar = $"NVARCHAR{index}"
                 });
@@ -759,9 +1285,9 @@ namespace RepoDb.IntegrationTests
                 ColumnDateTime = EpocDate.AddDays(1),
                 ColumnDateTime2 = DateTime.UtcNow,
                 ColumnDecimal = Convert.ToDecimal(1),
-                ColumnFloat = Convert.ToSingle(1),
+                ColumnFloat = Convert.ToDouble(1),
                 ColumnInt = 1,
-                ColumnNVarChar = $"NVARCHAR{1}"
+                ColumnNVarChar = Guid.NewGuid().ToString()
             };
         }
 
@@ -783,7 +1309,7 @@ namespace RepoDb.IntegrationTests
                     ColumnDateTime = EpocDate.AddDays(index),
                     ColumnDateTime2 = DateTime.UtcNow,
                     ColumnDecimal = Convert.ToDecimal(index),
-                    ColumnFloat = Convert.ToSingle(index),
+                    ColumnFloat = Convert.ToDouble(index),
                     ColumnInt = index,
                     ColumnNVarChar = $"NVARCHAR{index}"
                 });
@@ -818,6 +1344,147 @@ namespace RepoDb.IntegrationTests
                 });
             }
             return new Tuple<List<dynamic>, IEnumerable<Field>>(tables, fields);
+        }
+
+        #endregion
+
+        #region NonKeyedTable
+
+        /// <summary>
+        /// Creates a list of dynamic objects for [dbo].[NonKeyedTable] table.
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of dynamic objects.</returns>
+        public static List<dynamic> CreateDynamicNonKeyedTables(int count)
+        {
+            var tables = new List<dynamic>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                tables.Add(new
+                {
+                    ColumnDateTime2 = DateTime.UtcNow,
+                    ColumnInt = index,
+                    ColumnNVarChar = $"NVARCHAR{index}"
+                });
+            }
+            return tables;
+        }
+
+        /// <summary>
+        /// Creates an instance of dynamic object for [dbo].[NonKeyedTable] table.
+        /// </summary>
+        /// <returns>An instance of dynamic object.</returns>
+        public static dynamic CreateDynamicNonKeyedTable()
+        {
+            return new
+            {
+                ColumnDateTime2 = DateTime.UtcNow,
+                ColumnInt = new Random().Next(int.MinValue, int.MaxValue),
+                ColumnNVarChar = Guid.NewGuid().ToString()
+            };
+        }
+
+        #endregion
+
+        #endregion
+
+        #region ExpandoObjects
+
+        #region IdentityTable
+
+        /// <summary>
+        /// Creates a an instance of <see cref="ExpandoObject"/> object for [sc].[IdentityTable].
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>An instance of <see cref="ExpandoObject"/> for [sc].[IdentityTable] table.</returns>
+        public static ExpandoObject CreateExpandoObjectIdentityTable()
+        {
+            var table = new ExpandoObject() as IDictionary<string, object>;
+            table.Add("RowGuid", Guid.NewGuid());
+            table.Add("ColumnBit", true);
+            table.Add("ColumnDateTime", EpocDate.AddDays(1));
+            table.Add("ColumnDateTime2", DateTime.UtcNow);
+            table.Add("ColumnDecimal", Convert.ToDecimal(1));
+            table.Add("ColumnFloat", Convert.ToDouble(1));
+            table.Add("ColumnInt", 1);
+            table.Add("ColumnNVarChar", Guid.NewGuid().ToString());
+            return (ExpandoObject)table;
+        }
+
+        /// <summary>
+        /// Creates a list of <see cref="ExpandoObject"/> objects for [sc].[IdentityTable].
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="ExpandoObject"/> for [sc].[IdentityTable] table.</returns>
+        public static List<ExpandoObject> CreateExpandoObjectIdentityTables(int count)
+        {
+            var tables = new List<ExpandoObject>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                var table = new ExpandoObject() as IDictionary<string, object>;
+                table.Add("RowGuid", Guid.NewGuid());
+                table.Add("ColumnBit", true);
+                table.Add("ColumnDateTime", EpocDate.AddDays(1));
+                table.Add("ColumnDateTime2", DateTime.UtcNow);
+                table.Add("ColumnDecimal", Convert.ToDecimal(1));
+                table.Add("ColumnFloat", Convert.ToDouble(1));
+                table.Add("ColumnInt", 1);
+                table.Add("ColumnNVarChar", $"NVARCHAR-{index}-{Guid.NewGuid().ToString()}");
+                tables.Add((ExpandoObject)table);
+            }
+            return tables;
+        }
+
+        #endregion
+
+        #region IdentityTable
+
+        /// <summary>
+        /// Creates a an instance of <see cref="ExpandoObject"/> object for [sc].[NonIdentityTable].
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>An instance of <see cref="ExpandoObject"/> for [dbo].[NonIdentityTable] table.</returns>
+        public static ExpandoObject CreateExpandoObjectNonIdentityTable()
+        {
+            var table = new ExpandoObject() as IDictionary<string, object>;
+            table.Add("Id", Guid.NewGuid());
+            table.Add("RowGuid", Guid.NewGuid());
+            table.Add("ColumnBit", true);
+            table.Add("ColumnDateTime", EpocDate.AddDays(1));
+            table.Add("ColumnDateTime2", DateTime.UtcNow);
+            table.Add("ColumnDecimal", Convert.ToDecimal(1));
+            table.Add("ColumnFloat", Convert.ToDouble(1));
+            table.Add("ColumnInt", 1);
+            table.Add("ColumnNVarChar", Guid.NewGuid().ToString());
+            return (ExpandoObject)table;
+        }
+
+        /// <summary>
+        /// Creates a list of <see cref="ExpandoObject"/> objects for [dbo].[NonIdentityTable].
+        /// </summary>
+        /// <param name="count">The number of rows.</param>
+        /// <returns>A list of <see cref="ExpandoObject"/> for [dbo].[NonIdentityTable] table.</returns>
+        public static List<ExpandoObject> CreateExpandoObjectNonIdentityTables(int count)
+        {
+            var tables = new List<ExpandoObject>();
+            for (var i = 0; i < count; i++)
+            {
+                var index = i + 1;
+                var table = new ExpandoObject() as IDictionary<string, object>;
+                table.Add("Id", Guid.NewGuid());
+                table.Add("RowGuid", Guid.NewGuid());
+                table.Add("ColumnBit", true);
+                table.Add("ColumnDateTime", EpocDate.AddDays(1));
+                table.Add("ColumnDateTime2", DateTime.UtcNow);
+                table.Add("ColumnDecimal", Convert.ToDecimal(1));
+                table.Add("ColumnFloat", Convert.ToDouble(1));
+                table.Add("ColumnInt", 1);
+                table.Add("ColumnNVarChar", $"NVARCHAR-{index}-{Guid.NewGuid().ToString()}");
+                tables.Add((ExpandoObject)table);
+            }
+            return tables;
         }
 
         #endregion

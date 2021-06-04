@@ -12,7 +12,6 @@ namespace RepoDb.PostgreSql.DbSettings
         /// Creates a new instance of <see cref="PostgreSqlDbSetting"/> class.
         /// </summary>
         public PostgreSqlDbSetting()
-            : base()
         {
             AreTableHintsSupported = false;
             AverageableType = typeof(double);
@@ -25,7 +24,6 @@ namespace RepoDb.PostgreSql.DbSettings
             IsUseUpsert = false;
             OpeningQuote = "\"";
             ParameterPrefix = "@";
-            SchemaSeparator = ".";
         }
     }
 }

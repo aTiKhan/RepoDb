@@ -1,9 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RepoDb
@@ -13,12 +12,6 @@ namespace RepoDb
     /// </summary>
     public static partial class SqlConnectionExtension
     {
-        #region Privates
-
-        private static bool m_systemDataBulkInsertRowsCopiedFieldHasBeenSet = false;
-
-        #endregion
-
         #region BulkInsert<TEntity>
 
         /// <summary>
@@ -29,31 +22,37 @@ namespace RepoDb
         /// <param name="entities">The list of the data entities to be bulk-inserted.</param>
         /// <param name="mappings">The list of the columns to be used for mappings. If this parameter is not set, then all columns will be used for mapping.</param>
         /// <param name="options">The bulk-copy options to be used.</param>
+        /// <param name="hints">The table hints to be used. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
         /// <param name="batchSize">The size per batch to be used.</param>
+        /// <param name="isReturnIdentity">The flags that signify whether the identity values will be returned.</param>
+        /// <param name="usePhysicalPseudoTempTable">The flags that signify whether to create a physical pseudo table. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <returns>The number of rows affected by the execution.</returns>
         public static int BulkInsert<TEntity>(this SqlConnection connection,
             IEnumerable<TEntity> entities,
             IEnumerable<BulkInsertMapItem> mappings = null,
             SqlBulkCopyOptions? options = null,
+            string hints = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
+            bool? isReturnIdentity = null,
+            bool? usePhysicalPseudoTempTable = null,
             SqlTransaction transaction = null)
             where TEntity : class
         {
-            using (var reader = new DataEntityDataReader<TEntity>(entities))
-            {
-                return BulkInsertInternal(connection: connection,
-                    tableName: ClassMappedNameCache.Get<TEntity>(),
-                    reader: reader,
-                    dbFields: null,
-                    mappings: mappings,
-                    options: options,
-                    bulkCopyTimeout: bulkCopyTimeout,
-                    batchSize: batchSize,
-                    transaction: transaction);
-            }
+            return BulkInsertInternal<TEntity>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entities: entities,
+                dbFields: null,
+                mappings: mappings,
+                options: options,
+                hints: hints,
+                bulkCopyTimeout: bulkCopyTimeout,
+                batchSize: batchSize,
+                isReturnIdentity: isReturnIdentity,
+                usePhysicalPseudoTempTable: usePhysicalPseudoTempTable,
+                transaction: transaction);
         }
 
         /// <summary>
@@ -65,8 +64,11 @@ namespace RepoDb
         /// <param name="entities">The list of the data entities to be bulk-inserted.</param>
         /// <param name="mappings">The list of the columns to be used for mappings. If this parameter is not set, then all columns will be used for mapping.</param>
         /// <param name="options">The bulk-copy options to be used.</param>
+        /// <param name="hints">The table hints to be used. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
         /// <param name="batchSize">The size per batch to be used.</param>
+        /// <param name="isReturnIdentity">The flags that signify whether the identity values will be returned.</param>
+        /// <param name="usePhysicalPseudoTempTable">The flags that signify whether to create a physical pseudo table. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <returns>The number of rows affected by the execution.</returns>
         public static int BulkInsert<TEntity>(this SqlConnection connection,
@@ -74,23 +76,26 @@ namespace RepoDb
             IEnumerable<TEntity> entities,
             IEnumerable<BulkInsertMapItem> mappings = null,
             SqlBulkCopyOptions? options = null,
+            string hints = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
+            bool? isReturnIdentity = null,
+            bool? usePhysicalPseudoTempTable = null,
             SqlTransaction transaction = null)
             where TEntity : class
         {
-            using (var reader = new DataEntityDataReader<TEntity>(entities))
-            {
-                return BulkInsertInternal(connection: connection,
-                    tableName: tableName,
-                    reader: reader,
-                    dbFields: null,
-                    mappings: mappings,
-                    options: options,
-                    bulkCopyTimeout: bulkCopyTimeout,
-                    batchSize: batchSize,
-                    transaction: transaction);
-            }
+            return BulkInsertInternal(connection: connection,
+                tableName: tableName,
+                entities: entities,
+                dbFields: null,
+                mappings: mappings,
+                options: options,
+                hints: hints,
+                bulkCopyTimeout: bulkCopyTimeout,
+                batchSize: batchSize,
+                isReturnIdentity: isReturnIdentity,
+                usePhysicalPseudoTempTable: usePhysicalPseudoTempTable,
+                transaction: transaction);
         }
 
         /// <summary>
@@ -117,7 +122,7 @@ namespace RepoDb
             return BulkInsertInternal(connection: connection,
                 tableName: ClassMappedNameCache.Get<TEntity>(),
                 reader: reader,
-                    dbFields: null,
+                dbFields: null,
                 mappings: mappings,
                 options: options,
                 bulkCopyTimeout: bulkCopyTimeout,
@@ -170,8 +175,11 @@ namespace RepoDb
         /// <param name="rowState">The state of the rows to be copied to the destination.</param>
         /// <param name="mappings">The list of the columns to be used for mappings. If this parameter is not set, then all columns will be used for mapping.</param>
         /// <param name="options">The bulk-copy options to be used.</param>
+        /// <param name="hints">The table hints to be used. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
         /// <param name="batchSize">The size per batch to be used.</param>
+        /// <param name="isReturnIdentity">The flags that signify whether the identity values will be returned.</param>
+        /// <param name="usePhysicalPseudoTempTable">The flags that signify whether to create a physical pseudo table. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <returns>The number of rows affected by the execution.</returns>
         public static int BulkInsert<TEntity>(this SqlConnection connection,
@@ -179,8 +187,11 @@ namespace RepoDb
             DataRowState? rowState = null,
             IEnumerable<BulkInsertMapItem> mappings = null,
             SqlBulkCopyOptions? options = null,
+            string hints = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
+            bool? isReturnIdentity = null,
+            bool? usePhysicalPseudoTempTable = null,
             SqlTransaction transaction = null)
             where TEntity : class
         {
@@ -191,8 +202,11 @@ namespace RepoDb
                 dbFields: null,
                 mappings: mappings,
                 options: options,
+                hints: hints,
                 bulkCopyTimeout: bulkCopyTimeout,
                 batchSize: batchSize,
+                isReturnIdentity: isReturnIdentity,
+                usePhysicalPseudoTempTable: usePhysicalPseudoTempTable,
                 transaction: transaction);
         }
 
@@ -205,8 +219,11 @@ namespace RepoDb
         /// <param name="rowState">The state of the rows to be copied to the destination.</param>
         /// <param name="mappings">The list of the columns to be used for mappings. If this parameter is not set, then all columns will be used for mapping.</param>
         /// <param name="options">The bulk-copy options to be used.</param>
+        /// <param name="hints">The table hints to be used. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
         /// <param name="batchSize">The size per batch to be used.</param>
+        /// <param name="isReturnIdentity">The flags that signify whether the identity values will be returned.</param>
+        /// <param name="usePhysicalPseudoTempTable">The flags that signify whether to create a physical pseudo table. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <returns>The number of rows affected by the execution.</returns>
         public static int BulkInsert(this SqlConnection connection,
@@ -215,8 +232,11 @@ namespace RepoDb
             DataRowState? rowState = null,
             IEnumerable<BulkInsertMapItem> mappings = null,
             SqlBulkCopyOptions? options = null,
+            string hints = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
+            bool? isReturnIdentity = null,
+            bool? usePhysicalPseudoTempTable = null,
             SqlTransaction transaction = null)
         {
             return BulkInsertInternal(connection: connection,
@@ -226,8 +246,11 @@ namespace RepoDb
                 dbFields: null,
                 mappings: mappings,
                 options: options,
+                hints: hints,
                 bulkCopyTimeout: bulkCopyTimeout,
                 batchSize: batchSize,
+                isReturnIdentity: isReturnIdentity,
+                usePhysicalPseudoTempTable: usePhysicalPseudoTempTable,
                 transaction: transaction);
         }
 
@@ -243,31 +266,40 @@ namespace RepoDb
         /// <param name="entities">The list of the data entities to be bulk-inserted.</param>
         /// <param name="mappings">The list of the columns to be used for mappings. If this parameter is not set, then all columns will be used for mapping.</param>
         /// <param name="options">The bulk-copy options to be used.</param>
+        /// <param name="hints">The table hints to be used. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
         /// <param name="batchSize">The size per batch to be used.</param>
+        /// <param name="isReturnIdentity">The flags that signify whether the identity values will be returned.</param>
+        /// <param name="usePhysicalPseudoTempTable">The flags that signify whether to create a physical pseudo table. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>The number of rows affected by the execution.</returns>
-        public static async Task<int> BulkInsertAsync<TEntity>(this SqlConnection connection,
+        public static Task<int> BulkInsertAsync<TEntity>(this SqlConnection connection,
             IEnumerable<TEntity> entities,
             IEnumerable<BulkInsertMapItem> mappings = null,
             SqlBulkCopyOptions? options = null,
+            string hints = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
-            SqlTransaction transaction = null)
+            bool? isReturnIdentity = null,
+            bool? usePhysicalPseudoTempTable = null,
+            SqlTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
-            using (var reader = new DataEntityDataReader<TEntity>(entities))
-            {
-                return await BulkInsertAsyncInternal(connection: connection,
-                    tableName: ClassMappedNameCache.Get<TEntity>(),
-                    reader: reader,
-                    dbFields: null,
-                    mappings: mappings,
-                    options: options,
-                    bulkCopyTimeout: bulkCopyTimeout,
-                    batchSize: batchSize,
-                    transaction: transaction);
-            }
+            return BulkInsertAsyncInternal(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entities: entities,
+                dbFields: null,
+                mappings: mappings,
+                options: options,
+                hints: hints,
+                bulkCopyTimeout: bulkCopyTimeout,
+                batchSize: batchSize,
+                isReturnIdentity: isReturnIdentity,
+                usePhysicalPseudoTempTable: usePhysicalPseudoTempTable,
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -279,32 +311,41 @@ namespace RepoDb
         /// <param name="entities">The list of the data entities to be bulk-inserted.</param>
         /// <param name="mappings">The list of the columns to be used for mappings. If this parameter is not set, then all columns will be used for mapping.</param>
         /// <param name="options">The bulk-copy options to be used.</param>
+        /// <param name="hints">The table hints to be used. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
         /// <param name="batchSize">The size per batch to be used.</param>
+        /// <param name="isReturnIdentity">The flags that signify whether the identity values will be returned.</param>
+        /// <param name="usePhysicalPseudoTempTable">The flags that signify whether to create a physical pseudo table. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>The number of rows affected by the execution.</returns>
-        public static async Task<int> BulkInsertAsync<TEntity>(this SqlConnection connection,
+        public static Task<int> BulkInsertAsync<TEntity>(this SqlConnection connection,
             string tableName,
             IEnumerable<TEntity> entities,
             IEnumerable<BulkInsertMapItem> mappings = null,
             SqlBulkCopyOptions? options = null,
+            string hints = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
-            SqlTransaction transaction = null)
+            bool? isReturnIdentity = null,
+            bool? usePhysicalPseudoTempTable = null,
+            SqlTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
-            using (var reader = new DataEntityDataReader<TEntity>(entities))
-            {
-                return await BulkInsertAsyncInternal(connection: connection,
-                    tableName: tableName,
-                    reader: reader,
-                    dbFields: null,
-                    mappings: mappings,
-                    options: options,
-                    bulkCopyTimeout: bulkCopyTimeout,
-                    batchSize: batchSize,
-                    transaction: transaction);
-            }
+            return BulkInsertAsyncInternal(connection: connection,
+                tableName: tableName,
+                entities: entities,
+                dbFields: null,
+                mappings: mappings,
+                options: options,
+                hints: hints,
+                bulkCopyTimeout: bulkCopyTimeout,
+                batchSize: batchSize,
+                isReturnIdentity: isReturnIdentity,
+                usePhysicalPseudoTempTable: usePhysicalPseudoTempTable,
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -318,17 +359,19 @@ namespace RepoDb
         /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
         /// <param name="batchSize">The size per batch to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>The number of rows affected by the execution.</returns>
-        public static async Task<int> BulkInsertAsync<TEntity>(this SqlConnection connection,
+        public static Task<int> BulkInsertAsync<TEntity>(this SqlConnection connection,
             DbDataReader reader,
             IEnumerable<BulkInsertMapItem> mappings = null,
             SqlBulkCopyOptions? options = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
-            SqlTransaction transaction = null)
+            SqlTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
-            return await BulkInsertAsyncInternal(connection: connection,
+            return BulkInsertAsyncInternal(connection: connection,
                 tableName: ClassMappedNameCache.Get<TEntity>(),
                 reader: reader,
                 dbFields: null,
@@ -336,7 +379,8 @@ namespace RepoDb
                 options: options,
                 bulkCopyTimeout: bulkCopyTimeout,
                 batchSize: batchSize,
-                transaction: transaction);
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -354,17 +398,19 @@ namespace RepoDb
         /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
         /// <param name="batchSize">The size per batch to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>The number of rows affected by the execution.</returns>
-        public static async Task<int> BulkInsertAsync(this SqlConnection connection,
+        public static Task<int> BulkInsertAsync(this SqlConnection connection,
             string tableName,
             DbDataReader reader,
             IEnumerable<BulkInsertMapItem> mappings = null,
             SqlBulkCopyOptions? options = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
-            SqlTransaction transaction = null)
+            SqlTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
-            return await BulkInsertAsyncInternal(connection: connection,
+            return BulkInsertAsyncInternal(connection: connection,
                 tableName: tableName,
                 reader: reader,
                 dbFields: null,
@@ -372,7 +418,8 @@ namespace RepoDb
                 options: options,
                 bulkCopyTimeout: bulkCopyTimeout,
                 batchSize: batchSize,
-                transaction: transaction);
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -384,30 +431,42 @@ namespace RepoDb
         /// <param name="rowState">The state of the rows to be copied to the destination.</param>
         /// <param name="mappings">The list of the columns to be used for mappings. If this parameter is not set, then all columns will be used for mapping.</param>
         /// <param name="options">The bulk-copy options to be used.</param>
+        /// <param name="hints">The table hints to be used. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
         /// <param name="batchSize">The size per batch to be used.</param>
+        /// <param name="isReturnIdentity">The flags that signify whether the identity values will be returned.</param>
+        /// <param name="usePhysicalPseudoTempTable">The flags that signify whether to create a physical pseudo table. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>The number of rows affected by the execution.</returns>
-        public static async Task<int> BulkInsertAsync<TEntity>(this SqlConnection connection,
+        public static Task<int> BulkInsertAsync<TEntity>(this SqlConnection connection,
             DataTable dataTable,
             DataRowState? rowState = null,
             IEnumerable<BulkInsertMapItem> mappings = null,
             SqlBulkCopyOptions? options = null,
+            string hints = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
-            SqlTransaction transaction = null)
+            bool? isReturnIdentity = null,
+            bool? usePhysicalPseudoTempTable = null,
+            SqlTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
-            return await BulkInsertAsyncInternal(connection: connection,
+            return BulkInsertAsyncInternal(connection: connection,
                 tableName: ClassMappedNameCache.Get<TEntity>(),
                 dataTable: dataTable,
                 rowState: rowState,
                 dbFields: null,
                 mappings: mappings,
                 options: options,
+                hints: hints,
                 bulkCopyTimeout: bulkCopyTimeout,
                 batchSize: batchSize,
-                transaction: transaction);
+                isReturnIdentity: isReturnIdentity,
+                usePhysicalPseudoTempTable: usePhysicalPseudoTempTable,
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -419,30 +478,42 @@ namespace RepoDb
         /// <param name="rowState">The state of the rows to be copied to the destination.</param>
         /// <param name="mappings">The list of the columns to be used for mappings. If this parameter is not set, then all columns will be used for mapping.</param>
         /// <param name="options">The bulk-copy options to be used.</param>
+        /// <param name="hints">The table hints to be used. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
         /// <param name="batchSize">The size per batch to be used.</param>
+        /// <param name="isReturnIdentity">The flags that signify whether the identity values will be returned.</param>
+        /// <param name="usePhysicalPseudoTempTable">The flags that signify whether to create a physical pseudo table. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>The number of rows affected by the execution.</returns>
-        public static async Task<int> BulkInsertAsync(this SqlConnection connection,
+        public static Task<int> BulkInsertAsync(this SqlConnection connection,
             string tableName,
             DataTable dataTable,
             DataRowState? rowState = null,
             IEnumerable<BulkInsertMapItem> mappings = null,
             SqlBulkCopyOptions? options = null,
+            string hints = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
-            SqlTransaction transaction = null)
+            bool? isReturnIdentity = null,
+            bool? usePhysicalPseudoTempTable = null,
+            SqlTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
-            return await BulkInsertAsyncInternal(connection: connection,
+            return BulkInsertAsyncInternal(connection: connection,
                 tableName: tableName,
                 dataTable: dataTable,
                 rowState: rowState,
                 dbFields: null,
                 mappings: mappings,
                 options: options,
+                hints: hints,
                 bulkCopyTimeout: bulkCopyTimeout,
                 batchSize: batchSize,
-                transaction: transaction);
+                isReturnIdentity: isReturnIdentity,
+                usePhysicalPseudoTempTable: usePhysicalPseudoTempTable,
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -450,18 +521,62 @@ namespace RepoDb
         #region BulkInsertInternal
 
         /// <summary>
-        /// Bulk insert an instance of <see cref="DbDataReader"/> object into the database.
+        /// 
         /// </summary>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="tableName">The target table for bulk-insert operation.</param>
-        /// <param name="reader">The <see cref="DbDataReader"/> object to be used in the bulk-insert operation.</param>
-        /// <param name="dbFields">The list of <see cref="DbField"/> objects.</param>
-        /// <param name="mappings">The list of the columns to be used for mappings. If this parameter is not set, then all columns will be used for mapping.</param>
-        /// <param name="options">The bulk-copy options to be used.</param>
-        /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
-        /// <param name="batchSize">The size per batch to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="connection"></param>
+        /// <param name="tableName"></param>
+        /// <param name="entities"></param>
+        /// <param name="dbFields"></param>
+        /// <param name="mappings"></param>
+        /// <param name="options"></param>
+        /// <param name="hints"></param>
+        /// <param name="bulkCopyTimeout"></param>
+        /// <param name="batchSize"></param>
+        /// <param name="isReturnIdentity"></param>
+        /// <param name="usePhysicalPseudoTempTable"></param>
+        /// <param name="transaction"></param>
+        /// <returns></returns>
+        internal static int BulkInsertInternal<TEntity>(SqlConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            IEnumerable<DbField> dbFields = null,
+            IEnumerable<BulkInsertMapItem> mappings = null,
+            SqlBulkCopyOptions? options = null,
+            string hints = null,
+            int? bulkCopyTimeout = null,
+            int? batchSize = null,
+            bool? isReturnIdentity = null,
+            bool? usePhysicalPseudoTempTable = null,
+            SqlTransaction transaction = null)
+            where TEntity : class =>
+            BulkInsertInternalBase<TEntity, SqlBulkCopy, SqlBulkCopyOptions, SqlBulkCopyColumnMappingCollection,
+                SqlBulkCopyColumnMapping, SqlTransaction>(connection,
+                tableName,
+                entities,
+                dbFields,
+                mappings,
+                options.GetValueOrDefault(),
+                hints,
+                bulkCopyTimeout,
+                batchSize,
+                isReturnIdentity,
+                usePhysicalPseudoTempTable,
+                transaction);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="tableName"></param>
+        /// <param name="reader"></param>
+        /// <param name="dbFields"></param>
+        /// <param name="mappings"></param>
+        /// <param name="options"></param>
+        /// <param name="bulkCopyTimeout"></param>
+        /// <param name="batchSize"></param>
+        /// <param name="transaction"></param>
+        /// <returns></returns>
         internal static int BulkInsertInternal(SqlConnection connection,
             string tableName,
             DbDataReader reader,
@@ -470,89 +585,17 @@ namespace RepoDb
             SqlBulkCopyOptions? options = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
-            SqlTransaction transaction = null)
-        {
-            // Validate the objects
-            SqlConnectionExtension.ValidateTransactionConnectionObject(connection, transaction);
-
-            // Get the DB Fields
-            dbFields = dbFields ?? DbFieldCache.Get(connection, tableName, transaction);
-            if (dbFields?.Any() != true)
-            {
-                throw new InvalidOperationException($"No database fields found for '{tableName}'.");
-            }
-
-            // Variables needed
-            var result = 0;
-            var readerFields = Enumerable
-                .Range(0, reader.FieldCount)
-                .Select((index) => reader.GetName(index));
-            var mappingFields = new List<Tuple<string, string>>();
-
-            // To fix the casing problem of the bulk inserts
-            foreach (var dbField in dbFields)
-            {
-                var readerField = readerFields.FirstOrDefault(field =>
-                    string.Equals(field, dbField.Name, StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrEmpty(readerField))
-                {
-                    mappingFields.Add(new Tuple<string, string>(readerField, dbField.Name));
-                }
-            }
-
-            // Before Execution Time
-            var beforeExecutionTime = DateTime.UtcNow;
-
-            // Actual Execution
-            using (var sqlBulkCopy = new SqlBulkCopy(connection, options.GetValueOrDefault(), transaction))
-            {
-                // Set the destinationtable
-                sqlBulkCopy.DestinationTableName = tableName;
-
-                // Set the timeout
-                if (bulkCopyTimeout != null && bulkCopyTimeout.HasValue)
-                {
-                    sqlBulkCopy.BulkCopyTimeout = bulkCopyTimeout.Value;
-                }
-
-                // Set the batch szie
-                if (batchSize != null && batchSize.HasValue)
-                {
-                    sqlBulkCopy.BatchSize = batchSize.Value;
-                }
-
-                // Add the mappings
-                if (mappings == null)
-                {
-                    // Iterate the filtered fields
-                    foreach (var field in mappingFields)
-                    {
-                        sqlBulkCopy.ColumnMappings.Add(field.Item1, field.Item2);
-                    }
-                }
-                else
-                {
-                    // Iterate the provided mappings
-                    foreach (var mapItem in mappings)
-                    {
-                        sqlBulkCopy.ColumnMappings.Add(mapItem.SourceColumn, mapItem.DestinationColumn);
-                    }
-                }
-
-                // Open the connection and do the operation
-                connection.EnsureOpen();
-                sqlBulkCopy.WriteToServer(reader);
-
-                // Hack the 'SqlBulkCopy' object
-                var copiedField = GetRowsCopiedFieldFromSystemDataSqlBulkCopy();
-
-                // Set the return value
-                result = copiedField != null ? (int)copiedField.GetValue(sqlBulkCopy) : reader.RecordsAffected;
-            }
-
-            // Result
-            return result;
-        }
+            SqlTransaction transaction = null) =>
+            BulkInsertInternalBase<SqlBulkCopy, SqlBulkCopyOptions, SqlBulkCopyColumnMappingCollection,
+                SqlBulkCopyColumnMapping, SqlTransaction>(connection,
+                tableName,
+                reader,
+                dbFields,
+                mappings,
+                options.GetValueOrDefault(),
+                bulkCopyTimeout,
+                batchSize,
+                transaction);
 
         /// <summary>
         /// Bulk insert an instance of <see cref="DataTable"/> object into the database.
@@ -564,8 +607,11 @@ namespace RepoDb
         /// <param name="dbFields">The list of <see cref="DbField"/> objects.</param>
         /// <param name="mappings">The list of the columns to be used for mappings. If this parameter is not set, then all columns will be used for mapping.</param>
         /// <param name="options">The bulk-copy options to be used.</param>
+        /// <param name="hints">The table hints to be used. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
         /// <param name="batchSize">The size per batch to be used.</param>
+        /// <param name="isReturnIdentity">The flags that signify whether the identity values will be returned.</param>
+        /// <param name="usePhysicalPseudoTempTable">The flags that signify whether to create a physical pseudo table. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <returns>The number of rows affected by the execution.</returns>
         internal static int BulkInsertInternal(SqlConnection connection,
@@ -575,113 +621,92 @@ namespace RepoDb
             IEnumerable<DbField> dbFields = null,
             IEnumerable<BulkInsertMapItem> mappings = null,
             SqlBulkCopyOptions? options = null,
+            string hints = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
-            SqlTransaction transaction = null)
-        {
-            // Validate the objects
-            SqlConnectionExtension.ValidateTransactionConnectionObject(connection, transaction);
-
-            // Get the DB Fields
-            dbFields = dbFields ?? DbFieldCache.Get(connection, tableName, transaction);
-            if (dbFields?.Any() != true)
-            {
-                throw new InvalidOperationException($"No database fields found for '{tableName}'.");
-            }
-
-            // Variables needed
-            var result = 0;
-            var tableFields = GetDataColumns(dataTable)
-                .Select(column => column.ColumnName);
-            var mappingFields = new List<Tuple<string, string>>();
-
-            // To fix the casing problem of the bulk inserts
-            foreach (var dbField in dbFields)
-            {
-                var tableField = tableFields.FirstOrDefault(field =>
-                    string.Equals(field, dbField.Name, StringComparison.OrdinalIgnoreCase));
-                if (tableField != null)
-                {
-                    mappingFields.Add(new Tuple<string, string>(tableField, dbField.Name));
-                }
-            }
-
-            // Before Execution Time
-            var beforeExecutionTime = DateTime.UtcNow;
-
-            // Actual Execution
-            using (var sqlBulkCopy = new SqlBulkCopy(connection, options.GetValueOrDefault(), transaction))
-            {
-                // Set the destinationtable
-                sqlBulkCopy.DestinationTableName = tableName;
-
-                // Set the timeout
-                if (bulkCopyTimeout != null && bulkCopyTimeout.HasValue)
-                {
-                    sqlBulkCopy.BulkCopyTimeout = bulkCopyTimeout.Value;
-                }
-
-                // Set the batch szie
-                if (batchSize != null && batchSize.HasValue)
-                {
-                    sqlBulkCopy.BatchSize = batchSize.Value;
-                }
-
-                // Add the mappings
-                if (mappings == null)
-                {
-                    // Iterate the filtered fields
-                    foreach (var field in mappingFields)
-                    {
-                        sqlBulkCopy.ColumnMappings.Add(field.Item1, field.Item2);
-                    }
-                }
-                else
-                {
-                    // Iterate the provided mappings
-                    foreach (var mapItem in mappings)
-                    {
-                        sqlBulkCopy.ColumnMappings.Add(mapItem.SourceColumn, mapItem.DestinationColumn);
-                    }
-                }
-
-                // Open the connection and do the operation
-                connection.EnsureOpen();
-                if (rowState.HasValue == true)
-                {
-                    sqlBulkCopy.WriteToServer(dataTable, rowState.Value);
-                }
-                else
-                {
-                    sqlBulkCopy.WriteToServer(dataTable);
-                }
-
-                // Set the return value
-                result = GetDataRows(dataTable, rowState).Count();
-            }
-
-            // Result
-            return result;
-        }
+            bool? isReturnIdentity = null,
+            bool? usePhysicalPseudoTempTable = null,
+            SqlTransaction transaction = null) =>
+            BulkInsertInternalBase<SqlBulkCopy, SqlBulkCopyOptions, SqlBulkCopyColumnMappingCollection,
+                SqlBulkCopyColumnMapping, SqlTransaction>(connection,
+                tableName,
+                dataTable,
+                rowState,
+                dbFields,
+                mappings,
+                options.GetValueOrDefault(),
+                hints,
+                bulkCopyTimeout,
+                batchSize,
+                isReturnIdentity,
+                usePhysicalPseudoTempTable,
+                transaction);
 
         #endregion
 
         #region BulkInsertAsyncInternal
 
         /// <summary>
-        /// Bulk insert an instance of <see cref="DbDataReader"/> object into the database in an asynchronous way.
+        /// 
         /// </summary>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="tableName">The target table for bulk-insert operation.</param>
-        /// <param name="reader">The <see cref="DbDataReader"/> object to be used in the bulk-insert operation.</param>
-        /// <param name="dbFields">The list of <see cref="DbField"/> objects.</param>
-        /// <param name="mappings">The list of the columns to be used for mappings. If this parameter is not set, then all columns will be used for mapping.</param>
-        /// <param name="options">The bulk-copy options to be used.</param>
-        /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
-        /// <param name="batchSize">The size per batch to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        internal static async Task<int> BulkInsertAsyncInternal(SqlConnection connection,
+        /// <typeparam name="TEntity"></typeparam>
+        /// <param name="connection"></param>
+        /// <param name="tableName"></param>
+        /// <param name="entities"></param>
+        /// <param name="dbFields"></param>
+        /// <param name="mappings"></param>
+        /// <param name="options"></param>
+        /// <param name="hints"></param>
+        /// <param name="bulkCopyTimeout"></param>
+        /// <param name="batchSize"></param>
+        /// <param name="isReturnIdentity"></param>
+        /// <param name="usePhysicalPseudoTempTable"></param>
+        /// <param name="transaction"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        internal static Task<int> BulkInsertAsyncInternal<TEntity>(SqlConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            IEnumerable<DbField> dbFields = null,
+            IEnumerable<BulkInsertMapItem> mappings = null,
+            SqlBulkCopyOptions? options = null,
+            string hints = null,
+            int? bulkCopyTimeout = null,
+            int? batchSize = null,
+            bool? isReturnIdentity = null,
+            bool? usePhysicalPseudoTempTable = null,
+            SqlTransaction transaction = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class => BulkInsertAsyncInternalBase<TEntity, SqlBulkCopy, SqlBulkCopyOptions, SqlBulkCopyColumnMappingCollection,
+                SqlBulkCopyColumnMapping, SqlTransaction>(connection,
+                tableName,
+                entities,
+                dbFields,
+                mappings,
+                options.GetValueOrDefault(),
+                hints,
+                bulkCopyTimeout,
+                batchSize,
+                isReturnIdentity,
+                usePhysicalPseudoTempTable,
+                transaction,
+                cancellationToken);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <param name="tableName"></param>
+        /// <param name="reader"></param>
+        /// <param name="dbFields"></param>
+        /// <param name="mappings"></param>
+        /// <param name="options"></param>
+        /// <param name="bulkCopyTimeout"></param>
+        /// <param name="batchSize"></param>
+        /// <param name="transaction"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        internal static Task<int> BulkInsertAsyncInternal(SqlConnection connection,
             string tableName,
             DbDataReader reader,
             IEnumerable<DbField> dbFields = null,
@@ -689,89 +714,19 @@ namespace RepoDb
             SqlBulkCopyOptions? options = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
-            SqlTransaction transaction = null)
-        {
-            // Validate the objects
-            SqlConnectionExtension.ValidateTransactionConnectionObject(connection, transaction);
-
-            // Get the DB Fields
-            dbFields = dbFields ?? await DbFieldCache.GetAsync(connection, tableName, transaction);
-            if (dbFields?.Any() != true)
-            {
-                throw new InvalidOperationException($"No database fields found for '{tableName}'.");
-            }
-
-            // Variables needed
-            var result = 0;
-            var readerFields = Enumerable
-                .Range(0, reader.FieldCount)
-                .Select((index) => reader.GetName(index));
-            var mappingFields = new List<Tuple<string, string>>();
-
-            // To fix the casing problem of the bulk inserts
-            foreach (var dbField in dbFields)
-            {
-                var readerField = readerFields.FirstOrDefault(field =>
-                    string.Equals(field, dbField.Name, StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrEmpty(readerField))
-                {
-                    mappingFields.Add(new Tuple<string, string>(readerField, dbField.Name));
-                }
-            }
-
-            // Before Execution Time
-            var beforeExecutionTime = DateTime.UtcNow;
-
-            // Actual Execution
-            using (var sqlBulkCopy = new SqlBulkCopy(connection, options.GetValueOrDefault(), transaction))
-            {
-                // Set the destinationtable
-                sqlBulkCopy.DestinationTableName = tableName;
-
-                // Set the timeout
-                if (bulkCopyTimeout != null && bulkCopyTimeout.HasValue)
-                {
-                    sqlBulkCopy.BulkCopyTimeout = bulkCopyTimeout.Value;
-                }
-
-                // Set the batch szie
-                if (batchSize != null && batchSize.HasValue)
-                {
-                    sqlBulkCopy.BatchSize = batchSize.Value;
-                }
-
-                // Add the mappings
-                if (mappings == null)
-                {
-                    // Iterate the filtered fields
-                    foreach (var field in mappingFields)
-                    {
-                        sqlBulkCopy.ColumnMappings.Add(field.Item1, field.Item2);
-                    }
-                }
-                else
-                {
-                    // Iterate the provided mappings
-                    foreach (var mapItem in mappings)
-                    {
-                        sqlBulkCopy.ColumnMappings.Add(mapItem.SourceColumn, mapItem.DestinationColumn);
-                    }
-                }
-
-                // Open the connection and do the operation
-                await connection.EnsureOpenAsync();
-                await sqlBulkCopy.WriteToServerAsync(reader);
-
-                // Hack the 'SqlBulkCopy' object
-                var copiedField = GetRowsCopiedFieldFromSystemDataSqlBulkCopy();
-
-                // Set the return value
-                result = copiedField != null ? (int)copiedField.GetValue(sqlBulkCopy) : reader.RecordsAffected;
-            }
-
-            // Result
-            return result;
-        }
+            SqlTransaction transaction = null,
+            CancellationToken cancellationToken = default) =>
+            BulkInsertAsyncInternalBase<SqlBulkCopy, SqlBulkCopyOptions, SqlBulkCopyColumnMappingCollection,
+                SqlBulkCopyColumnMapping, SqlTransaction>(connection,
+                tableName,
+                reader,
+                dbFields,
+                mappings,
+                options.GetValueOrDefault(),
+                bulkCopyTimeout,
+                batchSize,
+                transaction,
+                cancellationToken);
 
         /// <summary>
         /// Bulk insert an instance of <see cref="DataTable"/> object into the database in an asynchronous way.
@@ -783,105 +738,43 @@ namespace RepoDb
         /// <param name="dbFields">The list of <see cref="DbField"/> objects.</param>
         /// <param name="mappings">The list of the columns to be used for mappings. If this parameter is not set, then all columns will be used for mapping.</param>
         /// <param name="options">The bulk-copy options to be used.</param>
+        /// <param name="hints">The table hints to be used. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="bulkCopyTimeout">The timeout in seconds to be used.</param>
         /// <param name="batchSize">The size per batch to be used.</param>
+        /// <param name="isReturnIdentity">The flags that signify whether the identity values will be returned.</param>
+        /// <param name="usePhysicalPseudoTempTable">The flags that signify whether to create a physical pseudo table. This argument will only be used if the 'isReturnIdentity' argument is 'true'.</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>The number of rows affected by the execution.</returns>
-        internal static async Task<int> BulkInsertAsyncInternal(SqlConnection connection,
+        internal static Task<int> BulkInsertAsyncInternal(SqlConnection connection,
             string tableName,
             DataTable dataTable,
             DataRowState? rowState = null,
             IEnumerable<DbField> dbFields = null,
             IEnumerable<BulkInsertMapItem> mappings = null,
             SqlBulkCopyOptions? options = null,
+            string hints = null,
             int? bulkCopyTimeout = null,
             int? batchSize = null,
-            SqlTransaction transaction = null)
-        {
-            // Validate the objects
-            SqlConnectionExtension.ValidateTransactionConnectionObject(connection, transaction);
-
-            // Get the DB Fields
-            dbFields = dbFields ?? await DbFieldCache.GetAsync(connection, tableName, transaction);
-            if (dbFields?.Any() != true)
-            {
-                throw new InvalidOperationException($"No database fields found for '{tableName}'.");
-            }
-
-            // Variables needed
-            var result = 0;
-            var tableFields = GetDataColumns(dataTable)
-                .Select(column => column.ColumnName);
-            var mappingFields = new List<Tuple<string, string>>();
-
-            // To fix the casing problem of the bulk inserts
-            foreach (var dbField in dbFields)
-            {
-                var tableField = tableFields.FirstOrDefault(field =>
-                    string.Equals(field, dbField.Name, StringComparison.OrdinalIgnoreCase));
-                if (tableField != null)
-                {
-                    mappingFields.Add(new Tuple<string, string>(tableField, dbField.Name));
-                }
-            }
-
-            // Before Execution Time
-            var beforeExecutionTime = DateTime.UtcNow;
-
-            // Actual Execution
-            using (var sqlBulkCopy = new SqlBulkCopy(connection, options.GetValueOrDefault(), transaction))
-            {
-                // Set the destinationtable
-                sqlBulkCopy.DestinationTableName = tableName;
-
-                // Set the timeout
-                if (bulkCopyTimeout != null && bulkCopyTimeout.HasValue)
-                {
-                    sqlBulkCopy.BulkCopyTimeout = bulkCopyTimeout.Value;
-                }
-
-                // Set the batch szie
-                if (batchSize != null && batchSize.HasValue)
-                {
-                    sqlBulkCopy.BatchSize = batchSize.Value;
-                }
-
-                // Add the mappings
-                if (mappings == null)
-                {
-                    // Iterate the filtered fields
-                    foreach (var field in mappingFields)
-                    {
-                        sqlBulkCopy.ColumnMappings.Add(field.Item1, field.Item2);
-                    }
-                }
-                else
-                {
-                    // Iterate the provided mappings
-                    foreach (var mapItem in mappings)
-                    {
-                        sqlBulkCopy.ColumnMappings.Add(mapItem.SourceColumn, mapItem.DestinationColumn);
-                    }
-                }
-
-                // Open the connection and do the operation
-                connection.EnsureOpen();
-                if (rowState.HasValue == true)
-                {
-                    await sqlBulkCopy.WriteToServerAsync(dataTable, rowState.Value);
-                }
-                else
-                {
-                    await sqlBulkCopy.WriteToServerAsync(dataTable);
-                }
-
-                // Set the return value
-                result = GetDataRows(dataTable, rowState).Count();
-            }
-
-            // Result
-            return result;
-        }
+            bool? isReturnIdentity = null,
+            bool? usePhysicalPseudoTempTable = null,
+            SqlTransaction transaction = null,
+            CancellationToken cancellationToken = default) =>
+            BulkInsertAsyncInternalBase<SqlBulkCopy, SqlBulkCopyOptions, SqlBulkCopyColumnMappingCollection,
+                SqlBulkCopyColumnMapping, SqlTransaction>(connection,
+                tableName,
+                dataTable,
+                rowState,
+                dbFields,
+                mappings,
+                options.GetValueOrDefault(),
+                hints,
+                bulkCopyTimeout,
+                batchSize,
+                isReturnIdentity,
+                usePhysicalPseudoTempTable,
+                transaction,
+                cancellationToken);
 
         #endregion
     }

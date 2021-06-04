@@ -1,16 +1,15 @@
-[![CoreBuild](https://img.shields.io/appveyor/ci/mikependon/repodb-ek0nw)](https://ci.appveyor.com/project/mikependon/repodb-ek0nw)
-[![Home](https://img.shields.io/badge/home-github-important)](https://github.com/mikependon/RepoDb)
-[![Website](https://img.shields.io/badge/website-information-yellow)](http://repodb.net)
-[![GetStarted](https://img.shields.io/badge/tutorial-getstarted-blueviolet)](http://repodb.net/tutorial/get-started-sqlserver)
-[![CoreVersion](https://img.shields.io/nuget/v/RepoDb)](https://www.nuget.org/packages/RepoDb)
-[![CoreUnitTests](https://img.shields.io/appveyor/tests/mikependon/repodb-yf1cx?label=unit%20tests)](https://ci.appveyor.com/project/mikependon/repodb-yf1cx/build/tests)
-[![CoreIntegrationTests](https://img.shields.io/appveyor/tests/mikependon/repodb-qksas?label=integration%20tests)](https://ci.appveyor.com/project/mikependon/repodb-qksas/build/tests)
+[![CoreBuild](https://img.shields.io/appveyor/ci/mikependon/repodb-ek0nw?style=flat-square&logo=appveyor)](https://ci.appveyor.com/project/mikependon/repodb-ek0nw)
+[![CoreHome](https://img.shields.io/badge/home-github-important?style=flat-square&logo=github)](https://github.com/mikependon/RepoDb)
+[![CoreVersion](https://img.shields.io/nuget/v/RepoDb?style=flat-square&logo=nuget)](https://www.nuget.org/packages/RepoDb)
+[![CoreReleases](https://img.shields.io/badge/releases-core-important?style=flat-square&logo=nuget)](http://repodb.net/release/core)
+[![CoreUnitTests](https://img.shields.io/appveyor/tests/mikependon/repodb-yf1cx?style=flat-square&logo=appveyor&label=unit%20tests)](https://ci.appveyor.com/project/mikependon/repodb-yf1cx/build/tests)
+[![CoreIntegrationTests](https://img.shields.io/appveyor/tests/mikependon/repodb-qksas?style=flat-square&logo=appveyor&label=integration%20tests)](https://ci.appveyor.com/project/mikependon/repodb-qksas/build/tests)
 
-# [RepoDb](http://repodb.net) - a hybrid ORM library for .NET.
+# [RepoDB](http://repodb.net) - a hybrid ORM library for .NET.
 
-RepoDb is an open-source .NET ORM that bridge the gaps between micro-ORMs and full-ORMs. It helps the developer to simplify the switch-over of when to use the BASIC and ADVANCE operations during the development.
+RepoDB is an open-source .NET ORM library that bridges the gaps of micro-ORMs and full-ORMs. It helps you simplify the switch-over of when to use the BASIC and ADVANCE operations during the development.
 
-It is the best alternative ORM to both Dapper and EntityFramework.
+It is your best alternative ORM to both Dapper and EntityFramework.
 
 ## Important Pages
 
@@ -22,17 +21,18 @@ It is the best alternative ORM to both Dapper and EntityFramework.
 - [Batch Operations](http://repodb.net/feature/batchoperations)
 - [Bulk Operations](http://repodb.net/feature/bulkoperations)
 - [Caching](http://repodb.net/feature/caching)
+- [Class Handlers](http://repodb.net/feature/classhandlers)
 - [Class Mapping](http://repodb.net/feature/classmapping)
 - [Dynamics](http://repodb.net/feature/dynamics)
 - [Connection Persistency](http://repodb.net/feature/connectionpersistency)
 - [Enumeration](http://repodb.net/feature/enumeration)
 - [Expression Trees](http://repodb.net/feature/expressiontrees)
-- [Field/Class Mapping](http://repodb.net/feature/fieldclassmapping)
 - [Hints](http://repodb.net/feature/hints)
 - [Implicit Mapping](http://repodb.net/feature/implicitmapping)
 - [Multiple Query](http://repodb.net/feature/multiplequery)
 - [Property Handlers](http://repodb.net/feature/propertyhandlers)
 - [Repositories](http://repodb.net/feature/repositories)
+- [Targeted Operations](http://repodb.net/feature/targeted)
 - [Tracing](http://repodb.net/feature/tracing)
 - [Transaction](http://repodb.net/feature/transaction)
 - [Type Mapping](http://repodb.net/feature/typemapping)
@@ -40,13 +40,13 @@ It is the best alternative ORM to both Dapper and EntityFramework.
 ## Community engagements
 
 - [GitHub](https://github.com/mikependon/RepoDb/issues) - for any issues, requests and problems.
-- [StackOverflow](https://stackoverflow.com/questions/tagged/repodb) - for any technical questions.
+- [StackOverflow](https://stackoverflow.com/search?q=RepoDB) - for any technical questions.
 - [Twitter](https://twitter.com/search?q=%23repodb) - for the latest news.
 - [Gitter Chat](https://gitter.im/RepoDb/community) - for direct and live Q&A.
 
 ## License
 
-[Apache-2.0](http://apache.org/licenses/LICENSE-2.0.html) - Copyright © 2019 - Michael Camara Pendon
+[Apache-2.0](http://apache.org/licenses/LICENSE-2.0.html) - Copyright © 2019 - [Michael Camara Pendon](https://twitter.com/mike_pendon)
 
 --------
 
@@ -55,7 +55,7 @@ It is the best alternative ORM to both Dapper and EntityFramework.
 At the Package Manager Console, write the command below.
 
 ```
-Install-Package RepoDb
+Install-Package RepoDB
 ```
 
 Or, visit our [installation](http://repodb.net/tutorial/installation) page for more information.

@@ -2,30 +2,32 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RepoDb
 {
-    /// <summary>
-    /// A base object for all shared-based repositories.
-    /// </summary>
-    public partial class DbRepository<TDbConnection> : IDisposable where TDbConnection : DbConnection
+    public partial class DbRepository<TDbConnection> : IDisposable
+        where TDbConnection : DbConnection
     {
         #region QueryAll<TEntity>
 
         /// <summary>
-        /// Query all the data from the database.
+        /// Query all the data from the table.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="orderBy">The order definition of the fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="cacheKey">
-        /// The key to the cache. If the cache key is present in the cache, then the item from the cache will be returned instead. Setting this
-        /// to null would force the repository to query from the database.
+        /// The key to the cache item.By setting this argument, it will return the item from the cache if present, otherwise it will query the database.
         /// </param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>An enumerable list of data entity object.</returns>
-        public IEnumerable<TEntity> QueryAll<TEntity>(IEnumerable<OrderField> orderBy = null,
+        /// <returns>An enumerable list of data entity objects.</returns>
+        public IEnumerable<TEntity> QueryAll<TEntity>(string tableName,
+            IEnumerable<Field> fields = null,
+            IEnumerable<OrderField> orderBy = null,
             string hints = null,
             string cacheKey = null,
             IDbTransaction transaction = null)
@@ -37,7 +39,9 @@ namespace RepoDb
             try
             {
                 // Call the method
-                return connection.QueryAll<TEntity>(orderBy: orderBy,
+                return connection.QueryAll<TEntity>(tableName: tableName,
+                    fields: fields,
+                    orderBy: orderBy,
                     hints: hints,
                     cacheKey: cacheKey,
                     cacheItemExpiration: CacheItemExpiration,
@@ -47,10 +51,48 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Query all the data from the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="orderBy">The order definition of the fields to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="cacheKey">
+        /// The key to the cache item.By setting this argument, it will return the item from the cache if present, otherwise it will query the database.
+        /// </param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>An enumerable list of data entity objects.</returns>
+        public IEnumerable<TEntity> QueryAll<TEntity>(IEnumerable<Field> fields = null,
+            IEnumerable<OrderField> orderBy = null,
+            string hints = null,
+            string cacheKey = null,
+            IDbTransaction transaction = null)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return connection.QueryAll<TEntity>(fields: fields,
+                    orderBy: orderBy,
+                    hints: hints,
+                    cacheKey: cacheKey,
+                    cacheItemExpiration: CacheItemExpiration,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    cache: Cache,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder);
             }
             finally
             {
@@ -64,21 +106,26 @@ namespace RepoDb
         #region QueryAllAsync<TEntity>
 
         /// <summary>
-        /// Query all the data from the database in an asynchronous way.
+        /// Query all the data from the table in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="orderBy">The order definition of the fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="cacheKey">
-        /// The key to the cache. If the cache key is present in the cache, then the item from the cache will be returned instead. Setting this
-        /// to null would force the repository to query from the database.
+        /// The key to the cache item.By setting this argument, it will return the item from the cache if present, otherwise it will query the database.
         /// </param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>An enumerable list of data entity object.</returns>
-        public async Task<IEnumerable<TEntity>> QueryAllAsync<TEntity>(IEnumerable<OrderField> orderBy = null,
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>An enumerable list of data entity objects.</returns>
+        public async Task<IEnumerable<TEntity>> QueryAllAsync<TEntity>(string tableName,
+            IEnumerable<Field> fields = null,
+            IEnumerable<OrderField> orderBy = null,
             string hints = null,
             string cacheKey = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Create a connection
@@ -87,7 +134,9 @@ namespace RepoDb
             try
             {
                 // Call the method
-                return await connection.QueryAllAsync<TEntity>(orderBy: orderBy,
+                return await connection.QueryAllAsync<TEntity>(tableName: tableName,
+                    fields: fields,
+                    orderBy: orderBy,
                     hints: hints,
                     cacheKey: cacheKey,
                     cacheItemExpiration: CacheItemExpiration,
@@ -95,12 +144,54 @@ namespace RepoDb
                     transaction: transaction,
                     cache: Cache,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Query all the data from the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="orderBy">The order definition of the fields to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="cacheKey">
+        /// The key to the cache item.By setting this argument, it will return the item from the cache if present, otherwise it will query the database.
+        /// </param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>An enumerable list of data entity objects.</returns>
+        public async Task<IEnumerable<TEntity>> QueryAllAsync<TEntity>(IEnumerable<Field> fields = null,
+            IEnumerable<OrderField> orderBy = null,
+            string hints = null,
+            string cacheKey = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return await connection.QueryAllAsync<TEntity>(fields: fields,
+                    orderBy: orderBy,
+                    hints: hints,
+                    cacheKey: cacheKey,
+                    cacheItemExpiration: CacheItemExpiration,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    cache: Cache,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {
@@ -114,18 +205,17 @@ namespace RepoDb
         #region QueryAll(TableName)
 
         /// <summary>
-        /// Query all the data from the database.
+        /// Query all the data from the table.
         /// </summary>
         /// <param name="tableName">The name of the target table.</param>
-        /// <param name="fields">The list of fields to be queried.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="orderBy">The order definition of the fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="cacheKey">
-        /// The key to the cache. If the cache key is present in the cache, then the item from the cache will be returned instead. Setting this
-        /// to null would force the repository to query from the database.
+        /// The key to the cache item.By setting this argument, it will return the item from the cache if present, otherwise it will query the database.
         /// </param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>An enumerable list of data entity object.</returns>
+        /// <returns>An enumerable list of data entity objects.</returns>
         public IEnumerable<dynamic> QueryAll(string tableName,
             IEnumerable<Field> fields = null,
             IEnumerable<OrderField> orderBy = null,
@@ -151,11 +241,6 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
-            {
-                // Throw back the error
-                throw;
-            }
             finally
             {
                 // Dispose the connection
@@ -168,24 +253,25 @@ namespace RepoDb
         #region QueryAllAsync(TableName)
 
         /// <summary>
-        /// Query all the data from the database in an asynchronous way.
+        /// Query all the data from the table in an asynchronous way.
         /// </summary>
         /// <param name="tableName">The name of the target table.</param>
-        /// <param name="fields">The list of fields to be queried.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="orderBy">The order definition of the fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="cacheKey">
-        /// The key to the cache. If the cache key is present in the cache, then the item from the cache will be returned instead. Setting this
-        /// to null would force the repository to query from the database.
+        /// The key to the cache item.By setting this argument, it will return the item from the cache if present, otherwise it will query the database.
         /// </param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>An enumerable list of data entity object.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>An enumerable list of data entity objects.</returns>
         public async Task<IEnumerable<dynamic>> QueryAllAsync(string tableName,
             IEnumerable<Field> fields = null,
             IEnumerable<OrderField> orderBy = null,
             string hints = null,
             string cacheKey = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
             // Create a connection
             var connection = (transaction?.Connection ?? CreateConnection());
@@ -203,12 +289,8 @@ namespace RepoDb
                     transaction: transaction,
                     cache: Cache,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
-            }
-            catch
-            {
-                // Throw back the error
-                throw;
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {

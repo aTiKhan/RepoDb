@@ -2,25 +2,24 @@
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RepoDb
 {
-    /// <summary>
-    /// A base object for all shared-based repositories.
-    /// </summary>
-    public partial class DbRepository<TDbConnection> : IDisposable where TDbConnection : DbConnection
+    public partial class DbRepository<TDbConnection> : IDisposable
+        where TDbConnection : DbConnection
     {
         #region SumAll<TEntity>
 
         /// <summary>
-        /// Summarizes all the number of data from the database table.
+        /// Computes the sum value of the target field.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The field to be summarized.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The sum value.</returns>
+        /// <returns>The sum value of the target field.</returns>
         public object SumAll<TEntity>(Field field,
             string hints = null,
             IDbTransaction transaction = null)
@@ -39,11 +38,6 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
-            {
-                // Throw back the error
-                throw;
-            }
             finally
             {
                 // Dispose the connection
@@ -52,13 +46,13 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Summarizes all the number of data from the database table.
+        /// Computes the sum value of the target field.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The field to be summarized.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The sum value.</returns>
+        /// <returns>The sum value of the target field.</returns>
         public object SumAll<TEntity>(Expression<Func<TEntity, object>> field,
             string hints = null,
             IDbTransaction transaction = null)
@@ -77,10 +71,73 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the sum value of the target field.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="field">The field to be summarized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The sum value of the target field.</returns>
+        public TResult SumAll<TEntity, TResult>(Field field,
+            string hints = null,
+            IDbTransaction transaction = null)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return connection.SumAll<TEntity, TResult>(field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder);
+            }
+            finally
+            {
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the sum value of the target field.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="field">The field to be summarized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The sum value of the target field.</returns>
+        public TResult SumAll<TEntity, TResult>(Expression<Func<TEntity, TResult>> field,
+            string hints = null,
+            IDbTransaction transaction = null)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return connection.SumAll<TEntity, TResult>(field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder);
             }
             finally
             {
@@ -94,16 +151,18 @@ namespace RepoDb
         #region SumAllAsync<TEntity>
 
         /// <summary>
-        /// Summarizes all the number of data from the database table in an asynchronous way.
+        /// Computes the sum value of the target field in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The field to be summarized.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The sum value.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
         public async Task<object> SumAllAsync<TEntity>(Field field,
             string hints = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Create a connection
@@ -117,12 +176,8 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
-            }
-            catch
-            {
-                // Throw back the error
-                throw;
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {
@@ -132,16 +187,18 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Summarizes all the number of data from the database table in an asynchronous way.
+        /// Computes the sum value of the target field in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="field">The field to be summarized.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>The sum value.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
         public async Task<object> SumAllAsync<TEntity>(Expression<Func<TEntity, object>> field,
             string hints = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Create a connection
@@ -155,12 +212,82 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the sum value of the target field in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="field">The field to be summarized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
+        public async Task<TResult> SumAllAsync<TEntity, TResult>(Field field,
+            string hints = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return await connection.SumAllAsync<TEntity, TResult>(field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the sum value of the target field in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="field">The field to be summarized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
+        public async Task<TResult> SumAllAsync<TEntity, TResult>(Expression<Func<TEntity, TResult>> field,
+            string hints = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return await connection.SumAllAsync<TEntity, TResult>(field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {
@@ -174,13 +301,13 @@ namespace RepoDb
         #region SumAll(TableName)
 
         /// <summary>
-        /// Summarizes all the number of data from the database table.
+        /// Computes the sum value of the target field.
         /// </summary>
-        /// <param name="transaction">The transaction to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
         /// <param name="field">The field to be summarized.</param>
         /// <param name="hints">The table hints to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The sum value of the target field.</returns>
         public object SumAll(string tableName,
             Field field,
             string hints = null,
@@ -200,10 +327,40 @@ namespace RepoDb
                     trace: Trace,
                     statementBuilder: StatementBuilder);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the sum value of the target field.
+        /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="field">The field to be summarized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <returns>The sum value of the target field.</returns>
+        public TResult SumAll<TResult>(string tableName,
+            Field field,
+            string hints = null,
+            IDbTransaction transaction = null)
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return connection.SumAll<TResult>(tableName: tableName,
+                    field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder);
             }
             finally
             {
@@ -217,17 +374,19 @@ namespace RepoDb
         #region SumAllAsync(TableName)
 
         /// <summary>
-        /// Summarizes all the number of data from the database table in an asynchronous way.
+        /// Computes the sum value of the target field in an asynchronous way.
         /// </summary>
-        /// <param name="transaction">The transaction to be used.</param>
         /// <param name="tableName">The name of the target table.</param>
         /// <param name="field">The field to be summarized.</param>
         /// <param name="hints">The table hints to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
         public async Task<object> SumAllAsync(string tableName,
             Field field,
             string hints = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
             // Create a connection
             var connection = (transaction?.Connection ?? CreateConnection());
@@ -241,12 +400,46 @@ namespace RepoDb
                     commandTimeout: CommandTimeout,
                     transaction: transaction,
                     trace: Trace,
-                    statementBuilder: StatementBuilder);
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
-            catch
+            finally
             {
-                // Throw back the error
-                throw;
+                // Dispose the connection
+                DisposeConnectionForPerCall(connection, transaction);
+            }
+        }
+
+        /// <summary>
+        /// Computes the sum value of the target field in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TResult">The type of the result.</typeparam>
+        /// <param name="tableName">The name of the target table.</param>
+        /// <param name="field">The field to be summarized.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The sum value of the target field.</returns>
+        public async Task<TResult> SumAllAsync<TResult>(string tableName,
+            Field field,
+            string hints = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
+        {
+            // Create a connection
+            var connection = (transaction?.Connection ?? CreateConnection());
+
+            try
+            {
+                // Call the method
+                return await connection.SumAllAsync<TResult>(tableName: tableName,
+                    field: field,
+                    hints: hints,
+                    commandTimeout: CommandTimeout,
+                    transaction: transaction,
+                    trace: Trace,
+                    statementBuilder: StatementBuilder,
+                    cancellationToken: cancellationToken);
             }
             finally
             {

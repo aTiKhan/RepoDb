@@ -1,14 +1,14 @@
-﻿using RepoDb.Contexts.Execution;
+﻿using RepoDb.Contexts.Providers;
 using RepoDb.Exceptions;
 using RepoDb.Extensions;
 using RepoDb.Interfaces;
-using RepoDb.Requests;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
-using System.Reflection;
+using System.Linq.Expressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RepoDb
@@ -21,85 +21,23 @@ namespace RepoDb
         #region Merge<TEntity>
 
         /// <summary>
-        /// Merges a data entity object into an existing data in the database.
+        /// Inserts a new row or updates an existing row in the table.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static object Merge<TEntity>(this IDbConnection connection,
+            string tableName,
             TEntity entity,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            return Merge<TEntity>(connection: connection,
-                entity: entity,
-                qualifier: null,
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Merges a data entity object into an existing data in the database.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
-        /// <param name="qualifier">The qualifer field to be used during merge operation.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        public static object Merge<TEntity>(this IDbConnection connection,
-            TEntity entity,
-            Field qualifier,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            return Merge<TEntity>(connection: connection,
-                entity: entity,
-                qualifiers: qualifier?.AsEnumerable(),
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Merges a data entity object into an existing data in the database.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        public static object Merge<TEntity>(this IDbConnection connection,
-            TEntity entity,
-            IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
@@ -108,8 +46,10 @@ namespace RepoDb
             where TEntity : class
         {
             return MergeInternal<TEntity, object>(connection: connection,
+                tableName: tableName,
                 entity: entity,
-                qualifiers: qualifiers,
+                qualifiers: null,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
@@ -118,54 +58,25 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Merges a data entity object into an existing data in the database.
+        /// Inserts a new row or updates an existing row in the table.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="qualifier">The qualifier field to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        public static TResult Merge<TEntity, TResult>(this IDbConnection connection,
-            TEntity entity,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            return Merge<TEntity, TResult>(connection: connection,
-                entity: entity,
-                qualifier: null,
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Merges a data entity object into an existing data in the database.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <typeparam name="TResult">The target type of the result.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
-        /// <param name="qualifier">The qualifer field to be used during merge operation.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        public static TResult Merge<TEntity, TResult>(this IDbConnection connection,
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static object Merge<TEntity>(this IDbConnection connection,
+            string tableName,
             TEntity entity,
             Field qualifier,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
@@ -173,9 +84,11 @@ namespace RepoDb
             IStatementBuilder statementBuilder = null)
             where TEntity : class
         {
-            return Merge<TEntity, TResult>(connection: connection,
+            return MergeInternal<TEntity, object>(connection: connection,
+                tableName: tableName,
                 entity: entity,
                 qualifiers: qualifier?.AsEnumerable(),
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
@@ -184,22 +97,102 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Merges a data entity object into an existing data in the database.
+        /// Inserts a new row or updates an existing row in the table.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="qualifiers">The qualifier <see cref="Field"/> objects to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        public static TResult Merge<TEntity, TResult>(this IDbConnection connection,
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static object Merge<TEntity>(this IDbConnection connection,
+            string tableName,
             TEntity entity,
             IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeInternal<TEntity, object>(connection: connection,
+                tableName: tableName,
+                entity: entity,
+                qualifiers: qualifiers,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The expression for the qualifier fields.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static object Merge<TEntity>(this IDbConnection connection,
+            string tableName,
+            TEntity entity,
+            Expression<Func<TEntity, object>> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeInternal<TEntity, object>(connection: connection,
+                tableName: tableName,
+                entity: entity,
+                qualifiers: Field.Parse<TEntity>(qualifiers),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static TResult Merge<TEntity, TResult>(this IDbConnection connection,
+            string tableName,
+            TEntity entity,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
@@ -208,8 +201,10 @@ namespace RepoDb
             where TEntity : class
         {
             return MergeInternal<TEntity, TResult>(connection: connection,
+                tableName: tableName,
                 entity: entity,
-                qualifiers: qualifiers,
+                qualifiers: null,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
@@ -218,22 +213,26 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Merges a data entity object into an existing data in the database.
+        /// Inserts a new row or updates an existing row in the table.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="qualifier">The qualifier field to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        internal static TResult MergeInternal<TEntity, TResult>(this IDbConnection connection,
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static TResult Merge<TEntity, TResult>(this IDbConnection connection,
+            string tableName,
             TEntity entity,
-            IEnumerable<Field> qualifiers,
+            Field qualifier,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
@@ -241,42 +240,483 @@ namespace RepoDb
             IStatementBuilder statementBuilder = null)
             where TEntity : class
         {
-            // Check the qualifiers
-            if (qualifiers?.Any() != true)
-            {
-                var primary = GetAndGuardPrimaryKey<TEntity>(connection, transaction);
-                qualifiers = primary.AsField().AsEnumerable();
-            }
+            return MergeInternal<TEntity, TResult>(connection: connection,
+                tableName: tableName,
+                entity: entity,
+                qualifiers: qualifier?.AsEnumerable(),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
 
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The qualifier <see cref="Field"/> objects to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static TResult Merge<TEntity, TResult>(this IDbConnection connection,
+            string tableName,
+            TEntity entity,
+            IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeInternal<TEntity, TResult>(connection: connection,
+                tableName: tableName,
+                entity: entity,
+                qualifiers: qualifiers,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The expression for the qualifier fields.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static TResult Merge<TEntity, TResult>(this IDbConnection connection,
+            string tableName,
+            TEntity entity,
+            Expression<Func<TEntity, object>> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeInternal<TEntity, TResult>(connection: connection,
+                tableName: tableName,
+                entity: entity,
+                qualifiers: Field.Parse<TEntity>(qualifiers),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static object Merge<TEntity>(this IDbConnection connection,
+            TEntity entity,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeInternal<TEntity, object>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: null,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifier">The qualifier field to be used during merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static object Merge<TEntity>(this IDbConnection connection,
+            TEntity entity,
+            Field qualifier,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeInternal<TEntity, object>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: qualifier?.AsEnumerable(),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static object Merge<TEntity>(this IDbConnection connection,
+            TEntity entity,
+            IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeInternal<TEntity, object>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: qualifiers,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The expression for the qualifier fields.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static object Merge<TEntity>(this IDbConnection connection,
+            TEntity entity,
+            Expression<Func<TEntity, object>> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeInternal<TEntity, object>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: Field.Parse<TEntity>(qualifiers),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static TResult Merge<TEntity, TResult>(this IDbConnection connection,
+            TEntity entity,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeInternal<TEntity, TResult>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: null,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifier">The qualifier field to be used during merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static TResult Merge<TEntity, TResult>(this IDbConnection connection,
+            TEntity entity,
+            Field qualifier,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeInternal<TEntity, TResult>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: qualifier?.AsEnumerable(),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static TResult Merge<TEntity, TResult>(this IDbConnection connection,
+            TEntity entity,
+            IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeInternal<TEntity, TResult>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: qualifiers,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The expression for the qualifier fields.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static TResult Merge<TEntity, TResult>(this IDbConnection connection,
+            TEntity entity,
+            Expression<Func<TEntity, object>> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeInternal<TEntity, TResult>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: Field.Parse<TEntity>(qualifiers),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        internal static TResult MergeInternal<TEntity, TResult>(this IDbConnection connection,
+            string tableName,
+            TEntity entity,
+            IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
             // Variables needed
             var setting = connection.GetDbSetting();
 
             // Return the result
             if (setting.IsUseUpsert == false)
             {
-                return MergeInternalBase<TEntity, TResult>(connection: connection,
-                    tableName: ClassMappedNameCache.Get<TEntity>(),
-                    entity: entity,
-                    fields: entity.AsFields(),
-                    qualifiers: qualifiers,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder,
-                    skipIdentityCheck: false);
+                if (entity?.GetType().IsDictionaryStringObject() == true)
+                {
+                    return MergeInternalBase<IDictionary<string, object>, TResult>(connection: connection,
+                        tableName: tableName,
+                        entity: (IDictionary<string, object>)entity,
+                        qualifiers: qualifiers,
+                        fields: GetQualifiedFields<TEntity>(fields, entity),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder);
+                }
+                else
+                {
+                    return MergeInternalBase<TEntity, TResult>(connection: connection,
+                        tableName: tableName,
+                        entity: entity,
+                        qualifiers: qualifiers,
+                        fields: GetQualifiedFields<TEntity>(fields, entity),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder);
+                }
             }
             else
             {
-                return UpsertInternalBase<TEntity, TResult>(connection: connection,
-                    tableName: ClassMappedNameCache.Get<TEntity>(),
-                    entity: entity,
-                    qualifiers: qualifiers,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
+                if (entity?.GetType().IsDictionaryStringObject() == true)
+                {
+                    return UpsertInternalBase<IDictionary<string, object>, TResult>(connection: connection,
+                        tableName: tableName,
+                        entity: (IDictionary<string, object>)entity,
+                        qualifiers: qualifiers,
+                        fields: GetQualifiedFields<TEntity>(fields, entity),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder);
+                }
+                else
+                {
+                    return UpsertInternalBase<TEntity, TResult>(connection: connection,
+                        tableName: tableName,
+                        entity: entity,
+                        qualifiers: qualifiers,
+                        fields: GetQualifiedFields<TEntity>(fields, entity),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder);
+                }
             }
         }
 
@@ -285,262 +725,756 @@ namespace RepoDb
         #region MergeAsync<TEntity>
 
         /// <summary>
-        /// Merges a data entity object into an existing data in the database in an asychronous way.
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static Task<object> MergeAsync<TEntity>(this IDbConnection connection,
+            string tableName,
             TEntity entity,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            return MergeAsync<TEntity>(connection: connection,
-                entity: entity,
-                qualifier: null,
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Merges a data entity object into an existing data in the database in an asychronous way.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
-        /// <param name="qualifier">The field to be used during merge operation.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        public static Task<object> MergeAsync<TEntity>(this IDbConnection connection,
-            TEntity entity,
-            Field qualifier,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            return MergeAsync<TEntity, object>(connection: connection,
-                entity: entity,
-                qualifiers: qualifier?.AsEnumerable(),
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Merges a data entity object into an existing data in the database in an asychronous way.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        public static Task<object> MergeAsync<TEntity>(this IDbConnection connection,
-            TEntity entity,
-            IEnumerable<Field> qualifiers,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             return MergeAsyncInternal<TEntity, object>(connection: connection,
+                tableName: tableName,
                 entity: entity,
-                qualifiers: qualifiers,
+                qualifiers: null,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Merges a data entity object into an existing data in the database in an asychronous way.
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="qualifier">The qualifier field to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        public static Task<TResult> MergeAsync<TEntity, TResult>(this IDbConnection connection,
-            TEntity entity,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            return MergeAsync<TEntity, TResult>(connection: connection,
-                entity: entity,
-                qualifier: null,
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Merges a data entity object into an existing data in the database in an asychronous way.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <typeparam name="TResult">The target type of the result.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
-        /// <param name="qualifier">The field to be used during merge operation.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        public static Task<TResult> MergeAsync<TEntity, TResult>(this IDbConnection connection,
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<object> MergeAsync<TEntity>(this IDbConnection connection,
+            string tableName,
             TEntity entity,
             Field qualifier,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
-            return MergeAsync<TEntity, TResult>(connection: connection,
+            return MergeAsyncInternal<TEntity, object>(connection: connection,
+                tableName: tableName,
                 entity: entity,
                 qualifiers: qualifier?.AsEnumerable(),
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Merges a data entity object into an existing data in the database in an asychronous way.
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The object to be merged.</param>
-		/// <param name="hints">The table hints to be used.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="qualifiers">The qualifier <see cref="Field"/> objects to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        public static Task<TResult> MergeAsync<TEntity, TResult>(this IDbConnection connection,
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<object> MergeAsync<TEntity>(this IDbConnection connection,
+            string tableName,
             TEntity entity,
             IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAsyncInternal<TEntity, object>(connection: connection,
+                tableName: tableName,
+                entity: entity,
+                qualifiers: qualifiers,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The expression for the qualifier fields.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<object> MergeAsync<TEntity>(this IDbConnection connection,
+            string tableName,
+            TEntity entity,
+            Expression<Func<TEntity, object>> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAsyncInternal<TEntity, object>(connection: connection,
+                tableName: tableName,
+                entity: entity,
+                qualifiers: Field.Parse<TEntity>(qualifiers),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<TResult> MergeAsync<TEntity, TResult>(this IDbConnection connection,
+            string tableName,
+            TEntity entity,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             return MergeAsyncInternal<TEntity, TResult>(connection: connection,
+                tableName: tableName,
                 entity: entity,
-                qualifiers: qualifiers,
+                qualifiers: null,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Merges a data entity object into an existing data in the database in an asychronous way.
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifier">The qualifier field to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<TResult> MergeAsync<TEntity, TResult>(this IDbConnection connection,
+            string tableName,
+            TEntity entity,
+            Field qualifier,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAsyncInternal<TEntity, TResult>(connection: connection,
+                tableName: tableName,
+                entity: entity,
+                qualifiers: qualifier?.AsEnumerable(),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The qualifier <see cref="Field"/> objects to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<TResult> MergeAsync<TEntity, TResult>(this IDbConnection connection,
+            string tableName,
+            TEntity entity,
+            IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAsyncInternal<TEntity, TResult>(connection: connection,
+                tableName: tableName,
+                entity: entity,
+                qualifiers: qualifiers,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The expression for the qualifier fields.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<TResult> MergeAsync<TEntity, TResult>(this IDbConnection connection,
+            string tableName,
+            TEntity entity,
+            Expression<Func<TEntity, object>> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAsyncInternal<TEntity, TResult>(connection: connection,
+                tableName: tableName,
+                entity: entity,
+                qualifiers: Field.Parse<TEntity>(qualifiers),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<object> MergeAsync<TEntity>(this IDbConnection connection,
+            TEntity entity,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAsyncInternal<TEntity, object>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: null,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifier">The field to be used during merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<object> MergeAsync<TEntity>(this IDbConnection connection,
+            TEntity entity,
+            Field qualifier,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAsyncInternal<TEntity, object>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: qualifier?.AsEnumerable(),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<object> MergeAsync<TEntity>(this IDbConnection connection,
+            TEntity entity,
+            IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAsyncInternal<TEntity, object>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: qualifiers,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The expression for the qualifier fields.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<object> MergeAsync<TEntity>(this IDbConnection connection,
+            TEntity entity,
+            Expression<Func<TEntity, object>> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAsyncInternal<TEntity, object>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: Field.Parse<TEntity>(qualifiers),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <typeparam name="TResult">The target type of the result.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entity">The object to be merged.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
 		/// <param name="hints">The table hints to be used.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        internal static Task<TResult> MergeAsyncInternal<TEntity, TResult>(this IDbConnection connection,
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<TResult> MergeAsync<TEntity, TResult>(this IDbConnection connection,
             TEntity entity,
-            IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
-            // Check the qualifiers
-            if (qualifiers?.Any() != true)
-            {
-                var primary = GetAndGuardPrimaryKey<TEntity>(connection, transaction);
-                qualifiers = primary.AsField().AsEnumerable();
-            }
+            return MergeAsyncInternal<TEntity, TResult>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: null,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
 
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifier">The field to be used during merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<TResult> MergeAsync<TEntity, TResult>(this IDbConnection connection,
+            TEntity entity,
+            Field qualifier,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAsyncInternal<TEntity, TResult>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: qualifier?.AsEnumerable(),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<TResult> MergeAsync<TEntity, TResult>(this IDbConnection connection,
+            TEntity entity,
+            IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAsyncInternal<TEntity, TResult>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: qualifiers,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The expression for the qualifier fields.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        public static Task<TResult> MergeAsync<TEntity, TResult>(this IDbConnection connection,
+            TEntity entity,
+            Expression<Func<TEntity, object>> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAsyncInternal<TEntity, TResult>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entity: entity,
+                qualifiers: Field.Parse<TEntity>(qualifiers),
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Inserts a new row or updates an existing row in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <typeparam name="TResult">The target type of the result.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entity">The object to be merged.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+		/// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
+        internal static Task<TResult> MergeAsyncInternal<TEntity, TResult>(this IDbConnection connection,
+            string tableName,
+            TEntity entity,
+            IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
             // Variables needed
             var setting = connection.GetDbSetting();
 
             // Return the result
             if (setting.IsUseUpsert == false)
             {
-                return MergeAsyncInternalBase<TEntity, TResult>(connection: connection,
-                    tableName: ClassMappedNameCache.Get<TEntity>(),
-                    entity: entity,
-                    fields: entity.AsFields(),
-                    qualifiers: qualifiers,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder,
-                    skipIdentityCheck: false);
+                if (entity?.GetType().IsDictionaryStringObject() == true)
+                {
+                    return MergeAsyncInternalBase<IDictionary<string, object>, TResult>(connection: connection,
+                        tableName: tableName,
+                        entity: (IDictionary<string, object>)entity,
+                        qualifiers: qualifiers,
+                        fields: GetQualifiedFields<TEntity>(fields, entity),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder,
+                        cancellationToken: cancellationToken);
+                }
+                else
+                {
+                    return MergeAsyncInternalBase<TEntity, TResult>(connection: connection,
+                        tableName: tableName,
+                        entity: entity,
+                        qualifiers: qualifiers,
+                        fields: GetQualifiedFields<TEntity>(fields, entity),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder,
+                        cancellationToken: cancellationToken);
+                }
             }
             else
             {
-                return UpsertAsyncInternalBase<TEntity, TResult>(connection: connection,
-                    tableName: ClassMappedNameCache.Get<TEntity>(),
-                    entity: entity,
-                    qualifiers: qualifiers,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
+                if (entity?.GetType().IsDictionaryStringObject() == true)
+                {
+                    return UpsertAsyncInternalBase<IDictionary<string, object>, TResult>(connection: connection,
+                        tableName: tableName,
+                        entity: (IDictionary<string, object>)entity,
+                        qualifiers: qualifiers,
+                        fields: GetQualifiedFields<TEntity>(fields, entity),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder,
+                        cancellationToken: cancellationToken);
+                }
+                else
+                {
+                    return UpsertAsyncInternalBase<TEntity, TResult>(connection: connection,
+                        tableName: tableName,
+                        entity: entity,
+                        qualifiers: qualifiers,
+                        fields: GetQualifiedFields<TEntity>(fields, entity),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder,
+                        cancellationToken: cancellationToken);
+                }
             }
         }
 
@@ -554,25 +1488,28 @@ namespace RepoDb
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The dynamic object to be merged.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static object Merge(this IDbConnection connection,
             string tableName,
             object entity,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
         {
-            return Merge(connection: connection,
+            return MergeInternal<object, object>(connection: connection,
                 tableName: tableName,
                 entity: entity,
-                qualifier: null,
+                qualifiers: null,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
@@ -587,26 +1524,29 @@ namespace RepoDb
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The dynamic object to be merged.</param>
         /// <param name="qualifier">The qualifier field to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static object Merge(this IDbConnection connection,
             string tableName,
             object entity,
             Field qualifier,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
         {
-            return Merge(connection: connection,
+            return MergeInternal<object, object>(connection: connection,
                 tableName: tableName,
                 entity: entity,
                 qualifiers: qualifier?.AsEnumerable(),
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
@@ -621,26 +1561,29 @@ namespace RepoDb
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The dynamic object to be merged.</param>
         /// <param name="qualifiers">The qualifier <see cref="Field"/> objects to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static object Merge(this IDbConnection connection,
             string tableName,
             object entity,
             IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
         {
-            return MergeInternal<object>(connection: connection,
+            return MergeInternal<object, object>(connection: connection,
                 tableName: tableName,
                 entity: entity,
                 qualifiers: qualifiers,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
@@ -655,25 +1598,28 @@ namespace RepoDb
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The dynamic object to be merged.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static TResult Merge<TResult>(this IDbConnection connection,
             string tableName,
             object entity,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
         {
-            return Merge<TResult>(connection: connection,
+            return MergeInternal<object, TResult>(connection: connection,
                 tableName: tableName,
                 entity: entity,
-                qualifier: null,
+                qualifiers: null,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
@@ -689,26 +1635,29 @@ namespace RepoDb
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The dynamic object to be merged.</param>
         /// <param name="qualifier">The qualifier field to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static TResult Merge<TResult>(this IDbConnection connection,
             string tableName,
             object entity,
             Field qualifier,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
         {
-            return Merge<TResult>(connection: connection,
+            return MergeInternal<object, TResult>(connection: connection,
                 tableName: tableName,
                 entity: entity,
                 qualifiers: qualifier?.AsEnumerable(),
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
@@ -724,87 +1673,34 @@ namespace RepoDb
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The dynamic object to be merged.</param>
         /// <param name="qualifiers">The qualifier <see cref="Field"/> objects to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static TResult Merge<TResult>(this IDbConnection connection,
             string tableName,
             object entity,
             IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
         {
-            return MergeInternal<TResult>(connection: connection,
+            return MergeInternal<object, TResult>(connection: connection,
                 tableName: tableName,
                 entity: entity,
                 qualifiers: qualifiers,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
                 statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Merges a dynamic object into an existing data in the database.
-        /// </summary>
-        /// <typeparam name="TResult">The target type of the result.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="tableName">The name of the target table to be used.</param>
-        /// <param name="entity">The dynamic object to be merged.</param>
-        /// <param name="qualifiers">The qualifier <see cref="Field"/> objects to be used.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        internal static TResult MergeInternal<TResult>(this IDbConnection connection,
-            string tableName,
-            object entity,
-            IEnumerable<Field> qualifiers,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-        {
-            // Variables needed
-            var setting = connection.GetDbSetting();
-
-            // Return the result
-            if (setting.IsUseUpsert == false)
-            {
-                return MergeInternalBase<object, TResult>(connection: connection,
-                    tableName: tableName,
-                    entity: entity,
-                    fields: entity.AsFields(),
-                    qualifiers: qualifiers,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder,
-                    skipIdentityCheck: true);
-            }
-            else
-            {
-                return UpsertInternalBase<object, TResult>(connection: connection,
-                    tableName: tableName,
-                    entity: entity,
-                    qualifiers: qualifiers,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
-            }
         }
 
         #endregion
@@ -817,30 +1713,36 @@ namespace RepoDb
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The dynamic object to be merged.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static Task<object> MergeAsync(this IDbConnection connection,
             string tableName,
             object entity,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
-            return MergeAsync(connection: connection,
+            return MergeAsyncInternal<object, object>(connection: connection,
                 tableName: tableName,
                 entity: entity,
-                qualifier: null,
+                qualifiers: null,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -850,31 +1752,37 @@ namespace RepoDb
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The dynamic object to be merged.</param>
         /// <param name="qualifier">The qualifier field to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static Task<object> MergeAsync(this IDbConnection connection,
             string tableName,
             object entity,
             Field qualifier,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
-            return MergeAsync(connection: connection,
+            return MergeAsyncInternal<object, object>(connection: connection,
                 tableName: tableName,
                 entity: entity,
                 qualifiers: qualifier?.AsEnumerable(),
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -884,31 +1792,37 @@ namespace RepoDb
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The dynamic object to be merged.</param>
         /// <param name="qualifiers">The qualifier <see cref="Field"/> objects to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static Task<object> MergeAsync(this IDbConnection connection,
             string tableName,
             object entity,
             IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
-            return MergeAsyncInternal<object>(connection: connection,
+            return MergeAsyncInternal<object, object>(connection: connection,
                 tableName: tableName,
                 entity: entity,
                 qualifiers: qualifiers,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -918,30 +1832,36 @@ namespace RepoDb
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The dynamic object to be merged.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static Task<TResult> MergeAsync<TResult>(this IDbConnection connection,
             string tableName,
             object entity,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
-            return MergeAsync<TResult>(connection: connection,
+            return MergeAsyncInternal<object, TResult>(connection: connection,
                 tableName: tableName,
                 entity: entity,
-                qualifier: null,
+                qualifiers: null,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -952,31 +1872,37 @@ namespace RepoDb
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The dynamic object to be merged.</param>
         /// <param name="qualifier">The qualifier field to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static Task<TResult> MergeAsync<TResult>(this IDbConnection connection,
             string tableName,
             object entity,
             Field qualifier,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
-            return MergeAsync<TResult>(connection: connection,
+            return MergeAsyncInternal<object, TResult>(connection: connection,
                 tableName: tableName,
                 entity: entity,
                 qualifiers: qualifier?.AsEnumerable(),
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
@@ -987,87 +1913,37 @@ namespace RepoDb
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The dynamic object to be merged.</param>
         /// <param name="qualifiers">The qualifier <see cref="Field"/> objects to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         public static Task<TResult> MergeAsync<TResult>(this IDbConnection connection,
             string tableName,
             object entity,
             IEnumerable<Field> qualifiers,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
-            return MergeAsyncInternal<TResult>(connection: connection,
+            return MergeAsyncInternal<object, TResult>(connection: connection,
                 tableName: tableName,
                 entity: entity,
                 qualifiers: qualifiers,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Merges a dynamic object into an existing data in the database in an asynchronous way.
-        /// </summary>
-        /// <typeparam name="TResult">The target type of the result.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="tableName">The name of the target table to be used.</param>
-        /// <param name="entity">The dynamic object to be merged.</param>
-        /// <param name="qualifiers">The qualifier <see cref="Field"/> objects to be used.</param>
-        /// <param name="hints">The table hints to be used.</param>
-        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
-        internal static async Task<TResult> MergeAsyncInternal<TResult>(this IDbConnection connection,
-            string tableName,
-            object entity,
-            IEnumerable<Field> qualifiers,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-        {
-            // Variables needed
-            var setting = connection.GetDbSetting();
-
-            // Return the result
-            if (setting.IsUseUpsert == false)
-            {
-                return await MergeAsyncInternalBase<object, TResult>(connection: connection,
-                    tableName: tableName,
-                    entity: entity,
-                    fields: entity.AsFields(),
-                    qualifiers: qualifiers,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder,
-                    skipIdentityCheck: true);
-            }
-            else
-            {
-                return await UpsertAsyncInternalBase<object, TResult>(connection: connection,
-                    tableName: tableName,
-                    entity: entity,
-                    qualifiers: qualifiers,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
-            }
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -1082,128 +1958,49 @@ namespace RepoDb
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The data entity or dynamic object to be merged.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
         /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <param name="skipIdentityCheck">True to skip the identity check.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         internal static TResult MergeInternalBase<TEntity, TResult>(this IDbConnection connection,
             string tableName,
             TEntity entity,
-            IEnumerable<Field> fields = null,
             IEnumerable<Field> qualifiers = null,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null,
-            bool skipIdentityCheck = false)
+            IStatementBuilder statementBuilder = null)
             where TEntity : class
         {
-            // Get the database fields
-            var dbFields = DbFieldCache.Get(connection, tableName, transaction);
-
             // Check the qualifiers
             if (qualifiers?.Any() != true)
             {
-                // Get the DB primary
-                var primary = dbFields?.FirstOrDefault(dbField => dbField.IsPrimary);
-
-                // Throw if there is no primary
-                if (primary == null)
-                {
-                    throw new PrimaryFieldNotFoundException($"There is no primary found for '{tableName}'.");
-                }
-
-                // Set the primary as the qualifier
-                qualifiers = primary.AsField().AsEnumerable();
+                var key = GetAndGuardPrimaryKeyOrIdentityKey(connection, tableName, transaction,
+                    entity?.GetType() ?? typeof(TEntity));
+                qualifiers = key.AsEnumerable();
             }
 
-            // Get the function
-            var callback = new Func<MergeExecutionContext<TEntity>>(() =>
-            {
-                // Variables needed
-                var identity = (Field)null;
-                var inputFields = new List<DbField>();
-                var identityDbField = dbFields?.FirstOrDefault(f => f.IsIdentity);
-                var dbSetting = connection.GetDbSetting();
-
-                // Set the identity field
-                if (skipIdentityCheck == false)
-                {
-                    identity = IdentityCache.Get<TEntity>()?.AsField();
-                    if (identity == null && identityDbField != null)
-                    {
-                        identity = FieldCache.Get<TEntity>().FirstOrDefault(field =>
-                            string.Equals(field.Name.AsUnquoted(true, dbSetting), identityDbField.Name.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase));
-                    }
-                }
-
-                // Filter the actual properties for input fields
-                inputFields = dbFields?
-                    .Where(dbField =>
-                        fields.FirstOrDefault(field => string.Equals(field.Name.AsUnquoted(true, dbSetting), dbField.Name.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase)) != null)
-                    .AsList();
-
-                // Variables for the entity action
-                var identityPropertySetter = (Action<TEntity, object>)null;
-
-                // Get the identity setter
-                if (skipIdentityCheck == false && identity != null)
-                {
-                    identityPropertySetter = FunctionCache.GetDataEntityPropertyValueSetterFunction<TEntity>(identity);
-                }
-
-                // Identify the requests
-                var mergeRequest = (MergeRequest)null;
-
-                // Create a different kind of requests
-                if (typeof(TEntity) == typeof(object))
-                {
-                    mergeRequest = new MergeRequest(tableName,
-                        connection,
-                        transaction,
-                        fields,
-                        qualifiers,
-                        hints,
-                        statementBuilder);
-                }
-                else
-                {
-                    mergeRequest = new MergeRequest(typeof(TEntity),
-                        connection,
-                        transaction,
-                        fields,
-                        qualifiers,
-                        hints,
-                        statementBuilder);
-                }
-
-                // Return the value
-                return new MergeExecutionContext<TEntity>
-                {
-                    CommandText = CommandTextCache.GetMergeText(mergeRequest),
-                    InputFields = inputFields,
-                    ParametersSetterFunc = FunctionCache.GetDataEntityDbCommandParameterSetterFunction<TEntity>(
-                        string.Concat(typeof(TEntity).FullName, ".", tableName, ".Merge"),
-                        inputFields?.AsList(),
-                        null,
-                        dbSetting),
-                    IdentityPropertySetterFunc = identityPropertySetter
-                };
-            });
-
             // Get the context
-            var context = MergeExecutionContextCache<TEntity>.Get(tableName, qualifiers, fields, callback);
+            var context = MergeExecutionContextProvider.Create<TEntity>(connection,
+                tableName,
+                qualifiers,
+                fields,
+                hints,
+                transaction,
+                statementBuilder);
+            var sessionId = Guid.Empty;
 
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog(context.CommandText, entity, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, context.CommandText, entity, null);
                 trace.BeforeMerge(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -1211,7 +2008,7 @@ namespace RepoDb
                     {
                         throw new CancelledExecutionException(context.CommandText);
                     }
-                    return default(TResult);
+                    return default;
                 }
                 context.CommandText = (cancellableTraceLog.Statement ?? context.CommandText);
                 entity = (TEntity)(cancellableTraceLog.Parameter ?? entity);
@@ -1241,11 +2038,8 @@ namespace RepoDb
             }
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterMerge(new TraceLog(context.CommandText, entity, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterMerge(new TraceLog(sessionId, context.CommandText, entity, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Return the result
             return result;
@@ -1263,17 +2057,19 @@ namespace RepoDb
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The data entity or dynamic object to be merged.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         internal static TResult UpsertInternalBase<TEntity, TResult>(this IDbConnection connection,
             string tableName,
             TEntity entity,
             IEnumerable<Field> qualifiers = null,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
@@ -1283,21 +2079,12 @@ namespace RepoDb
         {
             // Variables needed
             var type = entity?.GetType() ?? typeof(TEntity);
-            var isObjectType = typeof(TEntity) == typeof(object);
+            var isDictionaryType = type.IsDictionaryStringObject();
             var dbFields = DbFieldCache.Get(connection, tableName, transaction);
             var primary = dbFields?.FirstOrDefault(dbField => dbField.IsPrimary);
             var properties = (IEnumerable<ClassProperty>)null;
             var primaryKey = (ClassProperty)null;
-
-            // Get the properties
-            if (type.IsGenericType == true)
-            {
-                properties = type.GetClassProperties();
-            }
-            else
-            {
-                properties = PropertyCache.Get(type);
-            }
+            var sessionId = Guid.Empty;
 
             // Check the qualifiers
             if (qualifiers?.Any() != true)
@@ -1312,14 +2099,28 @@ namespace RepoDb
                 qualifiers = primary.AsField().AsEnumerable();
             }
 
-            // Set the primary key
-            primaryKey = properties?.FirstOrDefault(p =>
-                string.Equals(primary?.Name, p.GetMappedName(), StringComparison.OrdinalIgnoreCase));
+            // Get the properties
+            if (isDictionaryType == false)
+            {
+                if (type.IsGenericType == true)
+                {
+                    properties = type.GetClassProperties();
+                }
+                else
+                {
+                    properties = PropertyCache.Get(type);
+                }
+
+                // Set the primary key
+                primaryKey = properties?.FirstOrDefault(p =>
+                    string.Equals(primary?.Name, p.GetMappedName(), StringComparison.OrdinalIgnoreCase));
+            }
 
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog("Upsert.Before", entity, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, "Upsert.Before", entity, null);
                 trace.BeforeMerge(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -1327,15 +2128,24 @@ namespace RepoDb
                     {
                         throw new CancelledExecutionException("Upsert.Cancelled");
                     }
-                    return default(TResult);
+                    return default;
                 }
                 entity = (TEntity)(cancellableTraceLog.Parameter ?? entity);
             }
 
             // Expression
-            var where = CreateQueryGroupForUpsert(entity,
-                properties,
-                qualifiers);
+            var where = (QueryGroup)null;
+            if (isDictionaryType)
+            {
+                where = CreateQueryGroupForUpsert((IDictionary<string, object>)entity,
+                    qualifiers);
+            }
+            else
+            {
+                where = CreateQueryGroupForUpsert(entity,
+                    properties,
+                    qualifiers);
+            }
 
             // Validate
             if (where == null)
@@ -1348,101 +2158,67 @@ namespace RepoDb
 
             // Execution variables
             var result = default(TResult);
-            var exists = false;
-
-            if (isObjectType == true)
-            {
-                exists = connection.Exists(tableName,
-                    where,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
-            }
-            else
-            {
-                exists = connection.Exists<TEntity>(where,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
-            }
+            var exists = connection.Exists(tableName,
+                where,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
 
             // Check the existence
             if (exists == true)
             {
                 // Call the update operation
-                var updateResult = default(int);
-
-                if (isObjectType == true)
-                {
-                    updateResult = connection.Update(tableName,
-                        entity,
-                        where,
-                        hints: hints,
-                        commandTimeout: commandTimeout,
-                        transaction: transaction,
-                        trace: trace,
-                        statementBuilder: statementBuilder);
-                }
-                else
-                {
-                    updateResult = connection.Update<TEntity>(entity,
-                        where,
-                        hints: hints,
-                        commandTimeout: commandTimeout,
-                        transaction: transaction,
-                        trace: trace,
-                        statementBuilder: statementBuilder);
-                }
+                var updateResult = connection.Update<TEntity>(tableName,
+                    entity,
+                    where,
+                    fields: fields,
+                    hints: hints,
+                    commandTimeout: commandTimeout,
+                    transaction: transaction,
+                    trace: trace,
+                    statementBuilder: statementBuilder);
 
                 // Check if there is result
                 if (updateResult > 0)
                 {
-                    if (primaryKey != null)
+                    if (isDictionaryType == false)
                     {
-                        // Set the result
-                        result = Converter.ToType<TResult>(primaryKey.PropertyInfo.GetValue(entity));
+                        if (primaryKey != null)
+                        {
+                            result = Converter.ToType<TResult>(primaryKey.PropertyInfo.GetValue(entity));
+                        }
+                    }
+                    else
+                    {
+                        var dictionary = (IDictionary<string, object>)entity;
+                        if (primary != null && dictionary.ContainsKey(primary.Name))
+                        {
+                            result = Converter.ToType<TResult>(dictionary[primary.Name]);
+                        }
                     }
                 }
             }
             else
             {
                 // Call the insert operation
-                var insertResult = (object)null;
-
-                if (isObjectType == true)
-                {
-                    insertResult = connection.Insert(tableName,
-                        entity,
-                        hints: hints,
-                        commandTimeout: commandTimeout,
-                        transaction: transaction,
-                        trace: trace,
-                        statementBuilder: statementBuilder);
-                }
-                else
-                {
-                    insertResult = connection.Insert<TEntity>(entity,
-                        hints: hints,
-                        commandTimeout: commandTimeout,
-                        transaction: transaction,
-                        trace: trace,
-                        statementBuilder: statementBuilder);
-                }
+                var insertResult = connection.Insert(tableName,
+                    entity,
+                    fields: fields,
+                    hints: hints,
+                    commandTimeout: commandTimeout,
+                    transaction: transaction,
+                    trace: trace,
+                    statementBuilder: statementBuilder);
 
                 // Set the result
                 result = Converter.ToType<TResult>(insertResult);
             }
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterMerge(new TraceLog("Upsert.After", entity, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterMerge(new TraceLog(sessionId, "Upsert.After", entity, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Return the result
             return result;
@@ -1461,14 +2237,14 @@ namespace RepoDb
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The data entity or dynamic object to be merged.</param>
         /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <param name="skipIdentityCheck">True to skip the identity check.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         internal static async Task<TResult> MergeAsyncInternalBase<TEntity, TResult>(this IDbConnection connection,
             string tableName,
             TEntity entity,
@@ -1479,93 +2255,33 @@ namespace RepoDb
             IDbTransaction transaction = null,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null,
-            bool skipIdentityCheck = false)
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
-            // Get the database fields
-            var dbFields = await DbFieldCache.GetAsync(connection, tableName, transaction);
-
-            // Get the function
-            var callback = new Func<MergeExecutionContext<TEntity>>(() =>
+            // Check the qualifiers
+            if (qualifiers?.Any() != true)
             {
-                // Variables needed
-                var identity = (Field)null;
-                var inputFields = new List<DbField>();
-                var identityDbField = dbFields?.FirstOrDefault(f => f.IsIdentity);
-                var dbSetting = connection.GetDbSetting();
-
-                // Set the identity field
-                if (skipIdentityCheck == false)
-                {
-                    identity = IdentityCache.Get<TEntity>()?.AsField();
-                    if (identity == null && identityDbField != null)
-                    {
-                        identity = FieldCache.Get<TEntity>().FirstOrDefault(field =>
-                            string.Equals(field.Name.AsUnquoted(true, dbSetting), identityDbField.Name.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase));
-                    }
-                }
-
-                // Filter the actual properties for input fields
-                inputFields = dbFields?
-                    .Where(dbField =>
-                        fields.FirstOrDefault(field => string.Equals(field.Name.AsUnquoted(true, dbSetting), dbField.Name.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase)) != null)
-                    .AsList();
-
-                // Variables for the entity action
-                var identityPropertySetter = (Action<TEntity, object>)null;
-
-                // Get the identity setter
-                if (skipIdentityCheck == false && identity != null)
-                {
-                    identityPropertySetter = FunctionCache.GetDataEntityPropertyValueSetterFunction<TEntity>(identity);
-                }
-
-                // Identify the requests
-                var mergeRequest = (MergeRequest)null;
-
-                // Create a different kind of requests
-                if (typeof(TEntity) == typeof(object))
-                {
-                    mergeRequest = new MergeRequest(tableName,
-                        connection,
-                        transaction,
-                        fields,
-                        qualifiers,
-                        hints,
-                        statementBuilder);
-                }
-                else
-                {
-                    mergeRequest = new MergeRequest(typeof(TEntity),
-                        connection,
-                        transaction,
-                        fields,
-                        qualifiers,
-                        hints,
-                        statementBuilder);
-                }
-
-                // Return the value
-                return new MergeExecutionContext<TEntity>
-                {
-                    CommandText = CommandTextCache.GetMergeText(mergeRequest),
-                    InputFields = inputFields,
-                    ParametersSetterFunc = FunctionCache.GetDataEntityDbCommandParameterSetterFunction<TEntity>(
-                        string.Concat(typeof(TEntity).FullName, ".", tableName, ".Merge"),
-                        inputFields?.AsList(),
-                        null,
-                        dbSetting),
-                    IdentityPropertySetterFunc = identityPropertySetter
-                };
-            });
+                var key = await GetAndGuardPrimaryKeyOrIdentityKeyAsync(connection, tableName, transaction,
+                    entity?.GetType() ?? typeof(TEntity), cancellationToken);
+                qualifiers = key.AsEnumerable();
+            }
 
             // Get the context
-            var context = MergeExecutionContextCache<TEntity>.Get(tableName, qualifiers, fields, callback);
+            var context = await MergeExecutionContextProvider.CreateAsync<TEntity>(connection,
+                tableName,
+                qualifiers,
+                fields,
+                hints,
+                transaction,
+                statementBuilder,
+                cancellationToken);
+            var sessionId = Guid.Empty;
 
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog(context.CommandText, entity, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, context.CommandText, entity, null);
                 trace.BeforeMerge(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -1573,7 +2289,7 @@ namespace RepoDb
                     {
                         throw new CancelledExecutionException(context.CommandText);
                     }
-                    return default(TResult);
+                    return default;
                 }
                 context.CommandText = (cancellableTraceLog.Statement ?? context.CommandText);
                 entity = (TEntity)(cancellableTraceLog.Parameter ?? entity);
@@ -1586,14 +2302,14 @@ namespace RepoDb
             var result = default(TResult);
 
             // Create the command
-            using (var command = (DbCommand)(await connection.EnsureOpenAsync()).CreateCommand(context.CommandText,
+            using (var command = (DbCommand)(await connection.EnsureOpenAsync(cancellationToken)).CreateCommand(context.CommandText,
                 CommandType.Text, commandTimeout, transaction))
             {
                 // Set the values
                 context.ParametersSetterFunc(command, entity);
 
                 // Actual Execution
-                result = Converter.ToType<TResult>(await command.ExecuteScalarAsync());
+                result = Converter.ToType<TResult>(await command.ExecuteScalarAsync(cancellationToken));
 
                 // Set the return value
                 if (Equals(result, default(TResult)) == false)
@@ -1603,11 +2319,8 @@ namespace RepoDb
             }
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterMerge(new TraceLog(context.CommandText, entity, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterMerge(new TraceLog(sessionId, context.CommandText, entity, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Return the result
             return result;
@@ -1625,41 +2338,36 @@ namespace RepoDb
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entity">The data entity or dynamic object to be merged.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
         /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The value of the identity field if present, otherwise, the value of primary field.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The value of the identity field if present, otherwise, the value of the primary field.</returns>
         internal static async Task<TResult> UpsertAsyncInternalBase<TEntity, TResult>(this IDbConnection connection,
             string tableName,
             TEntity entity,
             IEnumerable<Field> qualifiers = null,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Variables needed
             var type = entity?.GetType() ?? typeof(TEntity);
-            var isObjectType = typeof(TEntity) == typeof(object);
-            var dbFields = await DbFieldCache.GetAsync(connection, tableName, transaction);
+            var isDictionaryType = type.IsDictionaryStringObject();
+            var dbFields = await DbFieldCache.GetAsync(connection, tableName, transaction, cancellationToken);
             var primary = dbFields?.FirstOrDefault(dbField => dbField.IsPrimary);
             var properties = (IEnumerable<ClassProperty>)null;
             var primaryKey = (ClassProperty)null;
-
-            // Get the properties
-            if (type.IsGenericType == true)
-            {
-                properties = type.GetClassProperties();
-            }
-            else
-            {
-                properties = PropertyCache.Get(type);
-            }
+            var sessionId = Guid.Empty;
 
             // Check the qualifiers
             if (qualifiers?.Any() != true)
@@ -1674,14 +2382,28 @@ namespace RepoDb
                 qualifiers = primary.AsField().AsEnumerable();
             }
 
-            // Set the primary key
-            primaryKey = properties?.FirstOrDefault(p =>
-                string.Equals(primary?.Name, p.GetMappedName(), StringComparison.OrdinalIgnoreCase));
+            // Get the properties
+            if (isDictionaryType == false)
+            {
+                if (type.IsGenericType == true)
+                {
+                    properties = type.GetClassProperties();
+                }
+                else
+                {
+                    properties = PropertyCache.Get(type);
+                }
+
+                // Set the primary key
+                primaryKey = properties?.FirstOrDefault(p =>
+                    string.Equals(primary?.Name, p.GetMappedName(), StringComparison.OrdinalIgnoreCase));
+            }
 
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog("Upsert.Before", entity, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, "Upsert.Before", entity, null);
                 trace.BeforeMerge(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -1689,15 +2411,24 @@ namespace RepoDb
                     {
                         throw new CancelledExecutionException("Upsert.Cancelled");
                     }
-                    return default(TResult);
+                    return default;
                 }
                 entity = (TEntity)(cancellableTraceLog.Parameter ?? entity);
             }
 
             // Expression
-            var where = CreateQueryGroupForUpsert(entity,
-                properties,
-                qualifiers);
+            var where = (QueryGroup)null;
+            if (isDictionaryType)
+            {
+                where = CreateQueryGroupForUpsert((IDictionary<string, object>)entity,
+                    qualifiers);
+            }
+            else
+            {
+                where = CreateQueryGroupForUpsert(entity,
+                    properties,
+                    qualifiers);
+            }
 
             // Validate
             if (where == null)
@@ -1710,101 +2441,70 @@ namespace RepoDb
 
             // Execution variables
             var result = default(TResult);
-            var exists = false;
-
-            if (isObjectType == true)
-            {
-                exists = await connection.ExistsAsync(tableName,
-                    where,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
-            }
-            else
-            {
-                exists = await connection.ExistsAsync<TEntity>(where,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
-            }
+            var exists = await connection.ExistsAsync(tableName,
+                where,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
 
             // Check the existence
             if (exists == true)
             {
                 // Call the update operation
-                var updateResult = default(int);
-
-                if (isObjectType == true)
-                {
-                    updateResult = await connection.UpdateAsync(tableName,
-                        entity,
-                        where,
-                        hints: hints,
-                        commandTimeout: commandTimeout,
-                        transaction: transaction,
-                        trace: trace,
-                        statementBuilder: statementBuilder);
-                }
-                else
-                {
-                    updateResult = await connection.UpdateAsync<TEntity>(entity,
-                        where,
-                        hints: hints,
-                        commandTimeout: commandTimeout,
-                        transaction: transaction,
-                        trace: trace,
-                        statementBuilder: statementBuilder);
-                }
+                var updateResult = await connection.UpdateAsync<TEntity>(tableName,
+                    entity,
+                    where,
+                    fields: fields,
+                    hints: hints,
+                    commandTimeout: commandTimeout,
+                    transaction: transaction,
+                    trace: trace,
+                    statementBuilder: statementBuilder,
+                    cancellationToken: cancellationToken);
 
                 // Check if there is result
                 if (updateResult > 0)
                 {
-                    if (primaryKey != null)
+                    if (isDictionaryType == false)
                     {
-                        // Set the result
-                        result = Converter.ToType<TResult>(primaryKey.PropertyInfo.GetValue(entity));
+                        if (primaryKey != null)
+                        {
+                            result = Converter.ToType<TResult>(primaryKey.PropertyInfo.GetValue(entity));
+                        }
+                    }
+                    else
+                    {
+                        var dictionary = (IDictionary<string, object>)entity;
+                        if (primary != null && dictionary.ContainsKey(primary.Name))
+                        {
+                            result = Converter.ToType<TResult>(dictionary[primary.Name]);
+                        }
                     }
                 }
             }
             else
             {
                 // Call the insert operation
-                var insertResult = (object)null;
-
-                if (isObjectType == true)
-                {
-                    insertResult = await connection.InsertAsync(tableName,
-                        entity,
-                        hints: hints,
-                        commandTimeout: commandTimeout,
-                        transaction: transaction,
-                        trace: trace,
-                        statementBuilder: statementBuilder);
-                }
-                else
-                {
-                    insertResult = await connection.InsertAsync<TEntity>(entity,
-                        hints: hints,
-                        commandTimeout: commandTimeout,
-                        transaction: transaction,
-                        trace: trace,
-                        statementBuilder: statementBuilder);
-                }
+                var insertResult = await connection.InsertAsync(tableName,
+                    entity,
+                    fields: fields,
+                    hints: hints,
+                    commandTimeout: commandTimeout,
+                    transaction: transaction,
+                    trace: trace,
+                    statementBuilder: statementBuilder,
+                    cancellationToken: cancellationToken);
 
                 // Set the result
                 result = Converter.ToType<TResult>(insertResult);
             }
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterMerge(new TraceLog("Upsert.After", entity, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterMerge(new TraceLog(sessionId, "Upsert.After", entity, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Return the result
             return result;

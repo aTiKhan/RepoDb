@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.Data.Sqlite;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Data.SQLite;
 
 namespace RepoDb.SqLite.UnitTests
@@ -12,8 +13,10 @@ namespace RepoDb.SqLite.UnitTests
             SqLiteBootstrap.Initialize();
         }
 
+        #region SDS
+
         [TestMethod]
-        public void TestSqLiteDbSettingAreTableHintsSupportedProperty()
+        public void TestSdsSqLiteDbSettingAreTableHintsSupportedProperty()
         {
             // Setup
             var setting = DbSettingMapper.Get<SQLiteConnection>();
@@ -23,7 +26,7 @@ namespace RepoDb.SqLite.UnitTests
         }
 
         [TestMethod]
-        public void TestSqLiteDbSettingAverageableTypeProperty()
+        public void TestSdsSqLiteDbSettingAverageableTypeProperty()
         {
             // Setup
             var setting = DbSettingMapper.Get<SQLiteConnection>();
@@ -33,7 +36,7 @@ namespace RepoDb.SqLite.UnitTests
         }
 
         [TestMethod]
-        public void TestSqLiteDbSettingClosingQuoteProperty()
+        public void TestSdsSqLiteDbSettingClosingQuoteProperty()
         {
             // Setup
             var setting = DbSettingMapper.Get<SQLiteConnection>();
@@ -43,7 +46,7 @@ namespace RepoDb.SqLite.UnitTests
         }
 
         [TestMethod]
-        public void TestSqLiteDbSettingDefaultSchemaProperty()
+        public void TestSdsSqLiteDbSettingDefaultSchemaProperty()
         {
             // Setup
             var setting = DbSettingMapper.Get<SQLiteConnection>();
@@ -53,7 +56,7 @@ namespace RepoDb.SqLite.UnitTests
         }
 
         [TestMethod]
-        public void TestSqLiteDbSettingIsDirectionSupportedSupportedProperty()
+        public void TestSdsSqLiteDbSettingIsDirectionSupportedSupportedProperty()
         {
             // Setup
             var setting = DbSettingMapper.Get<SQLiteConnection>();
@@ -63,7 +66,7 @@ namespace RepoDb.SqLite.UnitTests
         }
 
         [TestMethod]
-        public void TestSqLiteDbSettingIsExecuteReaderDisposableProperty()
+        public void TestSdsSqLiteDbSettingIsExecuteReaderDisposableProperty()
         {
             // Setup
             var setting = DbSettingMapper.Get<SQLiteConnection>();
@@ -73,7 +76,7 @@ namespace RepoDb.SqLite.UnitTests
         }
 
         [TestMethod]
-        public void TestSqLiteDbSettingIsMultiStatementExecutableProperty()
+        public void TestSdsSqLiteDbSettingIsMultiStatementExecutableProperty()
         {
             // Setup
             var setting = DbSettingMapper.Get<SQLiteConnection>();
@@ -83,17 +86,17 @@ namespace RepoDb.SqLite.UnitTests
         }
 
         [TestMethod]
-        public void TestSqLiteDbSettingIsUseUpsertProperty()
+        public void TestSdsSqLiteDbSettingIsUseUpsertProperty()
         {
             // Setup
             var setting = DbSettingMapper.Get<SQLiteConnection>();
 
             // Assert
-            Assert.IsFalse(setting.IsUseUpsert);
+            Assert.IsTrue(setting.IsUseUpsert);
         }
 
         [TestMethod]
-        public void TestSqLiteDbSettingOpeningQuoteProperty()
+        public void TestSdsSqLiteDbSettingOpeningQuoteProperty()
         {
             // Setup
             var setting = DbSettingMapper.Get<SQLiteConnection>();
@@ -103,7 +106,7 @@ namespace RepoDb.SqLite.UnitTests
         }
 
         [TestMethod]
-        public void TestSqLiteDbSettingParameterPrefixProperty()
+        public void TestSdsSqLiteDbSettingParameterPrefixProperty()
         {
             // Setup
             var setting = DbSettingMapper.Get<SQLiteConnection>();
@@ -112,14 +115,110 @@ namespace RepoDb.SqLite.UnitTests
             Assert.AreEqual("@", setting.ParameterPrefix);
         }
 
+        #endregion
+
+        #region MDS
+
         [TestMethod]
-        public void TestSqLiteDbSettingSchemaSeparatorProperty()
+        public void TestMdsSqLiteDbSettingAreTableHintsSupportedProperty()
         {
             // Setup
-            var setting = DbSettingMapper.Get<SQLiteConnection>();
+            var setting = DbSettingMapper.Get<SqliteConnection>();
 
             // Assert
-            Assert.AreEqual(".", setting.SchemaSeparator);
+            Assert.IsFalse(setting.AreTableHintsSupported);
         }
+
+        [TestMethod]
+        public void TestMdsSqLiteDbSettingAverageableTypeProperty()
+        {
+            // Setup
+            var setting = DbSettingMapper.Get<SqliteConnection>();
+
+            // Assert
+            Assert.AreEqual(typeof(double), setting.AverageableType);
+        }
+
+        [TestMethod]
+        public void TestMdsSqLiteDbSettingClosingQuoteProperty()
+        {
+            // Setup
+            var setting = DbSettingMapper.Get<SqliteConnection>();
+
+            // Assert
+            Assert.AreEqual("]", setting.ClosingQuote);
+        }
+
+        [TestMethod]
+        public void TestMdsSqLiteDbSettingDefaultSchemaProperty()
+        {
+            // Setup
+            var setting = DbSettingMapper.Get<SqliteConnection>();
+
+            // Assert
+            Assert.IsNull(setting.DefaultSchema);
+        }
+
+        [TestMethod]
+        public void TestMdsSqLiteDbSettingIsDirectionSupportedSupportedProperty()
+        {
+            // Setup
+            var setting = DbSettingMapper.Get<SqliteConnection>();
+
+            // Assert
+            Assert.IsFalse(setting.IsDirectionSupported);
+        }
+
+        [TestMethod]
+        public void TestMdsSqLiteDbSettingIsExecuteReaderDisposableProperty()
+        {
+            // Setup
+            var setting = DbSettingMapper.Get<SqliteConnection>();
+
+            // Assert
+            Assert.IsFalse(setting.IsExecuteReaderDisposable);
+        }
+
+        [TestMethod]
+        public void TestMdsSqLiteDbSettingIsMultiStatementExecutableProperty()
+        {
+            // Setup
+            var setting = DbSettingMapper.Get<SqliteConnection>();
+
+            // Assert
+            Assert.IsTrue(setting.IsMultiStatementExecutable);
+        }
+
+        [TestMethod]
+        public void TestMdsSqLiteDbSettingIsUseUpsertProperty()
+        {
+            // Setup
+            var setting = DbSettingMapper.Get<SqliteConnection>();
+
+            // Assert
+            Assert.IsTrue(setting.IsUseUpsert);
+        }
+
+        [TestMethod]
+        public void TestMdsSqLiteDbSettingOpeningQuoteProperty()
+        {
+            // Setup
+            var setting = DbSettingMapper.Get<SqliteConnection>();
+
+            // Assert
+            Assert.AreEqual("[", setting.OpeningQuote);
+        }
+
+        [TestMethod]
+        public void TestMdsSqLiteDbSettingParameterPrefixProperty()
+        {
+            // Setup
+            var setting = DbSettingMapper.Get<SqliteConnection>();
+
+            // Assert
+            Assert.AreEqual("@", setting.ParameterPrefix);
+        }
+
+        #endregion
     }
 }

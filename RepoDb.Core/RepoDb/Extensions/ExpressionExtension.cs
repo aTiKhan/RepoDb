@@ -1,6 +1,6 @@
 ﻿using RepoDb.Exceptions;
-using RepoDb.Interfaces;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -18,53 +18,47 @@ namespace RepoDb.Extensions
     /// </summary>
     public static class ExpressionExtension
     {
-        private readonly static ExpressionType[] m_extractableExpressionTypes = new[]
-            {
-                ExpressionType.Equal,
-                ExpressionType.NotEqual,
-                ExpressionType.GreaterThan,
-                ExpressionType.GreaterThanOrEqual,
-                ExpressionType.LessThan,
-                ExpressionType.LessThanOrEqual
-            };
+        private readonly static HashSet<ExpressionType> extractableExpressionTypes = new()
+        {
+            ExpressionType.Equal,
+            ExpressionType.NotEqual,
+            ExpressionType.GreaterThan,
+            ExpressionType.GreaterThanOrEqual,
+            ExpressionType.LessThan,
+            ExpressionType.LessThanOrEqual
+        };
 
-        private readonly static ExpressionType[] m_mathematicalExpressionTypes = new[]
-            {
-                ExpressionType.Add,
-                ExpressionType.Subtract,
-                ExpressionType.Multiply,
-                ExpressionType.Divide
-            };
+        private readonly static HashSet<ExpressionType> mathematicalExpressionTypes = new()
+        {
+            ExpressionType.Add,
+            ExpressionType.Subtract,
+            ExpressionType.Multiply,
+            ExpressionType.Divide
+        };
 
         /// <summary>
         /// Identify whether the instance of <see cref="Expression"/> can be extracted as <see cref="QueryField"/> object.
         /// </summary>
         /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
         /// <returns>Returns true if the expression can be extracted as <see cref="QueryField"/> object.</returns>
-        internal static bool IsExtractable(this Expression expression)
-        {
-            return m_extractableExpressionTypes.Contains(expression.NodeType);
-        }
+        internal static bool IsExtractable(this Expression expression) =>
+            extractableExpressionTypes.Contains(expression.NodeType);
 
         /// <summary>
         /// Identify whether the instance of <see cref="Expression"/> can be grouped as <see cref="QueryGroup"/> object.
         /// </summary>
         /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
         /// <returns>Returns true if the expression can be grouped as <see cref="QueryGroup"/> object.</returns>
-        internal static bool IsGroupable(this Expression expression)
-        {
-            return expression.NodeType == ExpressionType.AndAlso || expression.NodeType == ExpressionType.OrElse;
-        }
+        internal static bool IsGroupable(this Expression expression) =>
+            expression.NodeType == ExpressionType.AndAlso || expression.NodeType == ExpressionType.OrElse;
 
         /// <summary>
         /// Identify whether the instance of <see cref="Expression"/> is using the <see cref="Math"/> object operations.
         /// </summary>
         /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
         /// <returns>Returns true if the expression is using the <see cref="Math"/> object operations.</returns>
-        internal static bool IsMathematical(this Expression expression)
-        {
-            return m_mathematicalExpressionTypes.Contains(expression.NodeType);
-        }
+        internal static bool IsMathematical(this Expression expression) =>
+            mathematicalExpressionTypes.Contains(expression.NodeType);
 
         #region GetField
 
@@ -75,15 +69,12 @@ namespace RepoDb.Extensions
         /// <returns></returns>
         public static Field GetField(this BinaryExpression expression)
         {
-            if (expression.Left.IsMember())
+            return expression.Left switch
             {
-                return expression.Left.ToMember().GetField();
-            }
-            else if (expression.Left.IsUnary())
-            {
-                return expression.Left.ToUnary().GetField();
-            }
-            throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
+                MemberExpression memberExpression => memberExpression.GetField(),
+                UnaryExpression unaryExpression => unaryExpression.GetField(),
+                _ => throw new NotSupportedException($"Expression '{expression}' is currently not supported.")
+            };
         }
 
         /// <summary>
@@ -94,11 +85,12 @@ namespace RepoDb.Extensions
         /// <exception cref="NotSupportedException"></exception>
         public static Field GetField(this UnaryExpression expression)
         {
-            if (expression.Operand.IsMethodCall())
+            return expression.Operand switch
             {
-                return expression.Operand.ToMethodCall().GetField();
-            }
-            throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
+                MethodCallExpression methodCallExpression => methodCallExpression.GetField(),
+                MemberExpression memberExpression => memberExpression.GetField(),
+                _ => throw new NotSupportedException($"Expression '{expression}' is currently not supported.")
+            };
         }
 
         /// <summary>
@@ -109,23 +101,23 @@ namespace RepoDb.Extensions
         /// <exception cref="NotSupportedException"></exception>
         public static Field GetField(this MethodCallExpression expression)
         {
-            if (expression.Object?.IsMember() == true)
+            if (expression.Object is MemberExpression objectMemberExpression)
             {
-                return expression.Object.ToMember().GetField();
+                return objectMemberExpression.GetField();
             }
             else
             {
                 // Contains
                 if (expression.Method.Name == "Contains")
                 {
-                    var last = expression.Arguments?.Last();
-                    if (last?.IsMember() == true)
+                    var last = expression.Arguments.Last();
+                    if (last is MemberExpression memberExpression)
                     {
-                        return last.ToMember().GetField();
+                        return memberExpression.GetField();
                     }
                 }
             }
-            throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
+            throw new NotSupportedException($"Expression '{expression}' is currently not supported.");
         }
 
         /// <summary>
@@ -136,16 +128,12 @@ namespace RepoDb.Extensions
         /// <exception cref="NotSupportedException"></exception>
         public static Field GetField(this MemberExpression expression)
         {
-            if (expression.Member.IsPropertyInfo())
+            return expression.Member switch
             {
-                return expression.Member.ToPropertyInfo().AsField();
-            }
-            else if (expression.Member.IsFieldInfo())
-            {
-                var fieldInfo = expression.Member.ToFieldInfo();
-                return new Field(fieldInfo.Name, fieldInfo.FieldType);
-            }
-            throw new NotSupportedException($"Only fields and properties are currently supported.");
+                PropertyInfo propertyInfo => propertyInfo.AsField(),
+                FieldInfo fieldInfo => new Field(fieldInfo.Name, fieldInfo.FieldType),
+                _ => throw new NotSupportedException("Only fields and properties are currently supported.")
+            };
         }
 
         #endregion
@@ -159,15 +147,12 @@ namespace RepoDb.Extensions
         /// <returns>The name of the <see cref="MemberInfo"/>.</returns>
         public static string GetName(this BinaryExpression expression)
         {
-            if (expression.Left.IsMember())
+            return expression.Left switch
             {
-                return expression.Left.ToMember().Member.GetMappedName();
-            }
-            else if (expression.Left.IsUnary())
-            {
-                return expression.Left.ToUnary().GetName();
-            }
-            throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
+                MemberExpression memberExpression => memberExpression.Member.GetMappedName(),
+                UnaryExpression unaryExpression => unaryExpression.GetName(),
+                _ => throw new NotSupportedException($"Expression '{expression}' is currently not supported.")
+            };
         }
 
         /// <summary>
@@ -177,11 +162,11 @@ namespace RepoDb.Extensions
         /// <returns>The name of the operand.</returns>
         public static string GetName(this UnaryExpression expression)
         {
-            if (expression.Operand.IsMethodCall())
+            if (expression.Operand is MethodCallExpression methodCallExpression)
             {
-                return expression.Operand.ToMethodCall().GetName();
+                return methodCallExpression.GetName();
             }
-            throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
+            throw new NotSupportedException($"Expression '{expression}' is currently not supported.");
         }
 
         /// <summary>
@@ -191,23 +176,24 @@ namespace RepoDb.Extensions
         /// <returns>The name of the operand.</returns>
         public static string GetName(this MethodCallExpression expression)
         {
-            if (expression.Object?.IsMember() == true)
+            if (expression.Object is MemberExpression objectMemberExpression)
             {
-                return expression.Object.ToMember().GetName();
+                return objectMemberExpression.GetName();
             }
             else
             {
-                // Contains
-                if (expression.Method.Name == "Contains")
+                if (expression.Method.Name == "Contains" ||
+                    expression.Method.Name == "StartsWith" ||
+                    expression.Method.Name == "EndsWith")
                 {
-                    var last = expression.Arguments?.Last();
-                    if (last?.IsMember() == true)
+                    var last = expression.Arguments.Last();
+                    if (last is MemberExpression memberExpression)
                     {
-                        return last.ToMember().Member.GetMappedName();
+                        return memberExpression.Member.GetMappedName();
                     }
                 }
             }
-            throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
+            throw new NotSupportedException($"Expression '{expression}' is currently not supported.");
         }
 
         /// <summary>
@@ -215,10 +201,8 @@ namespace RepoDb.Extensions
         /// </summary>
         /// <param name="expression">The instance of <see cref="MemberExpression"/> to be checked.</param>
         /// <returns>The name of the <see cref="MemberInfo"/>.</returns>
-        public static string GetName(this MemberExpression expression)
-        {
-            return expression.Member.GetMappedName();
-        }
+        public static string GetName(this MemberExpression expression) =>
+            expression.Member.GetMappedName();
 
         #endregion
 
@@ -231,15 +215,12 @@ namespace RepoDb.Extensions
         /// <returns>The type of the <see cref="MemberInfo"/>.</returns>
         public static Type GetMemberType(this BinaryExpression expression)
         {
-            if (expression.Left.IsMember())
+            return expression.Left switch
             {
-                return expression.Left.ToMember().GetMemberType();
-            }
-            else if (expression.Left.IsUnary())
-            {
-                return expression.Left.ToUnary().GetMemberType();
-            }
-            throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
+                MemberExpression memberExpression => memberExpression.GetMemberType(),
+                UnaryExpression unaryExpression => unaryExpression.GetMemberType(),
+                _ => throw new NotSupportedException($"Expression '{expression}' is currently not supported.")
+            };
         }
 
         /// <summary>
@@ -249,11 +230,11 @@ namespace RepoDb.Extensions
         /// <returns>The type of the operand.</returns>
         public static Type GetMemberType(this UnaryExpression expression)
         {
-            if (expression.Operand.IsMethodCall())
+            if (expression.Operand is MethodCallExpression methodCallExpression)
             {
-                return expression.Operand.ToMethodCall().GetMemberType();
+                return methodCallExpression.GetMemberType();
             }
-            throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
+            throw new NotSupportedException($"Expression '{expression}' is currently not supported.");
         }
 
         /// <summary>
@@ -263,11 +244,11 @@ namespace RepoDb.Extensions
         /// <returns>The type of the operand.</returns>
         public static Type GetMemberType(this MethodCallExpression expression)
         {
-            if (expression.Object?.IsMember() == true)
+            if (expression.Object is MemberExpression memberExpression)
             {
-                return expression.Object.ToMember().GetMemberType();
+                return memberExpression.GetMemberType();
             }
-            throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
+            throw new NotSupportedException($"Expression '{expression}' is currently not supported.");
         }
 
         /// <summary>
@@ -277,16 +258,12 @@ namespace RepoDb.Extensions
         /// <returns>The type of the <see cref="MemberInfo"/>.</returns>
         public static Type GetMemberType(this MemberExpression expression)
         {
-            var member = expression.Member;
-            if (member.IsPropertyInfo())
+            return expression.Member switch
             {
-                return member.ToPropertyInfo().PropertyType;
-            }
-            else if (member.IsFieldInfo())
-            {
-                return member.ToFieldInfo().FieldType;
-            }
-            throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
+                PropertyInfo propertyInfo => propertyInfo.PropertyType,
+                FieldInfo fieldInfo => fieldInfo.FieldType,
+                _ => throw new NotSupportedException($"Expression '{expression}' is currently not supported.")
+            };
         }
 
         #endregion
@@ -300,55 +277,22 @@ namespace RepoDb.Extensions
         /// <returns>The extracted value from <see cref="Expression"/> object.</returns>
         public static object GetValue(this Expression expression)
         {
-            if (expression.IsBinary())
+            return expression switch
             {
-                return expression.ToBinary().GetValue();
-            }
-            else if (expression.IsConstant())
-            {
-                return expression.ToConstant().GetValue();
-            }
-            else if (expression.IsUnary())
-            {
-                return expression.ToUnary().GetValue();
-            }
-            else if (expression.IsMethodCall())
-            {
-                return expression.ToMethodCall().GetValue();
-            }
-            else if (expression.IsMember())
-            {
-                return expression.ToMember().GetValue();
-            }
-            else if (expression.IsNewArray())
-            {
-                return expression.ToNewArray().GetValue();
-            }
-            else if (expression.IsListInit())
-            {
-                return expression.ToListInit().GetValue();
-            }
-            else if (expression.IsNew())
-            {
-                return expression.ToNew().GetValue();
-            }
-            else if (expression.IsMemberInit())
-            {
-                return expression.ToMemberInit().GetValue();
-            }
-            else if (expression.IsConditional())
-            {
-                return expression.ToConditional().GetValue();
-            }
-            else if (expression.IsParameter())
-            {
-                return expression.ToParameter().GetValue();
-            }
-            else if (expression.IsDefault())
-            {
-                return expression.ToDefault().GetValue();
-            }
-            throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
+                BinaryExpression binaryExpression => binaryExpression.GetValue(),
+                ConstantExpression constantExpression => constantExpression.GetValue(),
+                UnaryExpression unaryExpression => unaryExpression.GetValue(),
+                MethodCallExpression methodCallExpression => methodCallExpression.GetValue(),
+                MemberExpression memberExpression => memberExpression.GetValue(),
+                NewArrayExpression newArrayExpression => newArrayExpression.GetValue(),
+                ListInitExpression listInitExpression => listInitExpression.GetValue(),
+                NewExpression newExpression => newExpression.GetValue(),
+                MemberInitExpression memberInitExpression => memberInitExpression.GetValue(),
+                ConditionalExpression conditionalExpression => conditionalExpression.GetValue(),
+                ParameterExpression parameterExpression => parameterExpression.GetValue(),
+                DefaultExpression defaultExpression => defaultExpression.GetValue(),
+                _ => throw new NotSupportedException($"Expression '{expression}' is currently not supported.")
+            };
         }
 
         /// <summary>
@@ -360,7 +304,7 @@ namespace RepoDb.Extensions
         {
             if (IsMathematical(expression))
             {
-                throw new NotSupportedException($"A mathematical expression '{expression.ToString()}' is currently not supported.");
+                throw new NotSupportedException($"A mathematical expression '{expression}' is currently not supported.");
             }
             return expression.Right.GetValue();
         }
@@ -370,40 +314,32 @@ namespace RepoDb.Extensions
         /// </summary>
         /// <param name="expression">The instance of <see cref="ConstantExpression"/> object where the value is to be extracted.</param>
         /// <returns>The extracted value from <see cref="ConstantExpression"/> object.</returns>
-        public static object GetValue(this ConstantExpression expression)
-        {
-            return expression.Value;
-        }
+        public static object GetValue(this ConstantExpression expression) =>
+            expression.Value;
 
         /// <summary>
         /// Gets a value from the current instance of <see cref="UnaryExpression"/> object.
         /// </summary>
         /// <param name="expression">The instance of <see cref="UnaryExpression"/> object where the value is to be extracted.</param>
         /// <returns>The extracted value from <see cref="UnaryExpression"/> object.</returns>
-        public static object GetValue(this UnaryExpression expression)
-        {
-            return expression.Operand.GetValue();
-        }
+        public static object GetValue(this UnaryExpression expression) =>
+            expression.Operand.GetValue();
 
         /// <summary>
         /// Gets a value from the current instance of <see cref="MethodCallExpression"/> object.
         /// </summary>
         /// <param name="expression">The instance of <see cref="MethodCallExpression"/> object where the value is to be extracted.</param>
         /// <returns>The extracted value from <see cref="MethodCallExpression"/> object.</returns>
-        public static object GetValue(this MethodCallExpression expression)
-        {
-            return expression.Method.GetValue(expression.Object?.GetValue(), expression.Arguments?.Select(argExpression => argExpression.GetValue()).ToArray());
-        }
+        public static object GetValue(this MethodCallExpression expression) =>
+            expression.Method.GetValue(expression.Object?.GetValue(), expression.Arguments.Select(argExpression => argExpression.GetValue()).ToArray());
 
         /// <summary>
         /// Gets a value from the current instance of <see cref="MemberExpression"/> object.
         /// </summary>
         /// <param name="expression">The instance of <see cref="MemberExpression"/> object where the value is to be extracted.</param>
         /// <returns>The extracted value from <see cref="MemberExpression"/> object.</returns>
-        public static object GetValue(this MemberExpression expression)
-        {
-            return expression.Member.GetValue(expression.Expression?.GetValue());
-        }
+        public static object GetValue(this MemberExpression expression) =>
+            expression.Member.GetValue(expression.Expression?.GetValue());
 
         /// <summary>
         /// Gets a value from the current instance of <see cref="NewArrayExpression"/> object.
@@ -412,11 +348,11 @@ namespace RepoDb.Extensions
         /// <returns>The extracted value from <see cref="NewArrayExpression"/> object.</returns>
         public static object GetValue(this NewArrayExpression expression)
         {
-            var arrayType = expression.Type.GetElementType();
-            var array = Array.CreateInstance(arrayType, (int)expression.Expressions?.Count);
-            foreach (var item in expression.Expressions)
+            var arrayType = expression.Type.HasElementType ? expression.Type.GetElementType() : expression.Type;
+            var array = Array.CreateInstance(arrayType, expression.Expressions.Count);
+            for (var i = 0; i < expression.Expressions.Count; i++)
             {
-                array.SetValue(item.GetValue(), expression.Expressions.IndexOf(item));
+                array.SetValue(expression.Expressions[i].GetValue(), i);
             }
             return array;
         }
@@ -428,19 +364,12 @@ namespace RepoDb.Extensions
         /// <returns>The extracted value from <see cref="ListInitExpression"/> object.</returns>
         public static object GetValue(this ListInitExpression expression)
         {
-            var arrayType = expression.Type.IsConstructedGenericType ?
-                expression.Type.GetGenericArguments().FirstOrDefault() ?? typeof(object) :
-                typeof(object);
-            var array = Array.CreateInstance(arrayType, (int)expression.Initializers?.Count);
+            var list = Activator.CreateInstance(expression.Type);
             foreach (var item in expression.Initializers)
             {
-                var itemValue = item.Arguments?.FirstOrDefault();
-                if (itemValue != null)
-                {
-                    array.SetValue(itemValue.GetValue(), expression.Initializers.IndexOf(item));
-                }
+                item.AddMethod.Invoke(list, new[] { item.Arguments.FirstOrDefault().GetValue() });
             }
-            return array;
+            return list;
         }
 
         /// <summary>
@@ -450,14 +379,14 @@ namespace RepoDb.Extensions
         /// <returns>The extracted value from <see cref="NewExpression"/> object.</returns>
         public static object GetValue(this NewExpression expression)
         {
-            if (expression.Arguments?.Any() == true)
+            if (expression.Arguments.Count > 0)
             {
-                return Activator.CreateInstance(expression.Constructor.DeclaringType,
-                    expression.Arguments?.Select(arg => arg.GetValue()));
+                return Activator.CreateInstance(expression.Type,
+                    expression.Arguments.Select(arg => arg.GetValue()));
             }
             else
             {
-                return Activator.CreateInstance(expression.Constructor.DeclaringType);
+                return Activator.CreateInstance(expression.Type);
             }
         }
 
@@ -484,35 +413,32 @@ namespace RepoDb.Extensions
         public static object GetValue(this ConditionalExpression expression)
         {
             var test = expression.Test.GetValue();
-            var ifTrue = expression.IfTrue.GetValue();
+            var trueValue = expression.IfTrue.GetValue();
             if (expression.Test.NodeType == ExpressionType.Equal)
             {
-                return test == ifTrue ? ifTrue : expression.IfFalse.GetValue();
+                return test == trueValue ? trueValue : expression.IfFalse.GetValue();
             }
             else if (expression.Test.NodeType == ExpressionType.NotEqual)
             {
-                return test != ifTrue ? ifTrue : expression.IfFalse.GetValue();
+                return test != trueValue ? trueValue : expression.IfFalse.GetValue();
             }
             else if (expression.Test.NodeType > ExpressionType.GreaterThan)
             {
-                return test?.ToNumber() > ifTrue.ToNumber() ? ifTrue : expression.IfFalse.GetValue();
+                return test.ToNumber() > trueValue.ToNumber() ? trueValue : expression.IfFalse.GetValue();
             }
             else if (expression.Test.NodeType > ExpressionType.GreaterThanOrEqual)
             {
-                return test?.ToNumber() >= ifTrue?.ToNumber() ? ifTrue : expression.IfFalse.GetValue();
+                return test.ToNumber() >= trueValue?.ToNumber() ? trueValue : expression.IfFalse.GetValue();
             }
             else if (expression.Test.NodeType > ExpressionType.LessThan)
             {
-                return test?.ToNumber() < ifTrue?.ToNumber() ? ifTrue : expression.IfFalse.GetValue();
+                return test.ToNumber() < trueValue?.ToNumber() ? trueValue : expression.IfFalse.GetValue();
             }
             else if (expression.Test.NodeType > ExpressionType.LessThanOrEqual)
             {
-                return test?.ToNumber() <= ifTrue?.ToNumber() ? ifTrue : expression.IfFalse.GetValue();
+                return test.ToNumber() <= trueValue?.ToNumber() ? trueValue : expression.IfFalse.GetValue();
             }
-            else
-            {
-                throw new NotSupportedException($"The operation '{expression.NodeType.ToString()}' at expression '{expression.ToString()}' is currently not supported.");
-            }
+            throw new NotSupportedException($"The operation '{expression.NodeType}' at expression '{expression}' is currently not supported.");
         }
 
         /// <summary>
@@ -522,12 +448,11 @@ namespace RepoDb.Extensions
         /// <returns>The extracted value from <see cref="ParameterExpression"/> object.</returns>
         public static object GetValue(this ParameterExpression expression)
         {
-            switch (expression.GetType().Name)
+            if (expression.Type.GetConstructors().Any(e => e.GetParameters().Length == 0))
             {
-                case "TypedParameterExpression":
-                    return Activator.CreateInstance(expression.Type);
+                return Activator.CreateInstance(expression.Type);
             }
-            throw new NotSupportedException($"Expression '{expression.ToString()}' is currently not supported.");
+            throw new InvalidExpressionException($"The default constructor for expression '{expression}' is not found.");
         }
 
         /// <summary>
@@ -535,274 +460,20 @@ namespace RepoDb.Extensions
         /// </summary>
         /// <param name="expression">The instance of <see cref="DefaultExpression"/> object where the value is to be extracted.</param>
         /// <returns>The extracted value from <see cref="DefaultExpression"/> object.</returns>
-        public static object GetValue(this DefaultExpression expression)
-        {
-            return expression.Type.IsValueType ? Activator.CreateInstance(expression.Type) : null;
-        }
+        public static object GetValue(this DefaultExpression expression) =>
+            expression.Type.IsValueType ? Activator.CreateInstance(expression.Type) : null;
 
         #endregion
 
         #region Identification and Conversion
 
         /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="LambdaExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="LambdaExpression"/>.</returns>
-        public static bool IsLambda(this Expression expression)
-        {
-            return expression is LambdaExpression;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="Expression"/> object into <see cref="LambdaExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
-        /// <returns>A converted instance of <see cref="LambdaExpression"/> object.</returns>
-        public static LambdaExpression ToLambda(this Expression expression)
-        {
-            return (LambdaExpression)expression;
-        }
-
-        /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="BinaryExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="BinaryExpression"/>.</returns>
-        public static bool IsBinary(this Expression expression)
-        {
-            return expression is BinaryExpression;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="Expression"/> object into <see cref="BinaryExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
-        /// <returns>A converted instance of <see cref="BinaryExpression"/> object.</returns>
-        public static BinaryExpression ToBinary(this Expression expression)
-        {
-            return (BinaryExpression)expression;
-        }
-
-        /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="ConstantExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="ConstantExpression"/>.</returns>
-        public static bool IsConstant(this Expression expression)
-        {
-            return expression is ConstantExpression;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="Expression"/> object into <see cref="ConstantExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
-        /// <returns>A converted instance of <see cref="ConstantExpression"/> object.</returns>
-        public static ConstantExpression ToConstant(this Expression expression)
-        {
-            return (ConstantExpression)expression;
-        }
-
-        /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="UnaryExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="UnaryExpression"/>.</returns>
-        public static bool IsUnary(this Expression expression)
-        {
-            return expression is UnaryExpression;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="Expression"/> object into <see cref="UnaryExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
-        /// <returns>A converted instance of <see cref="UnaryExpression"/> object.</returns>
-        public static UnaryExpression ToUnary(this Expression expression)
-        {
-            return (UnaryExpression)expression;
-        }
-
-        /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="MethodCallExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="MethodCallExpression"/>.</returns>
-        public static bool IsMethodCall(this Expression expression)
-        {
-            return expression is MethodCallExpression;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="Expression"/> object into <see cref="MethodCallExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
-        /// <returns>A converted instance of <see cref="MethodCallExpression"/> object.</returns>
-        public static MethodCallExpression ToMethodCall(this Expression expression)
-        {
-            return (MethodCallExpression)expression;
-        }
-
-        /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="MemberExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="MemberExpression"/>.</returns>
-        public static bool IsMember(this Expression expression)
-        {
-            return expression is MemberExpression;
-        }
-
-        /// <summary>
         /// Converts the <see cref="Expression"/> object into <see cref="MemberExpression"/> object.
         /// </summary>
         /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
         /// <returns>A converted instance of <see cref="MemberExpression"/> object.</returns>
-        public static MemberExpression ToMember(this Expression expression)
-        {
-            return (MemberExpression)expression;
-        }
-
-        /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="NewArrayExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="NewArrayExpression"/>.</returns>
-        public static bool IsNewArray(this Expression expression)
-        {
-            return expression is NewArrayExpression;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="Expression"/> object into <see cref="NewArrayExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
-        /// <returns>A converted instance of <see cref="NewArrayExpression"/> object.</returns>
-        public static NewArrayExpression ToNewArray(this Expression expression)
-        {
-            return (NewArrayExpression)expression;
-        }
-
-        /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="ListInitExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="ListInitExpression"/>.</returns>
-        public static bool IsListInit(this Expression expression)
-        {
-            return expression is ListInitExpression;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="Expression"/> object into <see cref="ListInitExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
-        /// <returns>A converted instance of <see cref="ListInitExpression"/> object.</returns>
-        public static ListInitExpression ToListInit(this Expression expression)
-        {
-            return (ListInitExpression)expression;
-        }
-
-        /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="NewExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="NewExpression"/>.</returns>
-        public static bool IsNew(this Expression expression)
-        {
-            return expression is NewExpression;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="Expression"/> object into <see cref="NewExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
-        /// <returns>A converted instance of <see cref="NewExpression"/> object.</returns>
-        public static NewExpression ToNew(this Expression expression)
-        {
-            return (NewExpression)expression;
-        }
-
-        /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="MemberInitExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="MemberInitExpression"/>.</returns>
-        public static bool IsMemberInit(this Expression expression)
-        {
-            return expression is MemberInitExpression;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="Expression"/> object into <see cref="MemberInitExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
-        /// <returns>A converted instance of <see cref="MemberInitExpression"/> object.</returns>
-        public static MemberInitExpression ToMemberInit(this Expression expression)
-        {
-            return (MemberInitExpression)expression;
-        }
-
-        /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="ConditionalExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="ConditionalExpression"/>.</returns>
-        public static bool IsConditional(this Expression expression)
-        {
-            return expression is ConditionalExpression;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="Expression"/> object into <see cref="ConditionalExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
-        /// <returns>A converted instance of <see cref="ConditionalExpression"/> object.</returns>
-        public static ConditionalExpression ToConditional(this Expression expression)
-        {
-            return (ConditionalExpression)expression;
-        }
-
-        /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="ParameterExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="ParameterExpression"/>.</returns>
-        public static bool IsParameter(this Expression expression)
-        {
-            return expression is ParameterExpression;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="Expression"/> object into <see cref="ParameterExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
-        /// <returns>A converted instance of <see cref="ParameterExpression"/> object.</returns>
-        public static ParameterExpression ToParameter(this Expression expression)
-        {
-            return (ParameterExpression)expression;
-        }
-
-        /// <summary>
-        /// Identify whether the instance of <see cref="Expression"/> is a <see cref="DefaultExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be identified.</param>
-        /// <returns>Returns true if the expression is a <see cref="DefaultExpression"/>.</returns>
-        public static bool IsDefault(this Expression expression)
-        {
-            return expression is DefaultExpression;
-        }
-
-        /// <summary>
-        /// Converts the <see cref="Expression"/> object into <see cref="DefaultExpression"/> object.
-        /// </summary>
-        /// <param name="expression">The instance of <see cref="Expression"/> object to be converted.</param>
-        /// <returns>A converted instance of <see cref="DefaultExpression"/> object.</returns>
-        public static DefaultExpression ToDefault(this Expression expression)
-        {
-            return (DefaultExpression)expression;
-        }
+        public static MemberExpression ToMember(this Expression expression) =>
+            (MemberExpression)expression;
 
         #endregion
 
@@ -821,19 +492,13 @@ namespace RepoDb.Extensions
         internal static PropertyInfo GetProperty<T>(Expression<Func<T, object>> expression)
             where T : class
         {
-            if (expression.Body.IsUnary())
+            return expression.Body switch
             {
-                return GetProperty<T>(expression.Body.ToUnary());
-            }
-            else if (expression.Body.IsMember())
-            {
-                return GetProperty<T>(expression.Body.ToMember());
-            }
-            else if (expression.Body.IsBinary())
-            {
-                return GetProperty<T>(expression.Body.ToBinary());
-            }
-            throw new InvalidExpressionException($"Expression '{expression.ToString()}' is not valid.");
+                UnaryExpression unaryExpression => GetProperty<T>(unaryExpression),
+                MemberExpression memberExpression => GetProperty<T>(memberExpression),
+                BinaryExpression binaryExpression => GetProperty<T>(binaryExpression),
+                _ => throw new InvalidExpressionException($"Expression '{expression}' is not valid.")
+            };
         }
 
         /// <summary>
@@ -845,15 +510,12 @@ namespace RepoDb.Extensions
         internal static PropertyInfo GetProperty<T>(BinaryExpression expression)
             where T : class
         {
-            if (expression.Left.IsMember())
+            return expression.Left switch
             {
-                return GetProperty<T>(expression.Left.ToMember());
-            }
-            else if (expression.Left.IsUnary())
-            {
-                return GetProperty<T>(expression.Left.ToUnary());
-            }
-            throw new InvalidExpressionException($"Expression '{expression.ToString()}' is not valid.");
+                MemberExpression memberExpression => GetProperty<T>(memberExpression),
+                UnaryExpression unaryExpression => GetProperty<T>(unaryExpression),
+                _ => throw new InvalidExpressionException($"Expression '{expression}' is not valid.")
+            };
         }
 
         /// <summary>
@@ -865,15 +527,12 @@ namespace RepoDb.Extensions
         internal static PropertyInfo GetProperty<T>(UnaryExpression expression)
             where T : class
         {
-            if (expression.Operand.IsMember())
+            return expression.Operand switch
             {
-                return GetProperty<T>(expression.Operand.ToMember());
-            }
-            else if (expression.Operand.IsBinary())
-            {
-                return GetProperty<T>(expression.Operand.ToBinary());
-            }
-            throw new InvalidExpressionException($"Expression '{expression.ToString()}' is not valid.");
+                MemberExpression memberExpression => GetProperty<T>(memberExpression),
+                BinaryExpression binaryExpression => GetProperty<T>(binaryExpression),
+                _ => throw new InvalidExpressionException($"Expression '{expression}' is not valid.")
+            };
         }
 
         /// <summary>
@@ -885,11 +544,11 @@ namespace RepoDb.Extensions
         internal static PropertyInfo GetProperty<T>(MemberExpression expression)
             where T : class
         {
-            if (expression.Member.IsPropertyInfo())
+            if (expression.Member is PropertyInfo propertyInfo)
             {
-                return expression.Member.ToPropertyInfo();
+                return propertyInfo;
             }
-            throw new InvalidExpressionException($"Expression '{expression.ToString()}' is not valid.");
+            throw new InvalidExpressionException($"Expression '{expression}' is not valid.");
         }
 
         #endregion

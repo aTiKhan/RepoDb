@@ -1,15 +1,16 @@
-﻿using RepoDb.Contexts.Execution;
+﻿using RepoDb.Contexts.Providers;
 using RepoDb.Exceptions;
 using RepoDb.Extensions;
 using RepoDb.Interfaces;
-using RepoDb.Requests;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
-using System.Reflection;
+using System.Linq.Expressions;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Transactions;
 
 namespace RepoDb
 {
@@ -21,93 +22,25 @@ namespace RepoDb
         #region MergeAll<TEntity>
 
         /// <summary>
-        /// Merges the multiple data entity objects into the database.
+        /// Insert multiple rows or update the existing rows in the table.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
         /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
-		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of affected rows during the merge process.</returns>
         public static int MergeAll<TEntity>(this IDbConnection connection,
+            string tableName,
             IEnumerable<TEntity> entities,
             int batchSize = Constant.DefaultBatchOperationSize,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            return MergeAll<TEntity>(connection: connection,
-                entities: entities,
-                qualifiers: null,
-                batchSize: batchSize,
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Merges the multiple data entity objects into the database.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entities">The list of data entity objects to be merged.</param>
-        /// <param name="qualifier">The qualifer field to be used during merge operation.</param>
-        /// <param name="batchSize">The batch size of the merge operation.</param>
-        /// <param name="hints">The table hints to be used.</param>
-		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        public static int MergeAll<TEntity>(this IDbConnection connection,
-            IEnumerable<TEntity> entities,
-            Field qualifier,
-            int batchSize = Constant.DefaultBatchOperationSize,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-            where TEntity : class
-        {
-            return MergeAll(connection: connection,
-                entities: entities,
-                qualifiers: qualifier.AsEnumerable(),
-                batchSize: batchSize,
-                hints: hints,
-                commandTimeout: commandTimeout,
-                transaction: transaction,
-                trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Merges the multiple data entity objects into the database.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="entities">The list of data entity objects to be merged.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
-        /// <param name="batchSize">The batch size of the merge operation.</param>
-        /// <param name="hints">The table hints to be used.</param>
-		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        public static int MergeAll<TEntity>(this IDbConnection connection,
-            IEnumerable<TEntity> entities,
-            IEnumerable<Field> qualifiers,
-            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
@@ -116,9 +49,11 @@ namespace RepoDb
             where TEntity : class
         {
             return MergeAllInternal<TEntity>(connection: connection,
+                tableName: tableName,
                 entities: entities,
-                qualifiers: qualifiers,
+                qualifiers: null,
                 batchSize: batchSize,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
@@ -127,23 +62,311 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Merges the multiple data entity objects into the database.
+        /// Insert multiple rows or update the existing rows in the table.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="qualifier">The qualifier field to be used during merge operation.</param>
         /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
 		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        internal static int MergeAllInternal<TEntity>(this IDbConnection connection,
+        /// <returns>The number of affected rows during the merge process.</returns>
+        public static int MergeAll<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            Field qualifier,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeAllInternal<TEntity>(connection: connection,
+                tableName: tableName,
+                entities: entities,
+                qualifiers: qualifier.AsEnumerable(),
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Insert multiple rows or update the existing rows in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entities">The list of data entity objects to be merged.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        public static int MergeAll<TEntity>(this IDbConnection connection,
+            string tableName,
             IEnumerable<TEntity> entities,
             IEnumerable<Field> qualifiers,
             int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeAllInternal<TEntity>(connection: connection,
+                tableName: tableName,
+                entities: entities,
+                qualifiers: qualifiers,
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Insert multiple rows or update the existing rows in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entities">The list of data entity objects to be merged.</param>
+        /// <param name="qualifiers">The expression for the qualifier fields.</param>
+        /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        public static int MergeAll<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            Expression<Func<TEntity, object>> qualifiers,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeAllInternal<TEntity>(connection: connection,
+                tableName: tableName,
+                entities: entities,
+                qualifiers: Field.Parse<TEntity>(qualifiers),
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Insert multiple rows or update the existing rows in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entities">The list of data entity objects to be merged.</param>
+        /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        public static int MergeAll<TEntity>(this IDbConnection connection,
+            IEnumerable<TEntity> entities,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeAllInternal<TEntity>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entities: entities,
+                qualifiers: null,
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Insert multiple rows or update the existing rows in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entities">The list of data entity objects to be merged.</param>
+        /// <param name="qualifier">The qualifier field to be used during merge operation.</param>
+        /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        public static int MergeAll<TEntity>(this IDbConnection connection,
+            IEnumerable<TEntity> entities,
+            Field qualifier,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeAllInternal<TEntity>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entities: entities,
+                qualifiers: qualifier.AsEnumerable(),
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Insert multiple rows or update the existing rows in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entities">The list of data entity objects to be merged.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        public static int MergeAll<TEntity>(this IDbConnection connection,
+            IEnumerable<TEntity> entities,
+            IEnumerable<Field> qualifiers,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeAllInternal<TEntity>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entities: entities,
+                qualifiers: qualifiers,
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Insert multiple rows or update the existing rows in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entities">The list of data entity objects to be merged.</param>
+        /// <param name="qualifiers">The expression for the qualifier fields.</param>
+        /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        public static int MergeAll<TEntity>(this IDbConnection connection,
+            IEnumerable<TEntity> entities,
+            Expression<Func<TEntity, object>> qualifiers,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null)
+            where TEntity : class
+        {
+            return MergeAllInternal<TEntity>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entities: entities,
+                qualifiers: Field.Parse<TEntity>(qualifiers),
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder);
+        }
+
+        /// <summary>
+        /// Insert multiple rows or update the existing rows in the table.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entities">The list of data entity objects to be merged.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        internal static int MergeAllInternal<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            IEnumerable<Field> qualifiers,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
@@ -154,8 +377,9 @@ namespace RepoDb
             // Check the qualifiers
             if (qualifiers?.Any() != true)
             {
-                var primary = GetAndGuardPrimaryKey<TEntity>(connection, transaction);
-                qualifiers = primary.AsField().AsEnumerable();
+                var key = GetAndGuardPrimaryKeyOrIdentityKey(connection, tableName, transaction,
+                    entities?.FirstOrDefault()?.GetType() ?? typeof(TEntity));
+                qualifiers = key.AsEnumerable();
             }
 
             // Variables needed
@@ -164,29 +388,63 @@ namespace RepoDb
             // Return the result
             if (setting.IsUseUpsert == false)
             {
-                return MergeAllInternalBase<TEntity>(connection: connection,
-                    tableName: ClassMappedNameCache.Get<TEntity>(),
-                    entities: entities,
-                    qualifiers: qualifiers,
-                    batchSize: batchSize,
-                    fields: FieldCache.Get<TEntity>(),
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
+                if ((entities?.FirstOrDefault()?.GetType() ?? typeof(TEntity)).IsDictionaryStringObject())
+                {
+                    return MergeAllInternalBase<IDictionary<string, object>>(connection: connection,
+                        tableName: tableName,
+                        entities: entities?.WithType<IDictionary<string, object>>(),
+                        qualifiers: qualifiers,
+                        batchSize: batchSize,
+                        fields: GetQualifiedFields<TEntity>(fields, entities?.FirstOrDefault()),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder);
+                }
+                else
+                {
+                    return MergeAllInternalBase<TEntity>(connection: connection,
+                        tableName: tableName,
+                        entities: entities,
+                        qualifiers: qualifiers,
+                        batchSize: batchSize,
+                        fields: GetQualifiedFields<TEntity>(fields, entities?.FirstOrDefault()),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder);
+                }
             }
             else
             {
-                return UpsertAllInternalBase<TEntity>(connection: connection,
-                    tableName: ClassMappedNameCache.Get<TEntity>(),
-                    entities: entities,
-                    qualifiers: qualifiers,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
+                if ((entities?.FirstOrDefault()?.GetType() ?? typeof(TEntity)).IsDictionaryStringObject())
+                {
+                    return UpsertAllInternalBase<IDictionary<string, object>>(connection: connection,
+                        tableName: tableName,
+                        entities: entities?.WithType<IDictionary<string, object>>(),
+                        qualifiers: qualifiers,
+                        fields: GetQualifiedFields<TEntity>(fields, entities?.FirstOrDefault()),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder);
+                }
+                else
+                {
+                    return UpsertAllInternalBase<TEntity>(connection: connection,
+                        tableName: tableName,
+                        entities: entities,
+                        qualifiers: qualifiers,
+                        fields: GetQualifiedFields<TEntity>(fields, entities?.FirstOrDefault()),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder);
+                }
             }
         }
 
@@ -195,141 +453,390 @@ namespace RepoDb
         #region MergeAllAsync<TEntity>
 
         /// <summary>
-        /// Merges a data entity object into an existing data in the database in an asychronous way.
+        /// Insert multiple rows or update the existing rows in the table in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
         /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        public static Task<int> MergeAllAsync<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAllAsyncInternal<TEntity>(connection: connection,
+                tableName: tableName,
+                entities: entities,
+                qualifiers: null,
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Insert multiple rows or update the existing rows in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entities">The list of data entity objects to be merged.</param>
+        /// <param name="qualifier">The field to be used during merge operation.</param>
+        /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
 		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
         public static Task<int> MergeAllAsync<TEntity>(this IDbConnection connection,
+            string tableName,
             IEnumerable<TEntity> entities,
+            Field qualifier,
             int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
-            return MergeAllAsync(connection: connection,
+            return MergeAllAsyncInternal<TEntity>(connection: connection,
+                tableName: tableName,
                 entities: entities,
-                qualifiers: null,
+                qualifiers: qualifier.AsEnumerable(),
                 batchSize: batchSize,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Merges a data entity object into an existing data in the database in an asychronous way.
+        /// Insert multiple rows or update the existing rows in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entities">The list of data entity objects to be merged.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        public static Task<int> MergeAllAsync<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            IEnumerable<Field> qualifiers,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAllAsyncInternal<TEntity>(connection: connection,
+                tableName: tableName,
+                entities: entities,
+                qualifiers: qualifiers,
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Insert multiple rows or update the existing rows in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entities">The list of data entity objects to be merged.</param>
+        /// <param name="qualifiers">The expression for the qualifier fields.</param>
+        /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        public static Task<int> MergeAllAsync<TEntity>(this IDbConnection connection,
+            string tableName,
+            IEnumerable<TEntity> entities,
+            Expression<Func<TEntity, object>> qualifiers,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAllAsyncInternal<TEntity>(connection: connection,
+                tableName: tableName,
+                entities: entities,
+                qualifiers: Field.Parse<TEntity>(qualifiers),
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Insert multiple rows or update the existing rows in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="entities">The list of data entity objects to be merged.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        public static Task<int> MergeAllAsync<TEntity>(this IDbConnection connection,
+            IEnumerable<TEntity> entities,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAllAsyncInternal<TEntity>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entities: entities,
+                qualifiers: null,
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Insert multiple rows or update the existing rows in the table in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
         /// <param name="qualifier">The field to be used during merge operation.</param>
         /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
 		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
         public static Task<int> MergeAllAsync<TEntity>(this IDbConnection connection,
             IEnumerable<TEntity> entities,
             Field qualifier,
             int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
-            return MergeAllAsync(connection: connection,
+            return MergeAllAsyncInternal<TEntity>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
                 entities: entities,
                 qualifiers: qualifier.AsEnumerable(),
                 batchSize: batchSize,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Merges a data entity object into an existing data in the database in an asychronous way.
+        /// Insert multiple rows or update the existing rows in the table in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
         /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
 		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
         public static Task<int> MergeAllAsync<TEntity>(this IDbConnection connection,
             IEnumerable<TEntity> entities,
             IEnumerable<Field> qualifiers,
             int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
-            return MergeAllAsyncInternal(connection: connection,
+            return MergeAllAsyncInternal<TEntity>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
                 entities: entities,
                 qualifiers: qualifiers,
                 batchSize: batchSize,
+                fields: fields,
                 hints: hints,
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Merges a data entity object into an existing data in the database in an asychronous way.
+        /// Insert multiple rows or update the existing rows in the table in an asynchronous way.
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity.</typeparam>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="entities">The list of data entity objects to be merged.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="qualifiers">The expression for the qualifier fields.</param>
         /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
+        /// <param name="hints">The table hints to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="trace">The trace object to be used.</param>
+        /// <param name="statementBuilder">The statement builder object to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        public static Task<int> MergeAllAsync<TEntity>(this IDbConnection connection,
+            IEnumerable<TEntity> entities,
+            Expression<Func<TEntity, object>> qualifiers,
+            int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
+            string hints = null,
+            int? commandTimeout = null,
+            IDbTransaction transaction = null,
+            ITrace trace = null,
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return MergeAllAsyncInternal<TEntity>(connection: connection,
+                tableName: ClassMappedNameCache.Get<TEntity>(),
+                entities: entities,
+                qualifiers: Field.Parse<TEntity>(qualifiers),
+                batchSize: batchSize,
+                fields: fields,
+                hints: hints,
+                commandTimeout: commandTimeout,
+                transaction: transaction,
+                trace: trace,
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// Insert multiple rows or update the existing rows in the table in an asynchronous way.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
+        /// <param name="connection">The connection object to be used.</param>
+        /// <param name="tableName">The name of the target table to be used.</param>
+        /// <param name="entities">The list of data entity objects to be merged.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="batchSize">The batch size of the merge operation.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
 		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        internal static Task<int> MergeAllAsyncInternal<TEntity>(this IDbConnection connection,
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
+        internal static async Task<int> MergeAllAsyncInternal<TEntity>(this IDbConnection connection,
+            string tableName,
             IEnumerable<TEntity> entities,
             IEnumerable<Field> qualifiers,
             int batchSize = Constant.DefaultBatchOperationSize,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Check the qualifiers
             if (qualifiers?.Any() != true)
             {
-                var primary = GetAndGuardPrimaryKey<TEntity>(connection, transaction);
-                qualifiers = primary.AsField().AsEnumerable();
+                var key = await GetAndGuardPrimaryKeyOrIdentityKeyAsync(connection, tableName, transaction,
+                    entities?.FirstOrDefault()?.GetType() ?? typeof(TEntity), cancellationToken);
+                qualifiers = key.AsEnumerable();
             }
 
             // Variables needed
@@ -338,29 +845,67 @@ namespace RepoDb
             // Return the result
             if (setting.IsUseUpsert == false)
             {
-                return MergeAllAsyncInternalBase<TEntity>(connection: connection,
-                    tableName: ClassMappedNameCache.Get<TEntity>(),
-                    entities: entities,
-                    qualifiers: qualifiers,
-                    batchSize: batchSize,
-                    fields: FieldCache.Get<TEntity>(),
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
+                if ((entities?.FirstOrDefault()?.GetType() ?? typeof(TEntity)).IsDictionaryStringObject())
+                {
+                    return await MergeAllAsyncInternalBase<IDictionary<string, object>>(connection: connection,
+                        tableName: tableName,
+                        entities: entities?.WithType<IDictionary<string, object>>(),
+                        qualifiers: qualifiers,
+                        batchSize: batchSize,
+                        fields: GetQualifiedFields<TEntity>(fields, entities?.FirstOrDefault()),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder,
+                        cancellationToken: cancellationToken);
+                }
+                else
+                {
+                    return await MergeAllAsyncInternalBase<TEntity>(connection: connection,
+                        tableName: tableName,
+                        entities: entities,
+                        qualifiers: qualifiers,
+                        batchSize: batchSize,
+                        fields: GetQualifiedFields<TEntity>(fields, entities?.FirstOrDefault()),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder,
+                        cancellationToken: cancellationToken);
+                }
             }
             else
             {
-                return UpsertAllAsyncInternalBase<TEntity>(connection: connection,
-                    tableName: ClassMappedNameCache.Get<TEntity>(),
-                    entities: entities,
-                    qualifiers: qualifiers,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
+                if ((entities?.FirstOrDefault()?.GetType() ?? typeof(TEntity)).IsDictionaryStringObject())
+                {
+                    return await UpsertAllAsyncInternalBase<IDictionary<string, object>>(connection: connection,
+                        tableName: tableName,
+                        entities: entities?.WithType<IDictionary<string, object>>(),
+                        qualifiers: qualifiers,
+                        fields: GetQualifiedFields<TEntity>(fields, entities?.FirstOrDefault()),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder,
+                        cancellationToken: cancellationToken);
+                }
+                else
+                {
+                    return await UpsertAllAsyncInternalBase<TEntity>(connection: connection,
+                        tableName: tableName,
+                        entities: entities,
+                        qualifiers: qualifiers,
+                        fields: GetQualifiedFields<TEntity>(fields, entities?.FirstOrDefault()),
+                        hints: hints,
+                        commandTimeout: commandTimeout,
+                        transaction: transaction,
+                        trace: trace,
+                        statementBuilder: statementBuilder,
+                        cancellationToken: cancellationToken);
+                }
             }
         }
 
@@ -369,7 +914,7 @@ namespace RepoDb
         #region MergeAll(TableName)
 
         /// <summary>
-        /// Merges the multiple dynamic objects into the database. By default, the database fields are used unless the 'fields' argument is defined.
+        /// Insert the multiple dynamic objects (as new rows) or update the existing rows in the table. By default, the table fields are used unless the 'fields' argument is explicitly defined.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
@@ -377,11 +922,11 @@ namespace RepoDb
         /// <param name="batchSize">The batch size of the merge operation.</param>
         /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
-		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of affected rows during the merge process.</returns>
         public static int MergeAll(this IDbConnection connection,
             string tableName,
             IEnumerable<object> entities,
@@ -393,7 +938,7 @@ namespace RepoDb
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
         {
-            return MergeAll(connection: connection,
+            return MergeAllInternal<object>(connection: connection,
                 tableName: tableName,
                 entities: entities,
                 qualifiers: null,
@@ -407,7 +952,7 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Merges the multiple dynamic objects into the database. By default, the database fields are used unless the 'fields' argument is defined.
+        /// Insert the multiple dynamic objects (as new rows) or update the existing rows in the table. By default, the table fields are used unless the 'fields' argument is explicitly defined.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
@@ -416,11 +961,11 @@ namespace RepoDb
         /// <param name="batchSize">The batch size of the merge operation.</param>
         /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
-		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of affected rows during the merge process.</returns>
         public static int MergeAll(this IDbConnection connection,
             string tableName,
             IEnumerable<object> entities,
@@ -433,7 +978,7 @@ namespace RepoDb
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
         {
-            return MergeAll(connection: connection,
+            return MergeAllInternal<object>(connection: connection,
                 tableName: tableName,
                 entities: entities,
                 qualifiers: qualifier?.AsEnumerable(),
@@ -447,7 +992,7 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Merges the multiple dynamic objects into the database. By default, the database fields are used unless the 'fields' argument is defined.
+        /// Insert the multiple dynamic objects (as new rows) or update the existing rows in the table. By default, the table fields are used unless the 'fields' argument is explicitly defined.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
@@ -456,11 +1001,11 @@ namespace RepoDb
         /// <param name="batchSize">The batch size of the merge operation.</param>
         /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
-		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of affected rows during the merge process.</returns>
         public static int MergeAll(this IDbConnection connection,
             string tableName,
             IEnumerable<object> entities,
@@ -473,7 +1018,7 @@ namespace RepoDb
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
         {
-            return MergeAllInternal(connection: connection,
+            return MergeAllInternal<object>(connection: connection,
                 tableName: tableName,
                 entities: entities,
                 qualifiers: qualifiers,
@@ -484,90 +1029,6 @@ namespace RepoDb
                 transaction: transaction,
                 trace: trace,
                 statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Merges the multiple dynamic objects into the database. By default, the database fields are used unless the 'fields' argument is defined.
-        /// </summary>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="tableName">The name of the target table to be used.</param>
-        /// <param name="entities">The list of dynamic objects to be merged.</param>
-        /// <param name="qualifiers">The qualifier <see cref="Field"/> objects to be used.</param>
-        /// <param name="batchSize">The batch size of the merge operation.</param>
-        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
-        /// <param name="hints">The table hints to be used.</param>
-		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        internal static int MergeAllInternal(this IDbConnection connection,
-            string tableName,
-            IEnumerable<object> entities,
-            IEnumerable<Field> qualifiers,
-            int batchSize = Constant.DefaultBatchOperationSize,
-            IEnumerable<Field> fields = null,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-        {
-            var dbFields = DbFieldCache.Get(connection, tableName, transaction);
-
-            // Check the fields
-            if (fields?.Any() != true)
-            {
-                var first = entities?.First();
-                fields = first != null ? Field.Parse(first) : dbFields?.AsFields();
-            }
-
-            // Check the qualifiers
-            if (qualifiers?.Any() != true)
-            {
-                // Get the DB primary
-                var primary = dbFields?.FirstOrDefault(dbField => dbField.IsPrimary == true);
-
-                // Throw if there is no primary
-                if (primary == null)
-                {
-                    throw new PrimaryFieldNotFoundException($"There is no primary found for '{tableName}'.");
-                }
-
-                // Set the primary as the qualifier
-                qualifiers = primary.AsField().AsEnumerable();
-            }
-
-            // Variables needed
-            var setting = connection.GetDbSetting();
-
-            // Return the result
-            if (setting.IsUseUpsert == false)
-            {
-                return MergeAllInternalBase<object>(connection: connection,
-                    tableName: tableName,
-                    entities: entities,
-                    qualifiers: qualifiers,
-                    batchSize: batchSize,
-                    fields: fields,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
-            }
-            else
-            {
-                return UpsertAllInternalBase<object>(connection: connection,
-                    tableName: tableName,
-                    entities: entities,
-                    qualifiers: qualifiers,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
-            }
         }
 
         #endregion
@@ -575,7 +1036,7 @@ namespace RepoDb
         #region MergeAllAsync(TableName)
 
         /// <summary>
-        /// Merges the multiple dynamic objects into the database in an asynchronous way. By default, the database fields are used unless the 'fields' argument is defined.
+        /// Merges the multiple dynamic objects into the database in an asynchronous way. By default, the table fields are used unless the 'fields' argument is explicitly defined.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
@@ -583,11 +1044,12 @@ namespace RepoDb
         /// <param name="batchSize">The batch size of the merge operation.</param>
         /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
-		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
         public static Task<int> MergeAllAsync(this IDbConnection connection,
             string tableName,
             IEnumerable<object> entities,
@@ -597,9 +1059,10 @@ namespace RepoDb
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
-            return MergeAllAsync(connection: connection,
+            return MergeAllAsyncInternal<object>(connection: connection,
                 tableName: tableName,
                 entities: entities,
                 qualifiers: null,
@@ -609,11 +1072,12 @@ namespace RepoDb
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Merges the multiple dynamic objects into the database in an asynchronous way. By default, the database fields are used unless the 'fields' argument is defined.
+        /// Merges the multiple dynamic objects into the database in an asynchronous way. By default, the table fields are used unless the 'fields' argument is explicitly defined.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
@@ -622,11 +1086,12 @@ namespace RepoDb
         /// <param name="batchSize">The batch size of the merge operation.</param>
         /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
-		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
         public static Task<int> MergeAllAsync(this IDbConnection connection,
             string tableName,
             IEnumerable<object> entities,
@@ -637,9 +1102,10 @@ namespace RepoDb
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
-            return MergeAllAsync(connection: connection,
+            return MergeAllAsyncInternal<object>(connection: connection,
                 tableName: tableName,
                 entities: entities,
                 qualifiers: qualifier?.AsEnumerable(),
@@ -649,11 +1115,12 @@ namespace RepoDb
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Merges the multiple dynamic objects into the database in an asynchronous way. By default, the database fields are used unless the 'fields' argument is defined.
+        /// Merges the multiple dynamic objects into the database in an asynchronous way. By default, the table fields are used unless the 'fields' argument is explicitly defined.
         /// </summary>
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
@@ -662,11 +1129,12 @@ namespace RepoDb
         /// <param name="batchSize">The batch size of the merge operation.</param>
         /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
-		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
+        /// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
         public static Task<int> MergeAllAsync(this IDbConnection connection,
             string tableName,
             IEnumerable<object> entities,
@@ -677,9 +1145,10 @@ namespace RepoDb
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
         {
-            return MergeAllAsyncInternal(connection: connection,
+            return MergeAllAsyncInternal<object>(connection: connection,
                 tableName: tableName,
                 entities: entities,
                 qualifiers: qualifiers,
@@ -689,91 +1158,8 @@ namespace RepoDb
                 commandTimeout: commandTimeout,
                 transaction: transaction,
                 trace: trace,
-                statementBuilder: statementBuilder);
-        }
-
-        /// <summary>
-        /// Merges the multiple dynamic objects into the database in an asynchronous way. By default, the database fields are used unless the 'fields' argument is defined.
-        /// </summary>
-        /// <param name="connection">The connection object to be used.</param>
-        /// <param name="tableName">The name of the target table to be used.</param>
-        /// <param name="entities">The list of dynamic objects to be merged.</param>
-        /// <param name="qualifiers">The qualifier <see cref="Field"/> objects to be used.</param>
-        /// <param name="batchSize">The batch size of the merge operation.</param>
-        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
-        /// <param name="hints">The table hints to be used.</param>
-		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
-        /// <param name="transaction">The transaction to be used.</param>
-        /// <param name="trace">The trace object to be used.</param>
-        /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
-        internal static Task<int> MergeAllAsyncInternal(this IDbConnection connection,
-            string tableName,
-            IEnumerable<object> entities,
-            IEnumerable<Field> qualifiers,
-            int batchSize = Constant.DefaultBatchOperationSize,
-            IEnumerable<Field> fields = null,
-            string hints = null,
-            int? commandTimeout = null,
-            IDbTransaction transaction = null,
-            ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
-        {
-            var dbFields = DbFieldCache.Get(connection, tableName, transaction);
-
-            // Check the fields
-            if (fields?.Any() != true)
-            {
-                var first = entities?.First();
-                fields = first != null ? Field.Parse(first) : dbFields?.AsFields();
-            }
-
-            // Check the qualifiers
-            if (qualifiers?.Any() != true)
-            {
-                // Get the DB primary
-                var primary = dbFields?.FirstOrDefault(dbField => dbField.IsPrimary == true);
-
-                // Throw if there is no primary
-                if (primary == null)
-                {
-                    throw new PrimaryFieldNotFoundException($"There is no primary found for '{tableName}'.");
-                }
-
-                // Set the primary as the qualifier
-                qualifiers = primary.AsField().AsEnumerable();
-            }
-
-            // Variables needed
-            var setting = connection.GetDbSetting();
-
-            // Return the result
-            if (setting.IsUseUpsert == false)
-            {
-                return MergeAllAsyncInternalBase<object>(connection: connection,
-                    tableName: tableName,
-                    entities: entities,
-                    qualifiers: qualifiers,
-                    batchSize: batchSize,
-                    fields: fields,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
-            }
-            else
-            {
-                return UpsertAllAsyncInternalBase<object>(connection: connection,
-                    tableName: tableName,
-                    entities: entities,
-                    qualifiers: qualifiers,
-                    hints: hints,
-                    commandTimeout: commandTimeout,
-                    transaction: transaction,
-                    trace: trace,
-                    statementBuilder: statementBuilder);
-            }
+                statementBuilder: statementBuilder,
+                cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -789,14 +1175,13 @@ namespace RepoDb
         /// <param name="entities">The data entity or dynamic object to be merged.</param>
         /// <param name="batchSize">The batch size of the merge operation.</param>
         /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
 		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <param name="skipIdentityCheck">True to skip the identity check.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of affected rows during the merge process.</returns>
         internal static int MergeAllInternalBase<TEntity>(this IDbConnection connection,
             string tableName,
             IEnumerable<TEntity> entities,
@@ -807,148 +1192,38 @@ namespace RepoDb
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null,
-            bool skipIdentityCheck = false)
+            IStatementBuilder statementBuilder = null)
             where TEntity : class
         {
             // Variables needed
             var dbSetting = connection.GetDbSetting();
 
             // Guard the parameters
-            GuardMergeAll(entities);
+            if (entities?.Any() != true)
+            {
+                return default;
+            }
 
             // Validate the batch size
             batchSize = Math.Min(batchSize, entities.Count());
 
-            // Get the function
-            var callback = new Func<int, MergeAllExecutionContext<TEntity>>((int batchSizeValue) =>
-            {
-                // Variables needed
-                var identity = (Field)null;
-                var dbFields = DbFieldCache.Get(connection, tableName, transaction);
-                var inputFields = (IEnumerable<DbField>)null;
-                var identityDbField = dbFields?.FirstOrDefault(f => f.IsIdentity);
-
-                // Set the identity value
-                if (skipIdentityCheck == false)
-                {
-                    identity = IdentityCache.Get<TEntity>()?.AsField();
-                    if (identity == null && identityDbField != null)
-                    {
-                        identity = FieldCache.Get<TEntity>().FirstOrDefault(field =>
-                            string.Equals(field.Name.AsUnquoted(true, dbSetting), identityDbField.Name.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase));
-                    }
-                }
-
-                // Filter the actual properties for input fields
-                inputFields = dbFields?
-                    .Where(dbField =>
-                        fields.FirstOrDefault(field => string.Equals(field.Name.AsUnquoted(true, dbSetting), dbField.Name.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase)) != null)
-                    .AsList();
-
-                // Variables for the context
-                var multipleEntitiesFunc = (Action<DbCommand, IList<TEntity>>)null;
-                var singleEntityFunc = (Action<DbCommand, TEntity>)null;
-                var identitySetterFunc = (Action<TEntity, object>)null;
-
-                // Get if we have not skipped it
-                if (skipIdentityCheck == false && identity != null)
-                {
-                    identitySetterFunc = FunctionCache.GetDataEntityPropertyValueSetterFunction<TEntity>(identity);
-                }
-
-                // Identity which objects to set
-                if (batchSizeValue <= 1)
-                {
-                    singleEntityFunc = FunctionCache.GetDataEntityDbCommandParameterSetterFunction<TEntity>(
-                        string.Concat(typeof(TEntity).FullName, ".", tableName, ".MergeAll"),
-                        inputFields?.AsList(),
-                        null,
-                        dbSetting);
-                }
-                else
-                {
-                    multipleEntitiesFunc = FunctionCache.GetDataEntitiesDbCommandParameterSetterFunction<TEntity>(
-                        string.Concat(typeof(TEntity).FullName, ".", tableName, ".MergeAll"),
-                        inputFields?.AsList(),
-                        null,
-                        batchSizeValue,
-                        dbSetting);
-                }
-
-                // Identify the requests
-                var mergeAllRequest = (MergeAllRequest)null;
-                var mergeRequest = (MergeRequest)null;
-
-                // Create a different kind of requests
-                if (typeof(TEntity) == typeof(object))
-                {
-                    if (batchSizeValue > 1)
-                    {
-                        mergeAllRequest = new MergeAllRequest(tableName,
-                            connection,
-                            transaction,
-                            fields,
-                            qualifiers,
-                            batchSizeValue,
-                            hints,
-                            statementBuilder);
-                    }
-                    else
-                    {
-                        mergeRequest = new MergeRequest(tableName,
-                            connection,
-                            transaction,
-                            fields,
-                            qualifiers,
-                            hints,
-                            statementBuilder);
-                    }
-                }
-                else
-                {
-                    if (batchSizeValue > 1)
-                    {
-                        mergeAllRequest = new MergeAllRequest(typeof(TEntity),
-                            connection,
-                            transaction,
-                            fields,
-                            qualifiers,
-                            batchSizeValue,
-                            hints,
-                            statementBuilder);
-                    }
-                    else
-                    {
-                        mergeRequest = new MergeRequest(typeof(TEntity),
-                            connection,
-                            transaction,
-                            fields,
-                            qualifiers,
-                            hints,
-                            statementBuilder);
-                    }
-                }
-
-                // Return the value
-                return new MergeAllExecutionContext<TEntity>
-                {
-                    CommandText = batchSizeValue > 1 ? CommandTextCache.GetMergeAllText(mergeAllRequest) : CommandTextCache.GetMergeText(mergeRequest),
-                    InputFields = inputFields,
-                    BatchSize = batchSizeValue,
-                    SingleDataEntityParametersSetterFunc = singleEntityFunc,
-                    MultipleDataEntitiesParametersSetterFunc = multipleEntitiesFunc,
-                    IdentityPropertySetterFunc = identitySetterFunc
-                };
-            });
-
             // Get the context
-            var context = MergeAllExecutionContextCache<TEntity>.Get(tableName, qualifiers, fields, batchSize, callback);
+            var context = MergeAllExecutionContextProvider.Create<TEntity>(connection,
+                entities,
+                tableName,
+                qualifiers,
+                batchSize,
+                fields,
+                hints,
+                transaction,
+                statementBuilder);
+            var sessionId = Guid.Empty;
 
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog(context.CommandText, entities, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, context.CommandText, entities, null);
                 trace.BeforeMergeAll(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -969,7 +1244,7 @@ namespace RepoDb
             var result = 0;
 
             // Make sure to create transaction if there is no passed one
-            var hasTransaction = (transaction != null);
+            var hasTransaction = (transaction != null || Transaction.Current != null);
 
             try
             {
@@ -993,7 +1268,7 @@ namespace RepoDb
                         foreach (var entity in entities.AsList())
                         {
                             // Set the values
-                            context.SingleDataEntityParametersSetterFunc(command, entity);
+                            context.SingleDataEntityParametersSetterFunc?.Invoke(command, entity);
 
                             // Prepare the command
                             if (dbSetting.IsPreparable)
@@ -1031,20 +1306,29 @@ namespace RepoDb
                             if (batchItems.Count != batchSize)
                             {
                                 // Get a new execution context from cache
-                                context = MergeAllExecutionContextCache<TEntity>.Get(tableName, fields, qualifiers, batchItems.Count, callback);
+                                context = MergeAllExecutionContextProvider.Create<TEntity>(connection,
+                                    batchItems,
+                                    tableName,
+                                    qualifiers,
+                                    batchItems.Count,
+                                    fields,
+                                    hints,
+                                    transaction,
+                                    statementBuilder);
 
                                 // Set the command properties
                                 command.CommandText = context.CommandText;
                             }
 
                             // Set the values
-                            if (batchItems?.Count() == 1)
+                            if (batchItems?.Count == 1)
                             {
-                                context.SingleDataEntityParametersSetterFunc(command, batchItems.First());
+                                context.SingleDataEntityParametersSetterFunc?.Invoke(command, batchItems.First());
                             }
                             else
                             {
-                                context.MultipleDataEntitiesParametersSetterFunc(command, batchItems);
+                                context.MultipleDataEntitiesParametersSetterFunc?.Invoke(command, batchItems);
+                                AddOrderColumnParameters(command, batchItems);
                             }
 
                             // Prepare the command
@@ -1062,21 +1346,22 @@ namespace RepoDb
                             else
                             {
                                 // Set the identity back
-                                using (var reader = command.ExecuteReader())
+                                using var reader = command.ExecuteReader();
+
+                                // Get the results
+                                var position = 0;
+                                do
                                 {
-                                    var index = 0;
-                                    do
+                                    if (reader.Read())
                                     {
-                                        if (reader.Read())
-                                        {
-                                            var value = Converter.DbNullToNull(reader.GetValue(0));
-                                            context.IdentityPropertySetterFunc.Invoke(batchItems[index], value);
-                                            result++;
-                                        }
-                                        index++;
+                                        var value = Converter.DbNullToNull(reader.GetValue(0));
+                                        var index = batchItems.Count > 1 && reader.FieldCount > 1 ? reader.GetInt32(1) : position;
+                                        context.IdentityPropertySetterFunc.Invoke(batchItems[index], value);
+                                        result++;
                                     }
-                                    while (reader.NextResult());
+                                    position++;
                                 }
+                                while (reader.NextResult());
                             }
                         }
                     }
@@ -1107,11 +1392,8 @@ namespace RepoDb
             }
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterMergeAll(new TraceLog(context.CommandText, entities, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterMergeAll(new TraceLog(sessionId, context.CommandText, entities, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Return the result
             return result;
@@ -1128,17 +1410,19 @@ namespace RepoDb
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entities">The data entity or dynamic object to be merged.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
 		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <returns>The number of affected rows during the merge process.</returns>
         internal static int UpsertAllInternalBase<TEntity>(this IDbConnection connection,
             string tableName,
             IEnumerable<TEntity> entities,
             IEnumerable<Field> qualifiers = null,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
@@ -1147,12 +1431,12 @@ namespace RepoDb
             where TEntity : class
         {
             // Variables needed
-            var type = entities?.First()?.GetType() ?? typeof(TEntity);
-            var isObjectType = typeof(TEntity) == typeof(object);
+            var type = entities?.FirstOrDefault()?.GetType() ?? typeof(TEntity);
             var dbFields = DbFieldCache.Get(connection, tableName, transaction);
             var primary = dbFields?.FirstOrDefault(dbField => dbField.IsPrimary);
             var properties = (IEnumerable<ClassProperty>)null;
             var primaryKey = (ClassProperty)null;
+            var sessionId = Guid.Empty;
 
             // Get the properties
             if (type.IsGenericType == true)
@@ -1184,7 +1468,8 @@ namespace RepoDb
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog("UpsertAll.Before", entities, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, "UpsertAll.Before", entities, null);
                 trace.BeforeMergeAll(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -1192,7 +1477,7 @@ namespace RepoDb
                     {
                         throw new CancelledExecutionException("UpsertAll.Cancelled");
                     }
-                    return default(int);
+                    return default;
                 }
                 entities = (IEnumerable<TEntity>)(cancellableTraceLog.Parameter ?? entities);
             }
@@ -1204,27 +1489,28 @@ namespace RepoDb
             var result = 0;
 
             // Make sure to create transaction if there is no passed one
-            var hasTransaction = (transaction != null);
+            var hasTransaction = (transaction != null || Transaction.Current != null);
 
             try
             {
                 // Ensure to open the connection
                 connection.EnsureOpen();
 
-
+                // Create a transaction
                 if (hasTransaction == false)
                 {
-                    // Create a transaction
                     transaction = connection.BeginTransaction();
                 }
 
                 // Iterate the entities
+                var immutableFields = fields.AsList(); // Fix for the IDictionary<string, object> object
                 foreach (var entity in entities.AsList())
                 {
                     // Call the upsert
                     var upsertResult = connection.UpsertInternalBase<TEntity, object>(tableName,
                         entity,
                         qualifiers,
+                        immutableFields,
                         hints,
                         commandTimeout,
                         transaction,
@@ -1234,7 +1520,7 @@ namespace RepoDb
                     // Iterate the result
                     if (Converter.DbNullToNull(upsertResult) != null)
                     {
-                        result += 1;
+                        result++;
                     }
                 }
 
@@ -1263,11 +1549,8 @@ namespace RepoDb
             }
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterMergeAll(new TraceLog("UpsertAll.After", entities, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterMergeAll(new TraceLog(sessionId, "UpsertAll.After", entities, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Return the result
             return result;
@@ -1284,7 +1567,7 @@ namespace RepoDb
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entities">The data entity or dynamic object to be merged.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
         /// <param name="batchSize">The batch size of the merge operation.</param>
         /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
@@ -1292,8 +1575,8 @@ namespace RepoDb
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <param name="skipIdentityCheck">True to skip the identity check.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
         internal static async Task<int> MergeAllAsyncInternalBase<TEntity>(this IDbConnection connection,
             string tableName,
             IEnumerable<TEntity> entities,
@@ -1305,161 +1588,39 @@ namespace RepoDb
             IDbTransaction transaction = null,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null,
-            bool skipIdentityCheck = false)
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Variables needed
             var dbSetting = connection.GetDbSetting();
 
             // Guard the parameters
-            GuardMergeAll(entities);
+            if (entities?.Any() != true)
+            {
+                return default;
+            }
 
             // Validate the batch size
             batchSize = Math.Min(batchSize, entities.Count());
 
-            var dbFields = await DbFieldCache.GetAsync(connection, tableName, transaction);
-
-            // Check the fields
-            if (fields?.Any() != true)
-            {
-                fields = dbFields?.AsFields();
-            }
-
-            // Check the qualifiers
-            if (qualifiers?.Any() != true)
-            {
-                var primary = dbFields?.FirstOrDefault(dbField => dbField.IsPrimary == true);
-                qualifiers = primary?.AsField().AsEnumerable();
-            }
-
-            // Get the function
-            var callback = new Func<int, MergeAllExecutionContext<TEntity>>((int batchSizeValue) =>
-            {
-                // Variables needed
-                var identity = (Field)null;
-                var inputFields = (IEnumerable<DbField>)null;
-                var identityDbField = dbFields?.FirstOrDefault(f => f.IsIdentity);
-
-                // Set the identity value
-                if (skipIdentityCheck == false)
-                {
-                    identity = IdentityCache.Get<TEntity>()?.AsField();
-                    if (identity == null && identityDbField != null)
-                    {
-                        identity = FieldCache.Get<TEntity>().FirstOrDefault(field =>
-                            string.Equals(field.Name.AsUnquoted(true, dbSetting), identityDbField.Name.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase));
-                    }
-                }
-
-                // Filter the actual properties for input fields
-                inputFields = dbFields?
-                    .Where(dbField =>
-                        fields.FirstOrDefault(field => string.Equals(field.Name.AsUnquoted(true, dbSetting), dbField.Name.AsUnquoted(true, dbSetting), StringComparison.OrdinalIgnoreCase)) != null)
-                    .AsList();
-
-                // Variables for the context
-                var multipleEntitiesFunc = (Action<DbCommand, IList<TEntity>>)null;
-                var singleEntityFunc = (Action<DbCommand, TEntity>)null;
-                var identitySetterFunc = (Action<TEntity, object>)null;
-
-                // Get if we have not skipped it
-                if (skipIdentityCheck == false && identity != null)
-                {
-                    identitySetterFunc = FunctionCache.GetDataEntityPropertyValueSetterFunction<TEntity>(identity);
-                }
-
-                // Identity which objects to set
-                if (batchSizeValue <= 1)
-                {
-                    singleEntityFunc = FunctionCache.GetDataEntityDbCommandParameterSetterFunction<TEntity>(
-                        string.Concat(typeof(TEntity).FullName, ".", tableName, ".MergeAll"),
-                        inputFields?.AsList(),
-                        null,
-                        dbSetting);
-                }
-                else
-                {
-                    multipleEntitiesFunc = FunctionCache.GetDataEntitiesDbCommandParameterSetterFunction<TEntity>(
-                        string.Concat(typeof(TEntity).FullName, ".", tableName, ".MergeAll"),
-                        inputFields?.AsList(),
-                        null,
-                        batchSizeValue,
-                        dbSetting);
-                }
-
-                // Identify the requests
-                var mergeAllRequest = (MergeAllRequest)null;
-                var mergeRequest = (MergeRequest)null;
-
-                // Create a different kind of requests
-                if (typeof(TEntity) == typeof(object))
-                {
-                    if (batchSizeValue > 1)
-                    {
-                        mergeAllRequest = new MergeAllRequest(tableName,
-                            connection,
-                            transaction,
-                            fields,
-                            qualifiers,
-                            batchSizeValue,
-                            hints,
-                            statementBuilder);
-                    }
-                    else
-                    {
-                        mergeRequest = new MergeRequest(tableName,
-                            connection,
-                            transaction,
-                            fields,
-                            qualifiers,
-                            hints,
-                            statementBuilder);
-                    }
-                }
-                else
-                {
-                    if (batchSizeValue > 1)
-                    {
-                        mergeAllRequest = new MergeAllRequest(typeof(TEntity),
-                            connection,
-                            transaction,
-                            fields,
-                            qualifiers,
-                            batchSizeValue,
-                            hints,
-                            statementBuilder);
-                    }
-                    else
-                    {
-                        mergeRequest = new MergeRequest(typeof(TEntity),
-                            connection,
-                            transaction,
-                            fields,
-                            qualifiers,
-                            hints,
-                            statementBuilder);
-                    }
-                }
-
-                // Return the value
-                return new MergeAllExecutionContext<TEntity>
-                {
-                    CommandText = batchSizeValue > 1 ? CommandTextCache.GetMergeAllText(mergeAllRequest) : CommandTextCache.GetMergeText(mergeRequest),
-                    InputFields = inputFields,
-                    BatchSize = batchSizeValue,
-                    SingleDataEntityParametersSetterFunc = singleEntityFunc,
-                    MultipleDataEntitiesParametersSetterFunc = multipleEntitiesFunc,
-                    IdentityPropertySetterFunc = identitySetterFunc
-                };
-            });
-
             // Get the context
-            var context = MergeAllExecutionContextCache<TEntity>.Get(tableName, qualifiers, fields, batchSize, callback);
+            var context = await MergeAllExecutionContextProvider.CreateAsync<TEntity>(connection,
+                entities,
+                tableName,
+                qualifiers,
+                batchSize,
+                fields,
+                hints,
+                transaction,
+                statementBuilder,
+                cancellationToken);
+            var sessionId = Guid.Empty;
 
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog(context.CommandText, entities, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, context.CommandText, entities, null);
                 trace.BeforeMergeAll(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -1480,12 +1641,12 @@ namespace RepoDb
             var result = 0;
 
             // Make sure to create transaction if there is no passed one
-            var hasTransaction = (transaction != null);
+            var hasTransaction = (transaction != null || Transaction.Current != null);
 
             try
             {
                 // Ensure the connection is open
-                await connection.EnsureOpenAsync();
+                await connection.EnsureOpenAsync(cancellationToken);
 
                 if (hasTransaction == false)
                 {
@@ -1504,7 +1665,7 @@ namespace RepoDb
                         foreach (var entity in entities.AsList())
                         {
                             // Set the values
-                            context.SingleDataEntityParametersSetterFunc(command, entity);
+                            context.SingleDataEntityParametersSetterFunc?.Invoke(command, entity);
 
                             // Prepare the command
                             if (dbSetting.IsPreparable)
@@ -1513,7 +1674,7 @@ namespace RepoDb
                             }
 
                             // Actual Execution
-                            var returnValue = Converter.DbNullToNull(await command.ExecuteScalarAsync());
+                            var returnValue = Converter.DbNullToNull(await command.ExecuteScalarAsync(cancellationToken));
 
                             // Set the return value
                             if (returnValue != null)
@@ -1542,20 +1703,30 @@ namespace RepoDb
                             if (batchItems.Count != batchSize)
                             {
                                 // Get a new execution context from cache
-                                context = MergeAllExecutionContextCache<TEntity>.Get(tableName, fields, qualifiers, batchItems.Count, callback);
+                                context = await MergeAllExecutionContextProvider.CreateAsync<TEntity>(connection,
+                                    batchItems,
+                                    tableName,
+                                    qualifiers,
+                                    batchItems.Count,
+                                    fields,
+                                    hints,
+                                    transaction,
+                                    statementBuilder,
+                                    cancellationToken);
 
                                 // Set the command properties
                                 command.CommandText = context.CommandText;
                             }
 
                             // Set the values
-                            if (batchItems?.Count() == 1)
+                            if (batchItems?.Count == 1)
                             {
-                                context.SingleDataEntityParametersSetterFunc(command, batchItems.First());
+                                context.SingleDataEntityParametersSetterFunc?.Invoke(command, batchItems.First());
                             }
                             else
                             {
-                                context.MultipleDataEntitiesParametersSetterFunc(command, batchItems);
+                                context.MultipleDataEntitiesParametersSetterFunc?.Invoke(command, batchItems);
+                                AddOrderColumnParameters<TEntity>(command, batchItems);
                             }
 
                             // Prepare the command
@@ -1568,26 +1739,28 @@ namespace RepoDb
                             if (context.IdentityPropertySetterFunc == null)
                             {
                                 // No identity setters
-                                result += await command.ExecuteNonQueryAsync();
+                                result += await command.ExecuteNonQueryAsync(cancellationToken);
                             }
                             else
                             {
                                 // Set the identity back
-                                using (var reader = await command.ExecuteReaderAsync())
+                                using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+                                // Get the results
+                                var position = 0;
+                                do
                                 {
-                                    var index = 0;
-                                    do
+                                    if (await reader.ReadAsync(cancellationToken))
                                     {
-                                        if (await reader.ReadAsync())
-                                        {
-                                            var value = Converter.DbNullToNull(reader.GetValue(0));
-                                            context.IdentityPropertySetterFunc.Invoke(batchItems[index], value);
-                                            result++;
-                                        }
-                                        index++;
+                                        // No need to use async on this level (await reader.GetFieldValueAsync<object>(0, cancellationToken))
+                                        var value = Converter.DbNullToNull(reader.GetValue(0));
+                                        var index = batchItems.Count > 1 && reader.FieldCount > 1 ? reader.GetInt32(1) : position;
+                                        context.IdentityPropertySetterFunc.Invoke(batchItems[index], value);
+                                        result++;
                                     }
-                                    while (await reader.NextResultAsync());
+                                    position++;
                                 }
+                                while (await reader.NextResultAsync(cancellationToken));
                             }
                         }
                     }
@@ -1618,11 +1791,8 @@ namespace RepoDb
             }
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterMergeAll(new TraceLog(context.CommandText, entities, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterMergeAll(new TraceLog(sessionId, context.CommandText, entities, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Return the result
             return result;
@@ -1639,31 +1809,35 @@ namespace RepoDb
         /// <param name="connection">The connection object to be used.</param>
         /// <param name="tableName">The name of the target table to be used.</param>
         /// <param name="entities">The data entity or dynamic object to be merged.</param>
-        /// <param name="qualifiers">The list of qualifer fields to be used.</param>
+        /// <param name="qualifiers">The list of qualifier fields to be used.</param>
+        /// <param name="fields">The mapping list of <see cref="Field"/> objects to be used.</param>
         /// <param name="hints">The table hints to be used.</param>
 		/// <param name="commandTimeout">The command timeout in seconds to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <param name="trace">The trace object to be used.</param>
         /// <param name="statementBuilder">The statement builder object to be used.</param>
-        /// <returns>The number of rows affected by the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>The number of affected rows during the merge process.</returns>
         internal static async Task<int> UpsertAllAsyncInternalBase<TEntity>(this IDbConnection connection,
             string tableName,
             IEnumerable<TEntity> entities,
             IEnumerable<Field> qualifiers = null,
+            IEnumerable<Field> fields = null,
             string hints = null,
             int? commandTimeout = null,
             IDbTransaction transaction = null,
             ITrace trace = null,
-            IStatementBuilder statementBuilder = null)
+            IStatementBuilder statementBuilder = null,
+            CancellationToken cancellationToken = default)
             where TEntity : class
         {
             // Variables needed
-            var type = entities?.First()?.GetType() ?? typeof(TEntity);
-            var isObjectType = typeof(TEntity) == typeof(object);
-            var dbFields = await DbFieldCache.GetAsync(connection, tableName, transaction);
+            var type = entities?.FirstOrDefault()?.GetType() ?? typeof(TEntity);
+            var dbFields = await DbFieldCache.GetAsync(connection, tableName, transaction, cancellationToken);
             var primary = dbFields?.FirstOrDefault(dbField => dbField.IsPrimary);
             var properties = (IEnumerable<ClassProperty>)null;
             var primaryKey = (ClassProperty)null;
+            var sessionId = Guid.Empty;
 
             // Get the properties
             if (type.IsGenericType == true)
@@ -1695,7 +1869,8 @@ namespace RepoDb
             // Before Execution
             if (trace != null)
             {
-                var cancellableTraceLog = new CancellableTraceLog("UpsertAll.Before", entities, null);
+                sessionId = Guid.NewGuid();
+                var cancellableTraceLog = new CancellableTraceLog(sessionId, "UpsertAll.Before", entities, null);
                 trace.BeforeMergeAll(cancellableTraceLog);
                 if (cancellableTraceLog.IsCancelled)
                 {
@@ -1703,7 +1878,7 @@ namespace RepoDb
                     {
                         throw new CancelledExecutionException("UpsertAll.Cancelled");
                     }
-                    return default(int);
+                    return default;
                 }
                 entities = (IEnumerable<TEntity>)(cancellableTraceLog.Parameter ?? entities);
             }
@@ -1715,37 +1890,39 @@ namespace RepoDb
             var result = 0;
 
             // Make sure to create transaction if there is no passed one
-            var hasTransaction = (transaction != null);
+            var hasTransaction = (transaction != null || Transaction.Current != null);
 
             try
             {
                 // Ensure to open the connection
-                await connection.EnsureOpenAsync();
+                await connection.EnsureOpenAsync(cancellationToken);
 
-
+                // Create a transaction
                 if (hasTransaction == false)
                 {
-                    // Create a transaction
                     transaction = connection.BeginTransaction();
                 }
 
                 // Iterate the entities
+                var immutableFields = fields.AsList(); // Fix for the IDictionary<string, object> object
                 foreach (var entity in entities.AsList())
                 {
                     // Call the upsert
                     var upsertResult = await connection.UpsertAsyncInternalBase<TEntity, object>(tableName,
                         entity,
                         qualifiers,
+                        immutableFields,
                         hints,
                         commandTimeout,
                         transaction,
                         trace,
-                        statementBuilder);
+                        statementBuilder,
+                        cancellationToken: cancellationToken);
 
                     // Iterate the result
                     if (Converter.DbNullToNull(upsertResult) != null)
                     {
-                        result += 1;
+                        result++;
                     }
                 }
 
@@ -1774,36 +1951,11 @@ namespace RepoDb
             }
 
             // After Execution
-            if (trace != null)
-            {
-                trace.AfterMergeAll(new TraceLog("UpsertAll.After", entities, result,
-                    DateTime.UtcNow.Subtract(beforeExecutionTime)));
-            }
+            trace?.AfterMergeAll(new TraceLog(sessionId, "UpsertAll.After", entities, result,
+                DateTime.UtcNow.Subtract(beforeExecutionTime)));
 
             // Return the result
             return result;
-        }
-
-        #endregion
-
-        #region Helpers
-
-        /// <summary>
-        /// Throws an exception if the entities argument is null or empty.
-        /// </summary>
-        /// <typeparam name="TEntity">The type of the data entity.</typeparam>
-        /// <param name="entities">The enumerable list of entity objects.</param>
-        private static void GuardMergeAll<TEntity>(IEnumerable<TEntity> entities)
-            where TEntity : class
-        {
-            if (entities == null)
-            {
-                throw new NullReferenceException("The entities must not be null.");
-            }
-            if (entities.Any() == false)
-            {
-                throw new EmptyException("The entities must not be empty.");
-            }
         }
 
         #endregion

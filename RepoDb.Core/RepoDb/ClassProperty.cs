@@ -1,14 +1,14 @@
 ﻿using RepoDb.Attributes;
 using RepoDb.Extensions;
-using RepoDb.Resolvers;
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Reflection;
 
 namespace RepoDb
 {
     /// <summary>
-    /// A class that wraps the property object.
+    /// A class that wraps the <see cref="PropertyInfo"/> object. This class is used to extract the information from the <see cref="System.Reflection.PropertyInfo"/> object in a fast and efficient manner.
     /// </summary>
     public class ClassProperty : IEquatable<ClassProperty>
     {
@@ -28,7 +28,7 @@ namespace RepoDb
         public ClassProperty(Type parentType,
             PropertyInfo property)
         {
-            DeclaringType = parentType;
+            declaringType = parentType;
             PropertyInfo = property;
         }
 
@@ -37,7 +37,7 @@ namespace RepoDb
         /// <summary>
         /// Gets the original declaring type (avoiding the interface collision).
         /// </summary>
-        public Type DeclaringType { get; }
+        private readonly Type declaringType;
 
         /// <summary>
         /// Gets the wrapped property of this object.
@@ -48,11 +48,27 @@ namespace RepoDb
 
         #region Methods
 
+        /// <summary>
+        /// Returns the string that represent the current <see cref="ClassProperty"/> object.
+        /// </summary>
+        /// <returns>The unquoted name.</returns>
+        public override string ToString() =>
+            string.Concat("ClassProperty :: Name = ", GetMappedName(), " (", PropertyInfo.PropertyType.FullName, "), ",
+                "DeclaringType = ", GetDeclaringType().FullName);
+
+        /// <summary>
+        /// Gets the declaring parent type of the current property info. If the class inherits an interface, then this will return 
+        /// the derived class type instead (if there is), otherwise the <see cref="PropertyInfo.DeclaringType"/> property.
+        /// </summary>
+        /// <returns>The declaring type.</returns>
+        public Type GetDeclaringType() =>
+            (declaringType ?? PropertyInfo.DeclaringType);
+
         /*
          * AsField
          */
 
-        private Field m_field;
+        private Field field;
 
         /// <summary>
         /// Convert the <see cref="ClassProperty"/> into a <see cref="Field"/> objects.
@@ -60,63 +76,104 @@ namespace RepoDb
         /// <returns>An instance of <see cref="string"/> object.</returns>
         public Field AsField()
         {
-            if (m_field != null)
+            if (field != null)
             {
-                return m_field;
+                return field;
             }
 
             // Set the properties
-            m_field = new Field(GetMappedName(), PropertyInfo.PropertyType);
+            field = new Field(GetMappedName(), PropertyInfo.PropertyType);
 
             // Return the value
-            return m_field;
+            return field;
         }
 
         /*
          * GetPrimaryAttribute
          */
 
-        private bool m_isPrimaryAttributeWasSet;
-        private PrimaryAttribute m_primaryAttribute;
+        private bool isPrimaryAttributeWasSet;
+        private PrimaryAttribute primaryAttribute;
 
         /// <summary>
-        /// Gets the primary attribute if present.
+        /// Gets the <see cref="PrimaryAttribute"/> if present.
         /// </summary>
-        /// <returns>The primary attribute if present.</returns>
+        /// <returns>The instance of <see cref="PrimaryAttribute"/>.</returns>
         public PrimaryAttribute GetPrimaryAttribute()
         {
-            if (m_isPrimaryAttributeWasSet)
+            if (isPrimaryAttributeWasSet)
             {
-                return m_primaryAttribute;
+                return primaryAttribute;
             }
-            m_isPrimaryAttributeWasSet = true;
-            return m_primaryAttribute = PropertyInfo.GetCustomAttribute(typeof(PrimaryAttribute)) as PrimaryAttribute;
+            isPrimaryAttributeWasSet = true;
+            return primaryAttribute = PropertyInfo.GetCustomAttribute<PrimaryAttribute>() ??
+                (PropertyInfo.GetCustomAttribute<KeyAttribute>() != null ? new PrimaryAttribute() : null);
         }
 
         /*
          * GetIdentityAttribute
          */
-        private bool m_isIdentityAttributeWasSet;
-        private IdentityAttribute m_identityAttribute;
+        private bool isIdentityAttributeWasSet;
+        private IdentityAttribute identityAttribute;
 
         /// <summary>
-        /// Gets the identity attribute if present.
+        /// Gets the <see cref="IdentityAttribute"/> if present.
         /// </summary>
-        /// <returns>The identity attribute if present.</returns>
+        /// <returns>The instance of <see cref="IdentityAttribute"/>.</returns>
         public IdentityAttribute GetIdentityAttribute()
         {
-            if (m_isIdentityAttributeWasSet)
+            if (isIdentityAttributeWasSet)
             {
-                return m_identityAttribute;
+                return identityAttribute;
             }
-            m_isIdentityAttributeWasSet = true;
-            return m_identityAttribute = PropertyInfo.GetCustomAttribute(typeof(IdentityAttribute)) as IdentityAttribute;
+            isIdentityAttributeWasSet = true;
+            return identityAttribute = PropertyInfo.GetCustomAttribute(StaticType.IdentityAttribute) as IdentityAttribute;
+        }
+
+        /*
+         * GetTypeMapAttribute
+         */
+        private bool isTypeMapAttributeWasSet;
+        private TypeMapAttribute typeMapAttribute;
+
+        /// <summary>
+        /// Gets the <see cref="TypeMapAttribute"/> if present.
+        /// </summary>
+        /// <returns>The instance of <see cref="TypeMapAttribute"/>.</returns>
+        public TypeMapAttribute GetTypeMapAttribute()
+        {
+            if (isTypeMapAttributeWasSet)
+            {
+                return typeMapAttribute;
+            }
+            isTypeMapAttributeWasSet = true;
+            return typeMapAttribute = PropertyInfo.GetCustomAttribute(StaticType.TypeMapAttribute) as TypeMapAttribute;
+        }
+
+        /*
+         * GetPropertyHandlerAttribute
+         */
+        private bool isPropertyHandlerAttributeWasSet;
+        private PropertyHandlerAttribute propertyHandlerAttribute;
+
+        /// <summary>
+        /// Gets the <see cref="PropertyHandlerAttribute"/> if present.
+        /// </summary>
+        /// <returns>The instance of <see cref="PropertyHandlerAttribute"/>.</returns>
+        public PropertyHandlerAttribute GetPropertyHandlerAttribute()
+        {
+            if (isPropertyHandlerAttributeWasSet)
+            {
+                return propertyHandlerAttribute;
+            }
+            isPropertyHandlerAttributeWasSet = true;
+            return propertyHandlerAttribute = PropertyInfo.GetCustomAttribute(StaticType.PropertyHandlerAttribute) as PropertyHandlerAttribute;
         }
 
         /*
          * IsPrimary
          */
-        private bool? m_isPrimary;
+        private bool? isPrimary;
 
         /// <summary>
         /// Gets a value whether the current property is a primary property.
@@ -124,56 +181,20 @@ namespace RepoDb
         /// <returns>True if the current property is a primary.</returns>
         public bool? IsPrimary()
         {
-            if (m_isPrimary != null)
+            if (isPrimary != null)
             {
-                return m_isPrimary;
+                return isPrimary;
             }
 
-            // Primary Attribute
-            m_isPrimary = (GetPrimaryAttribute() != null);
-            if (m_isPrimary == true)
-            {
-                return m_isPrimary;
-            }
-
-            // PrimaryMapper
-            var classProperty = PrimaryMapper.Get(GetDeclaringType());
-            m_isPrimary = (classProperty == this);
-            if (m_isPrimary == true)
-            {
-                return m_isPrimary;
-            }
-
-            // Id Property
-            m_isPrimary = string.Equals(PropertyInfo.Name, "id", StringComparison.OrdinalIgnoreCase);
-            if (m_isPrimary == true)
-            {
-                return m_isPrimary;
-            }
-
-            // Type.Name + Id
-            m_isPrimary = string.Equals(PropertyInfo.Name, string.Concat(GetDeclaringType().Name, "id"), StringComparison.OrdinalIgnoreCase);
-            if (m_isPrimary == true)
-            {
-                return m_isPrimary;
-            }
-
-            // Mapping.Name + Id
-            m_isPrimary = string.Equals(PropertyInfo.Name, string.Concat(ClassMappedNameCache.Get(GetDeclaringType()), "id"), StringComparison.OrdinalIgnoreCase);
-            if (m_isPrimary == true)
-            {
-                return m_isPrimary;
-            }
-
-            // Return false
-            return (m_isPrimary = false);
+            // Get the value from the cache
+            return (isPrimary = PrimaryCache.Get(GetDeclaringType()) != null);
         }
 
         /*
          * IsIdentity
          */
 
-        private bool? m_isIdentity;
+        private bool? isIdentity;
 
         /// <summary>
         /// Gets a value whether the current property is an identity or not.
@@ -181,36 +202,20 @@ namespace RepoDb
         /// <returns>True if the current property is an identity.</returns>
         public bool? IsIdentity()
         {
-            if (m_isIdentity != null)
+            if (isIdentity != null)
             {
-                return m_isIdentity;
+                return isIdentity;
             }
 
-            // Identity Attribute
-            m_isIdentity = (GetIdentityAttribute() != null);
-            if (m_isIdentity == true)
-            {
-                return m_isIdentity;
-            }
-
-            // PrimaryMapper
-            var classProperty = IdentityMapper.Get(GetDeclaringType());
-            m_isIdentity = (classProperty == this);
-            if (m_isIdentity == true)
-            {
-                return m_isIdentity;
-            }
-
-            // Return false
-            return (m_isIdentity = false);
+            // Get the value from the cache
+            return (isIdentity = IdentityCache.Get(GetDeclaringType()) != null);
         }
 
         /*
          * GetDbType
          */
-        private ClientTypeToDbTypeResolver m_clientTypeToSqlDbTypeResolver = new ClientTypeToDbTypeResolver();
-        private bool m_isDbTypeWasSet;
-        private DbType? m_dbType;
+        private bool isDbTypeWasSet;
+        private DbType? dbType;
 
         /// <summary>
         /// Gets the mapped <see cref="DbType"/> for the current property.
@@ -218,39 +223,58 @@ namespace RepoDb
         /// <returns>The mapped <see cref="DbType"/> value.</returns>
         public DbType? GetDbType()
         {
-            // We cannot use the NULL comparer for m_dbType object
-            // as the value could actually be null in reality
-            if (m_isDbTypeWasSet)
+            if (isDbTypeWasSet == true)
             {
-                return m_dbType;
+                return dbType;
             }
 
             // Set the flag
-            m_isDbTypeWasSet = true;
-
-            // Get the type (underlying type)
-            var propertyType = PropertyInfo.PropertyType.GetUnderlyingType();
-
-            // Property and Type level mapping
-            m_dbType = PropertyInfo.GetCustomAttribute<TypeMapAttribute>()?.DbType ??
-                TypeMapper.Get(GetDeclaringType(), PropertyInfo) ?? // Property Level
-                TypeMapper.Get(propertyType); // Type Level
-
-            // Try to resolve if not found
-            if (m_dbType == null && propertyType.IsEnum == false)
-            {
-                m_dbType = m_clientTypeToSqlDbTypeResolver.Resolve(propertyType);
-            }
+            isDbTypeWasSet = true;
 
             // Return the value
-            return m_dbType;
+            return dbType = TypeMapCache.Get(GetDeclaringType(), PropertyInfo) ?? TypeMapCache.Get(PropertyInfo.PropertyType);
         }
 
         /*
-         * GetName
+         * GetPropertyHandler
+         */
+        private bool propertyHandlerWasSet;
+        private object propertyHandler;
+
+        /// <summary>
+        /// Gets the mapped property handler object for the current property.
+        /// </summary>
+        /// <returns>The mapped property handler object.</returns>
+        public object GetPropertyHandler() =>
+            GetPropertyHandler<object>();
+
+        /// <summary>
+        /// Gets the mapped property handler object for the current property.
+        /// </summary>
+        /// <typeparam name="TPropertyHandler">The type of the handler.</typeparam>
+        /// <returns>The mapped property handler object.</returns>
+        public TPropertyHandler GetPropertyHandler<TPropertyHandler>()
+        {
+            if (propertyHandlerWasSet == true)
+            {
+                return Converter.ToType<TPropertyHandler>(propertyHandler);
+            }
+
+            // Set the flag
+            propertyHandlerWasSet = true;
+
+            // Set the instance
+            propertyHandler = PropertyHandlerCache.Get<TPropertyHandler>(GetDeclaringType(), PropertyInfo);
+
+            // Return the value
+            return Converter.ToType<TPropertyHandler>(propertyHandler);
+        }
+
+        /*
+         * GetMappedName
          */
 
-        private string m_mappedName;
+        private string mappedName;
 
         /// <summary>
         /// Gets the mapped-name for the current property.
@@ -258,30 +282,7 @@ namespace RepoDb
         /// <returns>The mapped-name value.</returns>
         public string GetMappedName()
         {
-            if (m_mappedName != null)
-            {
-                return m_mappedName;
-            }
-            return m_mappedName = PropertyMappedNameCache.Get(GetDeclaringType(), PropertyInfo);
-        }
-
-        /// <summary>
-        /// Returns the string that represent the current <see cref="ClassProperty"/> object.
-        /// </summary>
-        /// <returns>The unquoted name.</returns>
-        public override string ToString()
-        {
-            return string.Concat(GetMappedName(), " (", PropertyInfo.PropertyType.Name, ")");
-        }
-
-        /// <summary>
-        /// Gets the declaring parent type of the current property info. If the class inherits an interface, then this will return 
-        /// the derived class type instead (if there is), otherwise the <see cref="PropertyInfo.DeclaringType"/> property.
-        /// </summary>
-        /// <returns>The declaring type.</returns>
-        public Type GetDeclaringType()
-        {
-            return (DeclaringType ?? PropertyInfo.DeclaringType);
+            return mappedName ??= PropertyMappedNameCache.Get(GetDeclaringType(), PropertyInfo);
         }
 
         #endregion
@@ -292,10 +293,8 @@ namespace RepoDb
         /// Returns the hashcode of the <see cref="PropertyInfo"/> object of this instance.
         /// </summary>
         /// <returns>The hash code value.</returns>
-        public override int GetHashCode()
-        {
-            return GetDeclaringType().FullName.GetHashCode() ^ PropertyInfo.GenerateCustomizedHashCode();
-        }
+        public override int GetHashCode() =>
+            GetDeclaringType().GetHashCode() ^ PropertyInfo.GenerateCustomizedHashCode(GetDeclaringType());
 
         /// <summary>
         /// Compare the current instance to the other object instance.
@@ -304,9 +303,9 @@ namespace RepoDb
         /// <returns>True if the two instance is the same.</returns>
         public override bool Equals(object obj)
         {
-            if (obj is ClassProperty)
+            if (obj is ClassProperty property)
             {
-                return PropertyInfo.Equals(((ClassProperty)obj).PropertyInfo);
+                return PropertyInfo.Equals(property.PropertyInfo);
             }
             return Equals(obj);
         }
@@ -316,10 +315,8 @@ namespace RepoDb
         /// </summary>
         /// <param name="other">The object to be compared.</param>
         /// <returns>True if the two instance is the same.</returns>
-        public bool Equals(ClassProperty other)
-        {
-            return PropertyInfo.Equals(other.PropertyInfo);
-        }
+        public bool Equals(ClassProperty other) =>
+            PropertyInfo.Equals(other.PropertyInfo);
 
 
         /// <summary>
@@ -328,11 +325,12 @@ namespace RepoDb
         /// <param name="objA">The first <see cref="ClassProperty"/> object.</param>
         /// <param name="objB">The second <see cref="ClassProperty"/> object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public static bool operator ==(ClassProperty objA, ClassProperty objB)
+        public static bool operator ==(ClassProperty objA,
+            ClassProperty objB)
         {
-            if (ReferenceEquals(null, objA))
+            if (objA is null)
             {
-                return ReferenceEquals(null, objB);
+                return objB is null;
             }
             return objB?.GetHashCode() == objA.GetHashCode();
         }
@@ -343,10 +341,9 @@ namespace RepoDb
         /// <param name="objA">The first <see cref="ClassProperty"/> object.</param>
         /// <param name="objB">The second <see cref="ClassProperty"/> object.</param>
         /// <returns>True if the instances are not equal.</returns>
-        public static bool operator !=(ClassProperty objA, ClassProperty objB)
-        {
-            return (objA == objB) == false;
-        }
+        public static bool operator !=(ClassProperty objA,
+            ClassProperty objB) =>
+            (objA == objB) == false;
 
         #endregion
     }

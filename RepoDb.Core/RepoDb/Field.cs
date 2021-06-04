@@ -9,11 +9,11 @@ using RepoDb.Exceptions;
 namespace RepoDb
 {
     /// <summary>
-    /// An object that signifies as data field in the query statement.
+    /// An object that is used to signify a field in the query statement. It is also used as a common object in relation to the context of field object.
     /// </summary>
     public class Field : IEquatable<Field>
     {
-        private int? m_hashCode = null;
+        private int? hashCode = null;
 
         /// <summary>
         /// Creates a new instance of <see cref="Field"/> object.
@@ -32,7 +32,7 @@ namespace RepoDb
             Type type)
         {
             // Name is required
-            if (string.IsNullOrEmpty(name))
+            if (string.IsNullOrWhiteSpace(name))
             {
                 throw new NullReferenceException(name);
             }
@@ -64,10 +64,9 @@ namespace RepoDb
         /// Stringify the current field object.
         /// </summary>
         /// <returns>The string value equivalent to the name of the field.</returns>
-        public override string ToString()
-        {
-            return string.Concat(Name, ", ", Type?.FullName, " (", m_hashCode, ")");
-        }
+        public override string ToString() =>
+            string.Concat(Name, ", ", Type?.FullName, " (", hashCode.ToString(), ")");
+
 
         #endregion
 
@@ -80,7 +79,7 @@ namespace RepoDb
         /// <returns>An enumerable of <see cref="Field"/> object.</returns>
         public static IEnumerable<Field> From(string name)
         {
-            if (string.IsNullOrEmpty(name))
+            if (string.IsNullOrWhiteSpace(name))
             {
                 throw new NullReferenceException("The field name must be null or empty.");
             }
@@ -98,7 +97,7 @@ namespace RepoDb
             {
                 throw new NullReferenceException("The list of fields must not be null.");
             }
-            if (fields.Any(field => string.IsNullOrEmpty(field?.Trim())))
+            if (fields.Any(field => string.IsNullOrWhiteSpace(field)))
             {
                 throw new NullReferenceException("The field name must be null or empty.");
             }
@@ -107,6 +106,24 @@ namespace RepoDb
                 yield return new Field(field);
             }
         }
+
+        /// <summary>
+        /// Parses an object and creates an enumerable of <see cref="Field"/> objects.
+        /// </summary>
+        /// <param name="obj">An object to be parsed.</param>
+        /// <returns>An enumerable of <see cref="Field"/> objects.</returns>
+        public static IEnumerable<Field> Parse(object obj) =>
+            obj?.GetType().IsDictionaryStringObject() == true ?
+                ParseDictionaryStringObject((IDictionary<string, object>)obj) : Parse(obj?.GetType());
+
+        /// <summary>
+        /// Parses an object and creates an enumerable of <see cref="Field"/> objects.
+        /// </summary>
+        /// <typeparam name="TEntity">The target type.</typeparam>
+        /// <returns>An enumerable of <see cref="Field"/> objects.</returns>
+        public static IEnumerable<Field> Parse<TEntity>()
+            where TEntity : class =>
+            Parse(typeof(TEntity));
 
         /// <summary>
         /// Parses a type and creates an enumerable of <see cref="Field"/> objects.
@@ -124,24 +141,19 @@ namespace RepoDb
         }
 
         /// <summary>
-        /// Parses an object and creates an enumerable of <see cref="Field"/> objects.
+        /// 
         /// </summary>
-        /// <typeparam name="TEntity">The target type.</typeparam>
-        /// <returns>An enumerable of <see cref="Field"/> objects.</returns>
-        public static IEnumerable<Field> Parse<TEntity>()
-            where TEntity : class
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        private static IEnumerable<Field> ParseDictionaryStringObject(IDictionary<string, object> obj)
         {
-            return Parse(typeof(TEntity));
-        }
-
-        /// <summary>
-        /// Parses an object and creates an enumerable of <see cref="Field"/> objects.
-        /// </summary>
-        /// <param name="obj">An object to be parsed.</param>
-        /// <returns>An enumerable of <see cref="Field"/> objects.</returns>
-        public static IEnumerable<Field> Parse(object obj)
-        {
-            return Parse(obj?.GetType());
+            if (obj != null)
+            {
+                foreach (var kvp in obj)
+                {
+                    yield return new Field(kvp.Key, (kvp.Value?.GetType() ?? StaticType.Object));
+                }
+            }
         }
 
         /// <summary>
@@ -150,23 +162,30 @@ namespace RepoDb
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity that contains the property to be parsed.</typeparam>
         /// <param name="expression">The expression to be parsed.</param>
-        /// <returns>An instance of <see cref="Field"/> object.</returns>
-        public static Field Parse<TEntity>(Expression<Func<TEntity, object>> expression)
+        /// <returns>An enumerable list of <see cref="Field"/> objects.</returns>
+        public static IEnumerable<Field> Parse<TEntity>(Expression<Func<TEntity, object>> expression)
+            where TEntity : class =>
+            Parse<TEntity, object>(expression);
+
+        /// <summary>
+        /// Parses a property from the data entity object based on the given <see cref="Expression"/> and converts the result 
+        /// to <see cref="Field"/> object.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity that contains the property to be parsed.</typeparam>
+        /// <typeparam name="TResult">The type of the result and the property to be parsed.</typeparam>
+        /// <param name="expression">The expression to be parsed.</param>
+        /// <returns>An enumerable list of <see cref="Field"/> objects.</returns>
+        public static IEnumerable<Field> Parse<TEntity, TResult>(Expression<Func<TEntity, TResult>> expression)
             where TEntity : class
         {
-            if (expression.Body.IsUnary())
+            return expression.Body switch
             {
-                return Parse<TEntity>(expression.Body.ToUnary());
-            }
-            else if (expression.Body.IsMember())
-            {
-                return Parse<TEntity>(expression.Body.ToMember());
-            }
-            else if (expression.Body.IsBinary())
-            {
-                return Parse<TEntity>(expression.Body.ToBinary());
-            }
-            throw new InvalidExpressionException($"Expression '{expression.ToString()}' is invalid.");
+                UnaryExpression unaryExpression => Parse<TEntity>(unaryExpression),
+                MemberExpression memberExpression => Parse<TEntity>(memberExpression),
+                BinaryExpression binaryExpression => Parse<TEntity>(binaryExpression),
+                NewExpression newExpression => Parse<TEntity>(newExpression),
+                _ => throw new InvalidExpressionException($"Expression '{expression}' is invalid.")
+            };
         }
 
         /// <summary>
@@ -175,19 +194,16 @@ namespace RepoDb
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity that contains the property to be parsed.</typeparam>
         /// <param name="expression">The expression to be parsed.</param>
-        /// <returns>An instance of <see cref="Field"/> object.</returns>
-        internal static Field Parse<TEntity>(UnaryExpression expression)
+        /// <returns>An enumerable list of <see cref="Field"/> objects.</returns>
+        internal static IEnumerable<Field> Parse<TEntity>(UnaryExpression expression)
             where TEntity : class
         {
-            if (expression.Operand.IsMember())
+            return expression.Operand switch
             {
-                return Parse<TEntity>(expression.Operand.ToMember());
-            }
-            else if (expression.Operand.IsBinary())
-            {
-                return Parse<TEntity>(expression.Operand.ToBinary());
-            }
-            throw new InvalidExpressionException($"Expression '{expression.ToString()}' is invalid.");
+                MemberExpression memberExpression => Parse<TEntity>(memberExpression),
+                BinaryExpression binaryExpression => Parse<TEntity>(binaryExpression),
+                _ => null
+            };
         }
 
         /// <summary>
@@ -196,17 +212,17 @@ namespace RepoDb
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity that contains the property to be parsed.</typeparam>
         /// <param name="expression">The expression to be parsed.</param>
-        /// <returns>An instance of <see cref="Field"/> object.</returns>
-        internal static Field Parse<TEntity>(MemberExpression expression)
+        /// <returns>An enumerable list of <see cref="Field"/> objects.</returns>
+        internal static IEnumerable<Field> Parse<TEntity>(MemberExpression expression)
             where TEntity : class
         {
-            if (expression.Member is PropertyInfo)
+            if (expression.Member is PropertyInfo propertyInfo)
             {
-                return expression.Member.ToPropertyInfo().AsField();
+                return propertyInfo.AsField().AsEnumerable();
             }
             else
             {
-                return new Field(expression.Member.Name);
+                return (new Field(expression.Member.Name)).AsEnumerable();
             }
         }
 
@@ -216,11 +232,33 @@ namespace RepoDb
         /// </summary>
         /// <typeparam name="TEntity">The type of the data entity that contains the property to be parsed.</typeparam>
         /// <param name="expression">The expression to be parsed.</param>
-        /// <returns>An instance of <see cref="OrderField"/> object.</returns>
-        internal static Field Parse<TEntity>(BinaryExpression expression)
+        /// <returns>An enumerable list of <see cref="Field"/> objects.</returns>
+        internal static IEnumerable<Field> Parse<TEntity>(BinaryExpression expression)
+            where TEntity : class =>
+            (new Field(expression.GetName())).AsEnumerable();
+
+        /// <summary>
+        /// Parses a property from the data entity object based on the given <see cref="NewExpression"/> and converts the result 
+        /// to <see cref="Field"/> object.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the data entity that contains the property to be parsed.</typeparam>
+        /// <param name="expression">The expression to be parsed.</param>
+        /// <returns>An enumerable list of <see cref="Field"/> objects.</returns>
+        internal static IEnumerable<Field> Parse<TEntity>(NewExpression expression)
             where TEntity : class
         {
-            return new Field(expression.GetName());
+            if (expression.Members?.Count >= 0)
+            {
+                var properties = expression
+                    .Members
+                    .WithType<PropertyInfo>();
+                var classProperties = PropertyCache.Get<TEntity>()?
+                    .Where(classProperty =>
+                        properties?.FirstOrDefault(property => string.Equals(property.Name, classProperty.PropertyInfo.Name, StringComparison.OrdinalIgnoreCase)) != null)
+                    .Select(classProperty => classProperty.PropertyInfo);
+                return (classProperties ?? properties).Select(property => property.AsField());
+            }
+            return null;
         }
 
         #endregion
@@ -233,9 +271,9 @@ namespace RepoDb
         /// <returns>The hashcode value.</returns>
         public override int GetHashCode()
         {
-            if (m_hashCode != null)
+            if (this.hashCode != null)
             {
-                return m_hashCode.Value;
+                return this.hashCode.Value;
             }
 
             var hashCode = 0;
@@ -248,7 +286,7 @@ namespace RepoDb
             }
 
             // Set and return the hashcode
-            return (m_hashCode = hashCode).Value;
+            return (this.hashCode = hashCode).Value;
         }
 
         /// <summary>
@@ -256,20 +294,16 @@ namespace RepoDb
         /// </summary>
         /// <param name="obj">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equals.</returns>
-        public override bool Equals(object obj)
-        {
-            return obj?.GetHashCode() == GetHashCode();
-        }
+        public override bool Equals(object obj) =>
+            obj?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the <see cref="Field"/> object equality against the given target object.
         /// </summary>
         /// <param name="other">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public bool Equals(Field other)
-        {
-            return other?.GetHashCode() == GetHashCode();
-        }
+        public bool Equals(Field other) =>
+            other?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the equality of the two <see cref="Field"/> objects.
@@ -277,11 +311,12 @@ namespace RepoDb
         /// <param name="objA">The first <see cref="Field"/> object.</param>
         /// <param name="objB">The second <see cref="Field"/> object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public static bool operator ==(Field objA, Field objB)
+        public static bool operator ==(Field objA,
+            Field objB)
         {
-            if (ReferenceEquals(null, objA))
+            if (objA is null)
             {
-                return ReferenceEquals(null, objB);
+                return objB is null;
             }
             return objB?.GetHashCode() == objA.GetHashCode();
         }
@@ -292,10 +327,9 @@ namespace RepoDb
         /// <param name="objA">The first <see cref="Field"/> object.</param>
         /// <param name="objB">The second <see cref="Field"/> object.</param>
         /// <returns>True if the instances are not equal.</returns>
-        public static bool operator !=(Field objA, Field objB)
-        {
-            return (objA == objB) == false;
-        }
+        public static bool operator !=(Field objA,
+            Field objB) =>
+            (objA == objB) == false;
 
         #endregion
     }

@@ -6,11 +6,12 @@ using System.Threading.Tasks;
 using RepoDb.Enumerations;
 using System;
 using System.Dynamic;
+using System.Threading;
 
 namespace RepoDb
 {
     /// <summary>
-    /// A base object for all entity-based repositories.
+    /// A base class for all entity-based repositories. It is designed to only allow the given operations work with single data entity object.
     /// </summary>
     /// <typeparam name="TEntity">The type of data entity object to be mapped on this repository.</typeparam>
     /// <typeparam name="TDbConnection">The type of the <see cref="DbConnection"/> object.</typeparam>
@@ -127,7 +128,7 @@ namespace RepoDb
         public BaseRepository(string connectionString,
             int? commandTimeout,
             ICache cache,
-            int cacheItemExpiration = Constant.DefaultCacheItemExpirationInMinutes)
+            int? cacheItemExpiration = Constant.DefaultCacheItemExpirationInMinutes)
             : this(connectionString,
                   commandTimeout,
                   ConnectionPersistency.PerCall,
@@ -148,7 +149,7 @@ namespace RepoDb
         public BaseRepository(string connectionString,
             int? commandTimeout,
             ICache cache,
-            int cacheItemExpiration = Constant.DefaultCacheItemExpirationInMinutes,
+            int? cacheItemExpiration = Constant.DefaultCacheItemExpirationInMinutes,
             ITrace trace = null)
             : this(connectionString,
                   commandTimeout,
@@ -170,7 +171,7 @@ namespace RepoDb
         public BaseRepository(string connectionString,
             int? commandTimeout,
             ICache cache,
-            int cacheItemExpiration = Constant.DefaultCacheItemExpirationInMinutes,
+            int? cacheItemExpiration = Constant.DefaultCacheItemExpirationInMinutes,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
             : this(connectionString,
@@ -199,7 +200,7 @@ namespace RepoDb
             int? commandTimeout,
             ConnectionPersistency connectionPersistency,
             ICache cache,
-            int cacheItemExpiration = Constant.DefaultCacheItemExpirationInMinutes,
+            int? cacheItemExpiration = Constant.DefaultCacheItemExpirationInMinutes,
             ITrace trace = null,
             IStatementBuilder statementBuilder = null)
         {
@@ -239,7 +240,7 @@ namespace RepoDb
         /// <summary>
         /// Gets the expiration in minutes of the cache item.
         /// </summary>
-        public int CacheItemExpiration => DbRepository.CacheItemExpiration;
+        public int? CacheItemExpiration => DbRepository.CacheItemExpiration;
 
         /// <summary>
         /// Gets the trace object that is being used by this repository.
@@ -268,10 +269,8 @@ namespace RepoDb
         /// is <see cref="ConnectionPersistency.PerCall"/>, then this will return a new instance of the <see cref="DbConnection"/> object.
         /// </summary>
         /// <returns>An instance of the <see cref="DbConnection"/> object.</returns>
-        public TDbConnection CreateConnection()
-        {
-            return DbRepository.CreateConnection();
-        }
+        public TDbConnection CreateConnection() =>
+            DbRepository.CreateConnection();
 
         /// <summary>
         /// Creates a new instance of the database connection. If the value <see cref="ConnectionPersistency"/> property is <see cref="ConnectionPersistency.Instance"/>, then this will return
@@ -280,29 +279,23 @@ namespace RepoDb
         /// </summary>
         /// <param name="force">Set to true to forcely create a new instance of <see cref="DbConnection"/> object regardless of the persistency.</param>
         /// <returns>An instance of the <see cref="DbConnection"/> object.</returns>
-        public TDbConnection CreateConnection(bool force)
-        {
-            return DbRepository.CreateConnection(force);
-        }
+        public TDbConnection CreateConnection(bool force) =>
+            DbRepository.CreateConnection(force);
 
         /// <summary>
         /// Dispose the current repository instance. It is not necessary to call this method if the value of the <see cref="ConnectionPersistency"/>
         /// property is equals to <see cref="ConnectionPersistency.PerCall"/>. This method only manages the connection persistency for the repositories where the value
         /// of the <see cref="ConnectionPersistency"/> property is equals to <see cref="ConnectionPersistency.Instance"/>.
         /// </summary>
-        public void Dispose()
-        {
+        public void Dispose() =>
             DbRepository.Dispose();
-        }
 
         #endregion
 
         #region ExecuteQuery
 
-        // ExecuteQuery
-
         /// <summary>
-        /// Executes a query from the database. It uses the underlying method of <see cref="IDbCommand.ExecuteReader(CommandBehavior)"/> and
+        /// Executes a SQL statement from the database. It uses the underlying method of <see cref="IDbCommand.ExecuteReader(CommandBehavior)"/> and
         /// converts the result back to an enumerable list of data entity object.
         /// </summary>
         /// <param name="commandText">The command text to be used.</param>
@@ -311,18 +304,26 @@ namespace RepoDb
         /// <see cref="ExpandoObject"/>, <see cref="QueryField"/>, <see cref="QueryGroup"/> and an enumerable of <see cref="QueryField"/> objects.
         /// </param>
         /// <param name="commandType">The command type to be used.</param>
+        /// <param name="cacheKey">
+        /// The key to the cache item.By setting this argument, it will return the item from the cache if present, otherwise it will query the database.
+        /// </param>
+        /// <param name="cacheItemExpiration">The expiration in minutes of the cache item.</param>
         /// <param name="transaction">The transaction to be used.</param>
         /// <returns>
-        /// An enumerable list of data entity object containing the converted results of the underlying <see cref="IDataReader"/> object.
+        /// An enumerable list of data entity objects containing the converted results of the underlying <see cref="IDataReader"/> object.
         /// </returns>
         public IEnumerable<TEntity> ExecuteQuery(string commandText,
             object param = null,
             CommandType? commandType = null,
+            string cacheKey = null,
+            int? cacheItemExpiration = Constant.DefaultCacheItemExpirationInMinutes,
             IDbTransaction transaction = null)
         {
             return DbRepository.ExecuteQuery<TEntity>(commandText: commandText,
                 param: param,
                 commandType: commandType,
+                cacheKey: cacheKey,
+                cacheItemExpiration: cacheItemExpiration,
                 transaction: transaction);
         }
 
@@ -331,7 +332,7 @@ namespace RepoDb
         #region ExecuteQueryAsync
 
         /// <summary>
-        /// Executes a query from the database in an asynchronous way. It uses the underlying method of <see cref="IDbCommand.ExecuteReader(CommandBehavior)"/> and 
+        /// Executes a SQL statement from the database in an asynchronous way. It uses the underlying method of <see cref="IDbCommand.ExecuteReader(CommandBehavior)"/> and 
         /// converts the result back to an enumerable list of data entity object.
         /// </summary>
         /// <param name="commandText">The command text to be used.</param>
@@ -340,19 +341,30 @@ namespace RepoDb
         /// <see cref="ExpandoObject"/>, <see cref="QueryField"/>, <see cref="QueryGroup"/> and an enumerable of <see cref="QueryField"/> objects.
         /// </param>
         /// <param name="commandType">The command type to be used.</param>
+        /// <param name="cacheKey">
+        /// The key to the cache item.By setting this argument, it will return the item from the cache if present, otherwise it will query the database.
+        /// </param>
+        /// <param name="cacheItemExpiration">The expiration in minutes of the cache item.</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>
-        /// An enumerable list of data entity object containing the converted results of the underlying <see cref="IDataReader"/> object.
+        /// An enumerable list of data entity objects containing the converted results of the underlying <see cref="IDataReader"/> object.
         /// </returns>
         public Task<IEnumerable<TEntity>> ExecuteQueryAsync(string commandText,
             object param = null,
             CommandType? commandType = null,
-            IDbTransaction transaction = null)
+            string cacheKey = null,
+            int? cacheItemExpiration = Constant.DefaultCacheItemExpirationInMinutes,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
             return DbRepository.ExecuteQueryAsync<TEntity>(commandText: commandText,
                 param: param,
                 commandType: commandType,
-                transaction: transaction);
+                cacheKey: cacheKey,
+                cacheItemExpiration: cacheItemExpiration,
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -360,8 +372,8 @@ namespace RepoDb
         #region ExecuteNonQuery
 
         /// <summary>
-        /// Executes a query from the database. It uses the underlying method of <see cref="IDbCommand.ExecuteNonQuery"/> and
-        /// returns the number of affected data during the execution.
+        /// Executes a SQL statement from the database. It uses the underlying method of <see cref="IDbCommand.ExecuteNonQuery"/> and
+        /// returns the number of affected rows during the execution.
         /// </summary>
         /// <param name="commandText">The command text to be used.</param>
         /// <param name="param">
@@ -387,8 +399,8 @@ namespace RepoDb
         #region ExecuteNonQueryAsync
 
         /// <summary>
-        /// Executes a query from the database in an asynchronous way. It uses the underlying method of <see cref="IDbCommand.ExecuteNonQuery"/>
-        /// and returns the number of affected data during the execution.
+        /// Executes a SQL statement from the database in an asynchronous way. It uses the underlying method of <see cref="IDbCommand.ExecuteNonQuery"/>
+        /// and returns the number of affected rows during the execution.
         /// </summary>
         /// <param name="commandText">The command text to be used.</param>
         /// <param name="param">
@@ -397,16 +409,19 @@ namespace RepoDb
         /// </param>
         /// <param name="commandType">The command type to be used.</param>
         /// <param name="transaction">The transaction to be used.</param>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
         /// <returns>The number of rows affected by the execution.</returns>
         public Task<int> ExecuteNonQueryAsync(string commandText,
             object param = null,
             CommandType? commandType = null,
-            IDbTransaction transaction = null)
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
             return DbRepository.ExecuteNonQueryAsync(commandText: commandText,
                 param: param,
                 commandType: commandType,
-                transaction: transaction);
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -414,8 +429,8 @@ namespace RepoDb
         #region ExecuteScalar
 
         /// <summary>
-        /// Executes a query from the database. It uses the underlying method of <see cref="IDbCommand.ExecuteScalar"/> and
-        /// returns the first occurence value (first column of first row) of the execution.
+        /// Executes a SQL statement from the database. It uses the underlying method of <see cref="IDbCommand.ExecuteScalar"/> and
+        /// returns the first occurrence value (first column of first row) of the execution.
         /// </summary>
         /// <param name="commandText">The command text to be used.</param>
         /// <param name="param">
@@ -423,16 +438,22 @@ namespace RepoDb
         /// <see cref="ExpandoObject"/>, <see cref="QueryField"/>, <see cref="QueryGroup"/> and an enumerable of <see cref="QueryField"/> objects.
         /// </param>
         /// <param name="commandType">The command type to be used.</param>
+        /// <param name="cacheKey">
+        /// The key to the cache item.By setting this argument, it will return the item from the cache if present, otherwise it will query the database.
+        /// This will only work if the <see cref="Cache"/> property is set.
+        /// </param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>An object that holds the first occurence value (first column of first row) of the execution.</returns>
+        /// <returns>An object that holds the first occurrence value (first column of first row) of the execution.</returns>
         public object ExecuteScalar(string commandText,
             object param = null,
             CommandType? commandType = null,
+            string cacheKey = null,
             IDbTransaction transaction = null)
         {
             return DbRepository.ExecuteScalar(commandText: commandText,
                 param: param,
                 commandType: commandType,
+                cacheKey: cacheKey,
                 transaction: transaction);
         }
 
@@ -441,8 +462,8 @@ namespace RepoDb
         #region ExecuteScalarAsync
 
         /// <summary>
-        /// Executes a query from the database in an asynchronous way. It uses the underlying method of <see cref="IDbCommand.ExecuteScalar"/> and
-        /// returns the first occurence value (first column of first row) of the execution.
+        /// Executes a SQL statement from the database in an asynchronous way. It uses the underlying method of <see cref="IDbCommand.ExecuteScalar"/> and
+        /// returns the first occurrence value (first column of first row) of the execution.
         /// </summary>
         /// <param name="commandText">The command text to be used.</param>
         /// <param name="param">
@@ -450,17 +471,26 @@ namespace RepoDb
         /// <see cref="ExpandoObject"/>, <see cref="QueryField"/>, <see cref="QueryGroup"/> and an enumerable of <see cref="QueryField"/> objects.
         /// </param>
         /// <param name="commandType">The command type to be used.</param>
+        /// <param name="cacheKey">
+        /// The key to the cache item.By setting this argument, it will return the item from the cache if present, otherwise it will query the database.
+        /// This will only work if the <see cref="Cache"/> property is set.
+        /// </param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>An object that holds the first occurence value (first column of first row) of the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>An object that holds the first occurrence value (first column of first row) of the execution.</returns>
         public Task<object> ExecuteScalarAsync(string commandText,
             object param = null,
             CommandType? commandType = null,
-            IDbTransaction transaction = null)
+            string cacheKey = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
             return DbRepository.ExecuteScalarAsync(commandText: commandText,
                 param: param,
                 commandType: commandType,
-                transaction: transaction);
+                cacheKey: cacheKey,
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -468,8 +498,8 @@ namespace RepoDb
         #region ExecuteScalar<TResult>
 
         /// <summary>
-        /// Executes a query from the database. It uses the underlying method of <see cref="IDbCommand.ExecuteScalar"/> and
-        /// returns the first occurence value (first column of first row) of the execution.
+        /// Executes a SQL statement from the database. It uses the underlying method of <see cref="IDbCommand.ExecuteScalar"/> and
+        /// returns the first occurrence value (first column of first row) of the execution.
         /// </summary>
         /// <typeparam name="TResult">The target return type.</typeparam>
         /// <param name="commandText">The command text to be used.</param>
@@ -478,16 +508,22 @@ namespace RepoDb
         /// <see cref="ExpandoObject"/>, <see cref="QueryField"/>, <see cref="QueryGroup"/> and an enumerable of <see cref="QueryField"/> objects.
         /// </param>
         /// <param name="commandType">The command type to be used.</param>
+        /// <param name="cacheKey">
+        /// The key to the cache item.By setting this argument, it will return the item from the cache if present, otherwise it will query the database.
+        /// This will only work if the <see cref="Cache"/> property is set.
+        /// </param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>A first occurence value (first column of first row) of the execution.</returns>
+        /// <returns>A first occurrence value (first column of first row) of the execution.</returns>
         public TResult ExecuteScalar<TResult>(string commandText,
             object param = null,
             CommandType? commandType = null,
+            string cacheKey = null,
             IDbTransaction transaction = null)
         {
             return DbRepository.ExecuteScalar<TResult>(commandText: commandText,
                 param: param,
                 commandType: commandType,
+                cacheKey: cacheKey,
                 transaction: transaction);
         }
 
@@ -496,8 +532,8 @@ namespace RepoDb
         #region ExecuteScalarAsync<TResult>
 
         /// <summary>
-        /// Executes a query from the database in an asynchronous way. It uses the underlying method of <see cref="IDbCommand.ExecuteScalar"/> and
-        /// returns the first occurence value (first column of first row) of the execution.
+        /// Executes a SQL statement from the database in an asynchronous way. It uses the underlying method of <see cref="IDbCommand.ExecuteScalar"/> and
+        /// returns the first occurrence value (first column of first row) of the execution.
         /// </summary>
         /// <typeparam name="TResult">The target return type.</typeparam>
         /// <param name="commandText">The command text to be used.</param>
@@ -506,17 +542,26 @@ namespace RepoDb
         /// <see cref="ExpandoObject"/>, <see cref="QueryField"/>, <see cref="QueryGroup"/> and an enumerable of <see cref="QueryField"/> objects.
         /// </param>
         /// <param name="commandType">The command type to be used.</param>
+        /// <param name="cacheKey">
+        /// The key to the cache item.By setting this argument, it will return the item from the cache if present, otherwise it will query the database.
+        /// This will only work if the <see cref="Cache"/> property is set.
+        /// </param>
         /// <param name="transaction">The transaction to be used.</param>
-        /// <returns>A first occurence value (first column of first row) of the execution.</returns>
+        /// <param name="cancellationToken">The <see cref="CancellationToken"/> object to be used during the asynchronous operation.</param>
+        /// <returns>A first occurrence value (first column of first row) of the execution.</returns>
         public Task<TResult> ExecuteScalarAsync<TResult>(string commandText,
             object param = null,
             CommandType? commandType = null,
-            IDbTransaction transaction = null)
+            string cacheKey = null,
+            IDbTransaction transaction = null,
+            CancellationToken cancellationToken = default)
         {
             return DbRepository.ExecuteScalarAsync<TResult>(commandText: commandText,
                 param: param,
                 commandType: commandType,
-                transaction: transaction);
+                cacheKey: cacheKey,
+                transaction: transaction,
+                cancellationToken: cancellationToken);
         }
 
         #endregion

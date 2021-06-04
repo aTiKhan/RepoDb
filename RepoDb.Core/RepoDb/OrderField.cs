@@ -1,22 +1,18 @@
-﻿using RepoDb.Attributes;
-using RepoDb.Enumerations;
+﻿using RepoDb.Enumerations;
 using RepoDb.Exceptions;
 using RepoDb.Extensions;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
-using System.Reflection;
 
 namespace RepoDb
 {
     /// <summary>
-    /// An object that holds a field for ordering purposes.
+    /// A class that holds a field that is used to order the results of the query operation.
     /// </summary>
     public class OrderField
     {
-        private TextAttribute m_orderTextAttribute = null;
-        private int? m_hashCode = null;
+        private int? hashCode = null;
 
         /// <summary>
         /// Creates a new instance of <see cref="OrderField"/> object.
@@ -27,7 +23,7 @@ namespace RepoDb
             Order order)
         {
             // Name is required
-            if (string.IsNullOrEmpty(name))
+            if (string.IsNullOrWhiteSpace(name))
             {
                 throw new NullReferenceException(name);
             }
@@ -51,26 +47,6 @@ namespace RepoDb
 
         #endregion
 
-        #region Methods
-
-        /// <summary>
-        /// Gets the value of the <see cref="TextAttribute.Text"/> thas was implemented on the ordering direction.
-        /// </summary>
-        /// <returns>The string containing the text value of the ordering direction.</returns>
-        public string GetOrderText()
-        {
-            if (m_orderTextAttribute == null)
-            {
-                m_orderTextAttribute = typeof(Order)
-                    .GetMembers()
-                    .First(member => member.Name.ToLower() == Order.ToString().ToLower())
-                    .GetCustomAttribute<TextAttribute>();
-            }
-            return m_orderTextAttribute.Text;
-        }
-
-        #endregion
-
         #region Static Methods
 
         /// <summary>
@@ -85,19 +61,13 @@ namespace RepoDb
             Order order)
             where TEntity : class
         {
-            if (expression.Body.IsUnary())
+            return expression.Body switch
             {
-                return Parse<TEntity>(expression.Body.ToUnary(), order);
-            }
-            else if (expression.Body.IsMember())
-            {
-                return Parse<TEntity>(expression.Body.ToMember(), order);
-            }
-            else if (expression.Body.IsBinary())
-            {
-                return Parse<TEntity>(expression.Body.ToBinary(), order);
-            }
-            throw new InvalidExpressionException($"Expression '{expression.ToString()}' is invalid.");
+                UnaryExpression unaryExpression => Parse<TEntity>(unaryExpression, order),
+                MemberExpression memberExpression => Parse<TEntity>(memberExpression, order),
+                BinaryExpression binaryExpression => Parse<TEntity>(binaryExpression, order),
+                _ => throw new InvalidExpressionException($"Expression '{expression}' is invalid.")
+            };
         }
 
         /// <summary>
@@ -112,15 +82,12 @@ namespace RepoDb
             Order order)
             where TEntity : class
         {
-            if (expression.Operand.IsMember())
+            return expression.Operand switch
             {
-                return Parse<TEntity>(expression.Operand.ToMember(), order);
-            }
-            else if (expression.Operand.IsBinary())
-            {
-                return Parse<TEntity>(expression.Operand.ToBinary(), order);
-            }
-            throw new InvalidExpressionException($"Expression '{expression.ToString()}' is invalid.");
+                MemberExpression memberExpression => Parse<TEntity>(memberExpression, order),
+                BinaryExpression binaryExpression => Parse<TEntity>(binaryExpression, order),
+                _ => throw new InvalidExpressionException($"Expression '{expression}' is invalid.")
+            };
         }
 
         /// <summary>
@@ -133,10 +100,8 @@ namespace RepoDb
         /// <returns>An instance of <see cref="OrderField"/> object.</returns>
         internal static OrderField Parse<TEntity>(MemberExpression expression,
             Order order)
-            where TEntity : class
-        {
-            return new OrderField(expression.ToMember().Member.Name, order);
-        }
+            where TEntity : class =>
+            new (expression.Member.GetMappedName(), order);
 
         /// <summary>
         /// Parses a property from the data entity object based on the given <see cref="BinaryExpression"/> and converts the result 
@@ -148,10 +113,8 @@ namespace RepoDb
         /// <returns>An instance of <see cref="OrderField"/> object.</returns>
         internal static OrderField Parse<TEntity>(BinaryExpression expression,
             Order order)
-            where TEntity : class
-        {
-            return new OrderField(expression.GetName(), order);
-        }
+            where TEntity : class =>
+            new (expression.GetName(), order);
 
         /// <summary>
         /// Parses a property from the data entity object based on the given <see cref="Expression"/> and converts the result 
@@ -161,10 +124,8 @@ namespace RepoDb
         /// <param name="expression">The expression to be parsed.</param>
         /// <returns>An instance of <see cref="OrderField"/> object with <see cref="Order.Ascending"/> value.</returns>
         public static OrderField Ascending<TEntity>(Expression<Func<TEntity, object>> expression)
-            where TEntity : class
-        {
-            return Parse<TEntity>(expression, Order.Ascending);
-        }
+            where TEntity : class =>
+            Parse(expression, Order.Ascending);
 
         /// <summary>
         /// Parses a property from the data entity object based on the given <see cref="Expression"/> and converts the result 
@@ -174,10 +135,8 @@ namespace RepoDb
         /// <param name="expression">The expression to be parsed.</param>
         /// <returns>An instance of <see cref="OrderField"/> object with <see cref="Order.Descending"/> value.</returns>
         public static OrderField Descending<TEntity>(Expression<Func<TEntity, object>> expression)
-            where TEntity : class
-        {
-            return Parse<TEntity>(expression, Order.Descending);
-        }
+            where TEntity : class =>
+            Parse(expression, Order.Descending);
 
         /// <summary>
         /// Parse an object properties to be used for ordering. The object can have multiple properties for ordering and each property must have
@@ -196,10 +155,10 @@ namespace RepoDb
             {
                 if (property.PropertyType != typeof(Order))
                 {
-                    throw new InvalidTypeException($"The type of field '{property.Name}' must be of '{typeof(Order).FullName}'.");
+                    throw new InvalidTypeException($"The type of field '{property.GetMappedName()}' must be of '{typeof(Order).FullName}'.");
                 }
                 var order = (Order)property.GetValue(obj);
-                list.Add(new OrderField(property.Name, order));
+                list.Add(new OrderField(property.GetMappedName(), order));
             }
             return list;
         }
@@ -214,9 +173,9 @@ namespace RepoDb
         /// <returns>The hashcode value.</returns>
         public override int GetHashCode()
         {
-            if (m_hashCode != null)
+            if (this.hashCode != null)
             {
-                return m_hashCode.Value;
+                return this.hashCode.Value;
             }
 
             var hashCode = 0;
@@ -225,7 +184,7 @@ namespace RepoDb
             hashCode = Name.GetHashCode() + (int)Order;
 
             // Set and return the hashcode
-            return (m_hashCode = hashCode).Value;
+            return (this.hashCode = hashCode).Value;
         }
 
         /// <summary>
@@ -233,20 +192,16 @@ namespace RepoDb
         /// </summary>
         /// <param name="obj">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equals.</returns>
-        public override bool Equals(object obj)
-        {
-            return obj?.GetHashCode() == GetHashCode();
-        }
+        public override bool Equals(object obj) =>
+            obj?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the <see cref="OrderField"/> object equality against the given target object.
         /// </summary>
         /// <param name="other">The object to be compared to the current object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public bool Equals(OrderField other)
-        {
-            return other?.GetHashCode() == GetHashCode();
-        }
+        public bool Equals(OrderField other) =>
+            other?.GetHashCode() == GetHashCode();
 
         /// <summary>
         /// Compares the equality of the two <see cref="OrderField"/> objects.
@@ -254,11 +209,12 @@ namespace RepoDb
         /// <param name="objA">The first <see cref="OrderField"/> object.</param>
         /// <param name="objB">The second <see cref="OrderField"/> object.</param>
         /// <returns>True if the instances are equal.</returns>
-        public static bool operator ==(OrderField objA, OrderField objB)
+        public static bool operator ==(OrderField objA,
+            OrderField objB)
         {
-            if (ReferenceEquals(null, objA))
+            if (objA is null)
             {
-                return ReferenceEquals(null, objB);
+                return objB is null;
             }
             return objB?.GetHashCode() == objA.GetHashCode();
         }
@@ -269,10 +225,9 @@ namespace RepoDb
         /// <param name="objA">The first <see cref="OrderField"/> object.</param>
         /// <param name="objB">The second <see cref="OrderField"/> object.</param>
         /// <returns>True if the instances are not equal.</returns>
-        public static bool operator !=(OrderField objA, OrderField objB)
-        {
-            return (objA == objB) == false;
-        }
+        public static bool operator !=(OrderField objA,
+            OrderField objB) =>
+            (objA == objB) == false;
 
         #endregion
     }
